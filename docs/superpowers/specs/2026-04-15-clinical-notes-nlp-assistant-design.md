@@ -86,7 +86,7 @@ Every extracted field is emitted as:
 }
 ```
 
-`span` values are **character offsets into `raw_text`** as stored in the DB (pre-preprocessing). `preprocess.py` must either produce character-aligned output (same length as raw) or map preprocessed offsets back to raw offsets before returning. The NoteViewer highlights `raw_text` using these offsets directly.
+`span` values are **character offsets into `raw_text`** as stored in the DB (pre-preprocessing). `preprocess.py` emits a preprocessed string plus a cumulative character-delta map (`list[tuple[int, int]]` of `(preprocessed_pos, raw_pos)` pairs). All extractors operate on the preprocessed string; `pipeline.py` remaps every returned span through this map before persisting. The NoteViewer highlights `raw_text` using the remapped offsets directly.
 
 Top-level output is stamped with `pipeline_version` (string constant in `config.py`, e.g. `"0.1.0"`).
 
@@ -146,7 +146,7 @@ validations
 
 One note → one current extraction → optional validation.
 
-`correction_count` is computed server-side on `POST /validate` by counting the number of leaf-level field values in `validated_json` that differ (by trimmed string comparison) from the corresponding field in `extracted_json`. Fields added in `validated_json` that were absent in `extracted_json` count as +1 each; fields removed count as +1 each.
+`correction_count` is computed server-side on `POST /validate`: compare vitals/metadata/instructions fields individually (trimmed string comparison, +1 per changed/added/removed field); compare medication lists as sets using the same name+dose matching logic as the evaluator (+1 per added, removed, or changed item — no sub-field breakdown within an item).
 
 ---
 
@@ -157,11 +157,11 @@ One note → one current extraction → optional validation.
 | `POST /extract` | Body `{text}` → pipeline → returns JSON + spans. **No DB write.** Ephemeral dry-run; used only for preview/testing. |
 | `POST /notes` | Body `{text, source:"paste"}` → persists note, runs pipeline, persists extraction → returns `{note_id, extracted_json}`. This is the correct endpoint for pasted text in the Home → Review flow. |
 | `POST /upload` | Multipart `.txt`/`.pdf` → PyMuPDF text extraction for PDFs (raises `400 EMPTY_PDF_TEXT` if extracted text < 50 chars) → pipeline → persist note + extraction → `{note_id, extracted_json}`. |
-| `POST /validate` | Body `{note_id, validated_json, status, review_duration_ms}` → persists validation, computes `correction_count`. |
+| `POST /validate` | Body `{note_id, validated_json, status, review_duration_ms}` → upserts validation row on `note_id` (updates if already validated), computes `correction_count`. |
 | `GET /history` | Paginated list of notes with latest validation status. |
 | `GET /history/<id>` | Full note + extraction + validation. |
 | `GET /metrics` | Reads `evaluation/results.json` + aggregates DB correction stats. Returns `{eval: null, db_stats: {...}}` if `results.json` is absent. |
-| `POST /seed-demo` | Idempotent: loads dev + showcase notes (60 total), extracts, persists. Calls same shared function as `scripts/seed_demo_data.py`. |
+| `POST /seed-demo` | Idempotent: loads dev + showcase notes (60 total), extracts, persists. Checks for existing `filename` in `notes` table — skips notes already present. Calls same shared function as `scripts/seed_demo_data.py`. |
 
 All errors: `{error: string, code: string}` with appropriate HTTP status.
 
@@ -266,7 +266,7 @@ Rules:
     "metadata":     { "precision": 0.88, "recall": 0.83, "f1": 0.85 }
   },
   "per_note": [
-    { "note": "eval_001.txt", "vitals_f1": 0.9, "medications_f1": 0.7, "instructions_f1": 0.8 }
+    { "note": "eval_001.txt", "vitals_f1": 0.9, "medications_f1": 0.7, "instructions_f1": 0.8, "metadata_f1": 0.85 }
   ]
 }
 ```
