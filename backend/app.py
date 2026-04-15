@@ -1,0 +1,72 @@
+import os
+from flask import Flask, jsonify, send_from_directory
+from flask_cors import CORS
+from config import Config
+from utils.db import get_engine, init_db, get_session
+
+
+def create_app(test_config: dict | None = None) -> Flask:
+    app = Flask(__name__, static_folder="static", static_url_path="")
+    CORS(app)
+
+    # Config
+    app.config["DB_PATH"] = Config.DB_PATH
+    app.config["PIPELINE_VERSION"] = Config.PIPELINE_VERSION
+    if test_config:
+        app.config.update(test_config)
+
+    # DB
+    engine = get_engine(app.config["DB_PATH"])
+    init_db(engine)
+    app.config["ENGINE"] = engine
+
+    @app.before_request
+    def open_session():
+        from flask import g
+        g.db = get_session(engine)
+
+    @app.teardown_request
+    def close_session(exc):
+        from flask import g
+        db = g.pop("db", None)
+        if db:
+            db.close()
+
+    # Health
+    @app.route("/api/health")
+    def health():
+        return jsonify({"status": "ok", "pipeline_version": app.config["PIPELINE_VERSION"]})
+
+    # Blueprints
+    from routes.extract import bp as extract_bp
+    from routes.notes import bp as notes_bp
+    from routes.upload import bp as upload_bp
+    from routes.validate import bp as validate_bp
+    from routes.history import bp as history_bp
+    from routes.metrics import bp as metrics_bp
+    from routes.seed import bp as seed_bp
+
+    app.register_blueprint(extract_bp)
+    app.register_blueprint(notes_bp)
+    app.register_blueprint(upload_bp)
+    app.register_blueprint(validate_bp)
+    app.register_blueprint(history_bp)
+    app.register_blueprint(metrics_bp)
+    app.register_blueprint(seed_bp)
+
+    # SPA catch-all (production)
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def serve_spa(path):
+        static = app.static_folder
+        if static and path and os.path.exists(os.path.join(static, path)):
+            return send_from_directory(static, path)
+        if static and os.path.exists(os.path.join(static, "index.html")):
+            return send_from_directory(static, "index.html")
+        return jsonify({"error": "Not found"}), 404
+
+    return app
+
+
+if __name__ == "__main__":
+    create_app().run(debug=True, port=5000)
