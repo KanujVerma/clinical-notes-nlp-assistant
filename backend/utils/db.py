@@ -12,6 +12,18 @@ def get_engine(db_path: str):
 
 def init_db(engine) -> None:
     Base.metadata.create_all(engine)
+    # Alembic-free migration: add ocr_confidence column if missing on existing DBs.
+    with engine.connect() as conn:
+        try:
+            conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE notes ADD COLUMN ocr_confidence REAL"
+                )
+            )
+            conn.commit()
+        except Exception:
+            # Column already exists (duplicate column error) — safe to ignore.
+            pass
 
 
 def get_session(engine) -> Session:

@@ -64,10 +64,11 @@ def upload():
     else:  # .txt
         text = f.read().decode("utf-8", errors="replace")
         source = "txt"
+        _ocr_confidence = None
 
     extracted = run_pipeline(text)
 
-    note = Note(filename=f.filename, raw_text=text, source=source)
+    note = Note(filename=f.filename, raw_text=text, source=source, ocr_confidence=_ocr_confidence)
     g.db.add(note)
     g.db.flush()
 
@@ -79,4 +80,10 @@ def upload():
     g.db.add(extraction)
     g.db.commit()
 
-    return jsonify({"note_id": note.id, "extracted_json": extracted, "source": source}), 201
+    return jsonify({
+        "note_id": note.id,
+        "extracted_json": extracted,
+        "source": source,
+        "raw_text": text,
+        "ocr_confidence": _ocr_confidence,
+    }), 201

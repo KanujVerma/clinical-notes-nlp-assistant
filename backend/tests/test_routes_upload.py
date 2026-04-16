@@ -126,3 +126,44 @@ class TestUploadOCR:
             )
         assert resp.status_code == 400
         assert resp.get_json()["code"] == "OCR_EMPTY"
+
+
+class TestUploadResponseShape:
+    """Response must include raw_text and ocr_confidence fields."""
+
+    def test_txt_upload_response_includes_raw_text_and_null_confidence(self, client):
+        content = b"BP: 120/80. HR: 72."
+        data = {"file": (io.BytesIO(content), "note.txt", "text/plain")}
+        resp = client.post("/api/upload", data=data, content_type="multipart/form-data")
+        body = resp.get_json()
+        assert resp.status_code == 201
+        assert "raw_text" in body
+        assert body["raw_text"] == "BP: 120/80. HR: 72."
+        assert "ocr_confidence" in body
+        assert body["ocr_confidence"] is None
+
+    def test_image_upload_response_includes_ocr_confidence(self, client):
+        fake_text = "Patient: Test\nBP 120/80\n" * 4
+        with patch("routes.upload.extract_text_from_image", return_value=(fake_text, 0.92)):
+            resp = client.post(
+                "/api/upload",
+                data={"file": (io.BytesIO(b"fakepng"), "note.png")},
+                content_type="multipart/form-data",
+            )
+        body = resp.get_json()
+        assert resp.status_code == 201
+        assert body["ocr_confidence"] == 0.92
+        assert body["raw_text"] == fake_text
+
+    def test_scanned_pdf_response_includes_ocr_confidence(self, client):
+        fake_text = "Patient: Test\nBP 120/80\n" * 4
+        with patch("routes.upload.extract_text_from_pdf", return_value=(fake_text, "ocr", 0.85)):
+            resp = client.post(
+                "/api/upload",
+                data={"file": (io.BytesIO(b"%PDF"), "scan.pdf")},
+                content_type="multipart/form-data",
+            )
+        body = resp.get_json()
+        assert resp.status_code == 201
+        assert body["ocr_confidence"] == 0.85
+        assert body["source"] == "ocr"
