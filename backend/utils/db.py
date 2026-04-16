@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker, Session
 from models.base import Base
 import models.note  # noqa: F401
@@ -16,12 +17,10 @@ def init_db(engine) -> None:
     with engine.connect() as conn:
         try:
             conn.execute(
-                __import__("sqlalchemy").text(
-                    "ALTER TABLE notes ADD COLUMN ocr_confidence REAL"
-                )
+                text("ALTER TABLE notes ADD COLUMN ocr_confidence REAL")
             )
             conn.commit()
-        except Exception:
+        except OperationalError:
             # Column already exists (duplicate column error) — safe to ignore.
             pass
 

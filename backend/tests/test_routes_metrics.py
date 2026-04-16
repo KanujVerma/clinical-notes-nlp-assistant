@@ -55,9 +55,11 @@ def test_metrics_correction_rates_after_validation(client):
     assert "vitals.blood_pressure" in rates["by_field"]
     field_stat = rates["by_field"]["vitals.blood_pressure"]
     assert field_stat["reviewed"] >= 1
+    assert field_stat["corrected"] >= 1
     # vitals category should have non-zero corrections (extracted vs validated differ)
     cat_stat = rates["by_category"]["vitals"]
     assert cat_stat["reviewed"] >= 1
+    assert cat_stat["rate"] > 0
 
 
 def test_metrics_correction_rate_zero_when_no_corrections(client):

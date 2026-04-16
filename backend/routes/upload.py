@@ -34,7 +34,7 @@ def upload():
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
             f.save(tmp.name)
             try:
-                text, source, _ocr_confidence = extract_text_from_pdf(tmp.name)
+                text, source, ocr_confidence = extract_text_from_pdf(tmp.name)
             except ValueError as e:
                 return jsonify({"error": str(e), "code": "OCR_EMPTY"}), 400
             except pytesseract.TesseractNotFoundError:
@@ -49,7 +49,7 @@ def upload():
         with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
             f.save(tmp.name)
             try:
-                text, _ocr_confidence = extract_text_from_image(tmp.name)
+                text, ocr_confidence = extract_text_from_image(tmp.name)
                 source = "ocr"
             except ValueError as e:
                 return jsonify({"error": str(e), "code": "OCR_EMPTY"}), 400
@@ -64,11 +64,11 @@ def upload():
     else:  # .txt
         text = f.read().decode("utf-8", errors="replace")
         source = "txt"
-        _ocr_confidence = None
+        ocr_confidence = None
 
     extracted = run_pipeline(text)
 
-    note = Note(filename=f.filename, raw_text=text, source=source, ocr_confidence=_ocr_confidence)
+    note = Note(filename=f.filename, raw_text=text, source=source, ocr_confidence=ocr_confidence)
     g.db.add(note)
     g.db.flush()
 
@@ -85,5 +85,5 @@ def upload():
         "extracted_json": extracted,
         "source": source,
         "raw_text": text,
-        "ocr_confidence": _ocr_confidence,
+        "ocr_confidence": ocr_confidence,
     }), 201
