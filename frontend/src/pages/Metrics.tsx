@@ -20,11 +20,11 @@ export default function Metrics() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Metrics</h1>
-        <nav className="flex gap-4 text-sm text-slate-600">
-          <a href="/" className="hover:text-blue-600">Home</a>
-          <a href="/history" className="hover:text-blue-600">History</a>
+      <header className="bg-slate-800 text-slate-100 px-6 py-2.5 flex items-center justify-between">
+        <span className="font-semibold text-sm tracking-wide">Metrics</span>
+        <nav className="flex gap-4 text-sm text-slate-400">
+          <a href="/" className="hover:text-slate-200 transition-colors">Home</a>
+          <a href="/history" className="hover:text-slate-200 transition-colors">History</a>
         </nav>
       </header>
       <main className="max-w-5xl mx-auto p-6 space-y-8">
