@@ -40,7 +40,7 @@ class TestUploadOCR:
     def test_png_upload_returns_201(self, client):
         """PNG upload with mocked OCR returns 201 and note_id."""
         fake_text = "Patient: Test\nBP 120/80\n" * 4
-        with patch("routes.upload.extract_text_from_image", return_value=fake_text):
+        with patch("routes.upload.extract_text_from_image", return_value=(fake_text, 0.95)):
             resp = client.post(
                 "/api/upload",
                 data={"file": (io.BytesIO(b"fakepng"), "note.png")},
@@ -51,7 +51,7 @@ class TestUploadOCR:
 
     def test_jpg_upload_returns_201(self, client):
         fake_text = "Patient: Test\nBP 120/80\n" * 4
-        with patch("routes.upload.extract_text_from_image", return_value=fake_text):
+        with patch("routes.upload.extract_text_from_image", return_value=(fake_text, 0.95)):
             resp = client.post(
                 "/api/upload",
                 data={"file": (io.BytesIO(b"fakejpg"), "note.jpg")},
@@ -63,7 +63,7 @@ class TestUploadOCR:
         """PDF with no text layer: extract_text_from_pdf returns ('text', 'ocr').
         The response must include source='ocr' so the frontend can display the badge."""
         fake_text = "Patient: Test\nBP 120/80\n" * 4
-        with patch("routes.upload.extract_text_from_pdf", return_value=(fake_text, "ocr")):
+        with patch("routes.upload.extract_text_from_pdf", return_value=(fake_text, "ocr", 0.85)):
             resp = client.post(
                 "/api/upload",
                 data={"file": (io.BytesIO(b"%PDF"), "scan.pdf")},

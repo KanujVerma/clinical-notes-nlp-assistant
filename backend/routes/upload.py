@@ -34,7 +34,7 @@ def upload():
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
             f.save(tmp.name)
             try:
-                text, source = extract_text_from_pdf(tmp.name)
+                text, source, _ocr_confidence = extract_text_from_pdf(tmp.name)
             except ValueError as e:
                 return jsonify({"error": str(e), "code": "OCR_EMPTY"}), 400
             except pytesseract.TesseractNotFoundError:
@@ -49,7 +49,7 @@ def upload():
         with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
             f.save(tmp.name)
             try:
-                text = extract_text_from_image(tmp.name)
+                text, _ocr_confidence = extract_text_from_image(tmp.name)
                 source = "ocr"
             except ValueError as e:
                 return jsonify({"error": str(e), "code": "OCR_EMPTY"}), 400
