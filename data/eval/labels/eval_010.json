@@ -1,0 +1,29 @@
+{
+  "vitals": {
+    "blood_pressure": "126/80",
+    "heart_rate": "70",
+    "temperature": "98.0",
+    "respiratory_rate": "13",
+    "oxygen_saturation": "100",
+    "weight": "190 lbs"
+  },
+  "medications": [
+    {
+      "name": "metformin",
+      "dose": "1000 mg",
+      "route": "PO",
+      "frequency": "BID"
+    },
+    {
+      "name": "glipizide",
+      "dose": "5 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "follow_up": "RTC in 3 months for repeat labs.",
+    "return_precautions": "Go to ER immediately if blood sugar < 60 or > 400."
+  },
+  "metadata": {}
+}

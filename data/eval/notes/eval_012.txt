@@ -1,0 +1,16 @@
+EMERGENCY DEPARTMENT DISCHARGE NOTE
+
+Patient: Kevin Nash
+Date: 10/20/2024
+
+Discharge VS: blood pressure 135/85 mmHg | heart rate 88 | temp 99.5F | resp 18 | sat 96% | weight not recorded
+
+Rx at Discharge:
+ciprofloxacin 500 mg oral BID x 5 days
+ibuprofen 400 mg PO TID PRN pain
+
+DISCHARGE INSTRUCTIONS: Take ciprofloxacin with food and water. Complete the full course. Ibuprofen for pain as needed, not to exceed 1200 mg/day. Avoid if stomach upset.
+
+FOLLOW UP: Follow up with your primary care doctor in 3-5 days.
+
+RETURN TO ED IF: fever worsens, unable to keep fluids down, or symptoms not improving in 48 hours.

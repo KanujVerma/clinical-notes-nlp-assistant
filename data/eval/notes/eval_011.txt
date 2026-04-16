@@ -1,0 +1,11 @@
+Patient: Julia Kim   DOS: 2024-09-03   MD: Dr. Anne Foster
+
+subjective: patient feels well, no complaints.
+
+objective:
+BP: 119/76, Pulse: 66, Temperature: 97.8, Resp: 12, O2 Sat: 100%, Wt: 132 lbs
+
+assessment & plan:
+Continue pantoprazole 40mg PO daily and cetirizine 10mg PO daily.
+Return for annual exam in 12 months.
+No urgent concerns at this time.

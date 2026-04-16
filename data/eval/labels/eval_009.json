@@ -1,0 +1,34 @@
+{
+  "vitals": {
+    "blood_pressure": "165/100",
+    "heart_rate": "95",
+    "temperature": "99.0",
+    "respiratory_rate": "20",
+    "oxygen_saturation": "95",
+    "weight": "220 lbs"
+  },
+  "medications": [
+    {
+      "name": "escitalopram",
+      "dose": "10 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "amlodipine",
+      "dose": "10 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "discharge_instructions": "Continue medications. Reduce salt intake.",
+    "follow_up": "Return to see me in 2 weeks.",
+    "return_precautions": "Call immediately if BP is above 180 or you feel confused."
+  },
+  "metadata": {
+    "patient_name": "Helen Grant",
+    "date_of_service": "08/15/2024",
+    "provider_name": "Dr. Paulo Mendes"
+  }
+}

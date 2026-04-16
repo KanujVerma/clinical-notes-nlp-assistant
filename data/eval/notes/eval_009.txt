@@ -1,0 +1,17 @@
+PATIENT: Helen Grant
+Date of Service: 08/15/2024
+CLINICIAN: Dr. Paulo Mendes
+
+Vitals this visit: BP was 165/100, HR = 95, T 99.0 degrees, RR = 20, SpO2 = 95%, weight = 220 lbs.
+
+Patient is on the following:
+escitalopram 10 mg po qd
+amlodipine 10mg once daily by mouth
+
+Patient denies taking any blood thinners. Not on aspirin.
+
+Instructions given:
+Continue medications. Reduce salt intake.
+
+Return to see me in 2 weeks.
+Call immediately if BP is above 180 or you feel confused.

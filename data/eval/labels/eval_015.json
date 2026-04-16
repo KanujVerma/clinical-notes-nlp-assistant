@@ -1,0 +1,34 @@
+{
+  "vitals": {
+    "blood_pressure": "110/68",
+    "heart_rate": "58",
+    "temperature": "97.5",
+    "respiratory_rate": "11",
+    "oxygen_saturation": "100",
+    "weight": "118 lbs"
+  },
+  "medications": [
+    {
+      "name": "allopurinol",
+      "dose": "300 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "colchicine",
+      "dose": "0.6 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "discharge_instructions": "Stay well hydrated. Avoid high-purine foods (red meat, shellfish, beer).",
+    "follow_up": "See Dr. Farouk in 4 weeks.",
+    "return_precautions": "Come to ER if sudden severe joint pain, fever, or confusion."
+  },
+  "metadata": {
+    "patient_name": "Nancy Rivera",
+    "date_of_service": "December 2, 2024",
+    "provider_name": "Dr. Omar Farouk"
+  }
+}

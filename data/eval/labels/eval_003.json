@@ -1,0 +1,29 @@
+{
+  "vitals": {
+    "blood_pressure": "148/92",
+    "heart_rate": "76",
+    "temperature": "98.2",
+    "respiratory_rate": "14",
+    "oxygen_saturation": "99",
+    "weight": "185 lbs"
+  },
+  "medications": [
+    {
+      "name": "metoprolol",
+      "dose": "50 mg",
+      "route": "PO",
+      "frequency": "BID"
+    },
+    {
+      "name": "lisinopril",
+      "dose": "20 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "follow_up": "follow up in 6 weeks.",
+    "return_precautions": "Return to ER if severe headache or vision changes."
+  },
+  "metadata": {}
+}

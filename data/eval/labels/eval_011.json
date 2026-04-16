@@ -1,0 +1,32 @@
+{
+  "vitals": {
+    "blood_pressure": "119/76",
+    "heart_rate": "66",
+    "temperature": "97.8",
+    "respiratory_rate": "12",
+    "oxygen_saturation": "100",
+    "weight": "132 lbs"
+  },
+  "medications": [
+    {
+      "name": "pantoprazole",
+      "dose": "40 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "cetirizine",
+      "dose": "10 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "follow_up": "Return for annual exam in 12 months."
+  },
+  "metadata": {
+    "patient_name": "Julia Kim",
+    "date_of_service": "2024-09-03",
+    "provider_name": "Dr. Anne Foster"
+  }
+}

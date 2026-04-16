@@ -1,0 +1,10 @@
+Patient name: Priya Sharma
+Date: January 5, 2025
+Physician: Dr. Lin Zhao
+
+Vitals: Bp 120/75 Pulse: 68 Temp: 98.1F RR 13 O2 Sat 100% Wt 142lbs
+
+Plan: add ramipril 5mg daily for microalbuminuria. Continue existing metformin 1000 mg PO BID.
+
+patient to return in 1 month for repeat urine microalbumin.
+ER if sudden swelling of face or throat (angioedema).

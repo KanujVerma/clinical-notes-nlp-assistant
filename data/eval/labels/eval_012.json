@@ -1,0 +1,32 @@
+{
+  "vitals": {
+    "blood_pressure": "135/85",
+    "heart_rate": "88",
+    "temperature": "99.5",
+    "respiratory_rate": "18",
+    "oxygen_saturation": "96"
+  },
+  "medications": [
+    {
+      "name": "ciprofloxacin",
+      "dose": "500 mg",
+      "route": "PO",
+      "frequency": "BID"
+    },
+    {
+      "name": "ibuprofen",
+      "dose": "400 mg",
+      "route": "PO",
+      "frequency": "TID"
+    }
+  ],
+  "instructions": {
+    "discharge_instructions": "Take ciprofloxacin with food and water. Complete the full course. Ibuprofen for pain as needed, not to exceed 1200 mg/day. Avoid if stomach upset.",
+    "follow_up": "Follow up with your primary care doctor in 3-5 days.",
+    "return_precautions": "fever worsens, unable to keep fluids down, or symptoms not improving in 48 hours."
+  },
+  "metadata": {
+    "patient_name": "Kevin Nash",
+    "date_of_service": "10/20/2024"
+  }
+}

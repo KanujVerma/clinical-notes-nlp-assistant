@@ -1,0 +1,13 @@
+Patient: Brian Cho
+DOS: 2024-03-05
+Attending: Dr. Lisa Pham
+
+vitals: b/p 155/95, hr: 90, temp 99.1, rr 18, o2 sat 96%, wt 198#
+
+meds: atorvastatin 20mg po daily, amlodipine 5 mg oral qd
+
+d/c instructions: low fat diet, exercise 30 min 3x/wk.
+
+f/u: see dr pham in 4 wks.
+
+precautions: call if chest tightness or leg swelling.

@@ -1,0 +1,19 @@
+Patient: Edward Park
+DOS: 2024-05-12
+Provider: Dr. Nina Russo
+
+VITALS
+BP 142/88 | HR 88 bpm | Temp 98.6°F | RR 16 | O2 Sat 97% | Wt 210 lbs
+
+MEDICATIONS
+- gabapentin 300 mg PO TID
+- amoxicillin 875 mg PO BID x 7 days
+
+DISCHARGE INSTRUCTIONS
+Take gabapentin with food to minimize nausea. Complete full course of amoxicillin.
+
+FOLLOW UP
+Return to neurology in 4 weeks.
+
+RETURN PRECAUTIONS
+Return to ED if seizure activity, severe dizziness, or inability to walk.

@@ -1,0 +1,28 @@
+{
+  "vitals": {
+    "blood_pressure": "130/80",
+    "heart_rate": "72",
+    "temperature": "98.4",
+    "respiratory_rate": "14",
+    "oxygen_saturation": "98"
+  },
+  "medications": [
+    {
+      "name": "albuterol",
+      "dose": "2.5 mg",
+      "route": "inhaled",
+      "frequency": "PRN"
+    },
+    {
+      "name": "fluticasone",
+      "dose": "110 mcg",
+      "route": "inhaled",
+      "frequency": "BID"
+    }
+  ],
+  "instructions": {
+    "follow_up": "Follow patient in 1 month.",
+    "return_precautions": "Call clinic if wheezing worsens."
+  },
+  "metadata": {}
+}

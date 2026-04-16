@@ -1,0 +1,13 @@
+Patient: Carol Diaz
+Date of Service: 2024-04-01
+Provider: Dr. James Okafor
+
+V/S: BP 122/78 HR 68 T 97.9 RR 12 SpO2 100% Wt 145 lbs
+
+Rx: omeprazole 40mg PO QHS; sertraline 100mg PO daily
+
+DISCHARGE INSTRUCTIONS: Take omeprazole 30 min before breakfast. Continue sertraline as directed. Avoid caffeine and spicy foods.
+
+FOLLOW UP: Follow up with gastroenterology in 3 weeks.
+
+RETURN PRECAUTIONS: Return if vomiting blood or severe abdominal pain.

@@ -1,0 +1,32 @@
+{
+  "vitals": {
+    "blood_pressure": "128/76",
+    "heart_rate": "64",
+    "temperature": "98.2",
+    "respiratory_rate": "13",
+    "oxygen_saturation": "99",
+    "weight": "158 lbs"
+  },
+  "medications": [
+    {
+      "name": "losartan",
+      "dose": "50 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "hydrochlorothiazide",
+      "dose": "25 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "follow_up": "RTC in 3 months or sooner if BP > 160/100."
+  },
+  "metadata": {
+    "patient_name": "Fiona Wells",
+    "date_of_service": "2024-06-18",
+    "provider_name": "Dr. Carl Wong"
+  }
+}

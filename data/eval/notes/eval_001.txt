@@ -1,0 +1,18 @@
+Patient: Alice Morgan
+Date of Service: 2024-02-14
+Provider: Dr. Samuel Reyes
+
+VITALS: BP 138/88. HR 82 bpm. Temp 98.8F. RR: 16. SpO2 97%. Wt 172 lbs.
+
+MEDICATIONS:
+lisinopril 10 mg PO daily
+metformin 500 mg PO BID
+
+DISCHARGE INSTRUCTIONS:
+Take medications as prescribed. Follow a low-sodium diet.
+
+FOLLOW UP:
+Return to clinic in 2 weeks.
+
+RETURN PRECAUTIONS:
+Return to ER if BP exceeds 180/110 or chest pain develops.

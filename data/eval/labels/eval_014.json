@@ -1,0 +1,40 @@
+{
+  "vitals": {
+    "blood_pressure": "145/90",
+    "heart_rate": "82",
+    "temperature": "99.0",
+    "respiratory_rate": "16",
+    "oxygen_saturation": "95",
+    "weight": "230 lbs"
+  },
+  "medications": [
+    {
+      "name": "metformin",
+      "dose": "500 mg",
+      "route": "PO",
+      "frequency": "BID"
+    },
+    {
+      "name": "enalapril",
+      "dose": "5 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "aspirin",
+      "dose": "81 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "discharge_instructions": "Continue metformin with meals. Take enalapril in the morning. Aspirin daily for heart protection. Monitor blood sugars at home.",
+    "follow_up": "Follow up with primary care in 2 weeks. Cardiology referral placed.",
+    "return_precautions": "Call 911 or go to nearest ER for chest pain, trouble breathing, or sudden weakness."
+  },
+  "metadata": {
+    "patient_name": "Mike Torres",
+    "date_of_service": "11/15/2024",
+    "provider_name": "Dr. Sasha Bell"
+  }
+}

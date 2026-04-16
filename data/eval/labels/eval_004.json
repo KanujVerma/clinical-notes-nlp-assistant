@@ -1,0 +1,34 @@
+{
+  "vitals": {
+    "blood_pressure": "122/78",
+    "heart_rate": "68",
+    "temperature": "97.9",
+    "respiratory_rate": "12",
+    "oxygen_saturation": "100",
+    "weight": "145 lbs"
+  },
+  "medications": [
+    {
+      "name": "omeprazole",
+      "dose": "40 mg",
+      "route": "PO",
+      "frequency": "QHS"
+    },
+    {
+      "name": "sertraline",
+      "dose": "100 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "discharge_instructions": "Take omeprazole 30 min before breakfast. Continue sertraline as directed. Avoid caffeine and spicy foods.",
+    "follow_up": "Follow up with gastroenterology in 3 weeks.",
+    "return_precautions": "Return if vomiting blood or severe abdominal pain."
+  },
+  "metadata": {
+    "patient_name": "Carol Diaz",
+    "date_of_service": "2024-04-01",
+    "provider_name": "Dr. James Okafor"
+  }
+}

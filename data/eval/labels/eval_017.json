@@ -1,0 +1,33 @@
+{
+  "vitals": {
+    "blood_pressure": "120/75",
+    "heart_rate": "68",
+    "temperature": "98.1",
+    "respiratory_rate": "13",
+    "oxygen_saturation": "100",
+    "weight": "142 lbs"
+  },
+  "medications": [
+    {
+      "name": "ramipril",
+      "dose": "5 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "metformin",
+      "dose": "1000 mg",
+      "route": "PO",
+      "frequency": "BID"
+    }
+  ],
+  "instructions": {
+    "follow_up": "patient to return in 1 month for repeat urine microalbumin.",
+    "return_precautions": "ER if sudden swelling of face or throat (angioedema)."
+  },
+  "metadata": {
+    "patient_name": "Priya Sharma",
+    "date_of_service": "January 5, 2025",
+    "provider_name": "Dr. Lin Zhao"
+  }
+}

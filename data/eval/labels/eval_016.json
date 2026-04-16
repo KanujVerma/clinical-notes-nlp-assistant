@@ -1,0 +1,34 @@
+{
+  "vitals": {
+    "blood_pressure": "132/82",
+    "heart_rate": "78",
+    "temperature": "98.6",
+    "respiratory_rate": "15",
+    "oxygen_saturation": "97",
+    "weight": "176 lbs"
+  },
+  "medications": [
+    {
+      "name": "warfarin",
+      "dose": "5 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "furosemide",
+      "dose": "20 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "discharge_instructions": "Continue warfarin daily. No grapefruit. Avoid alcohol. Soft diet.",
+    "follow_up": "INR check and clinic visit in 1 week.",
+    "return_precautions": "Call if bleeding gums, blood in urine, or bruising increases."
+  },
+  "metadata": {
+    "patient_name": "Oscar Bell",
+    "date_of_service": "2024-12-10",
+    "provider_name": "Dr. Tina Shore"
+  }
+}

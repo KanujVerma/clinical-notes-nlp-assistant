@@ -1,0 +1,39 @@
+{
+  "vitals": {
+    "blood_pressure": "118/72",
+    "heart_rate": "66",
+    "temperature": "98.0",
+    "respiratory_rate": "12",
+    "oxygen_saturation": "99",
+    "weight": "158 lbs"
+  },
+  "medications": [
+    {
+      "name": "tiotropium",
+      "dose": "18 mcg",
+      "route": "inhaled",
+      "frequency": "daily"
+    },
+    {
+      "name": "budesonide",
+      "dose": "160 mcg",
+      "route": "inhaled",
+      "frequency": "BID"
+    },
+    {
+      "name": "albuterol",
+      "dose": "90 mcg",
+      "route": "inhaled",
+      "frequency": "PRN"
+    }
+  ],
+  "instructions": {
+    "follow_up": "Follow up in pulmonary clinic 6 weeks.",
+    "return_precautions": "Call clinic if rescue inhaler needed more than 2x per week."
+  },
+  "metadata": {
+    "patient_name": "Rosa Mendez",
+    "date_of_service": "3/1/2025",
+    "provider_name": "Dr. Felix Grant"
+  }
+}

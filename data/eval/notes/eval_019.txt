@@ -1,0 +1,16 @@
+Encounter date 3/1/2025
+Patient: Rosa Mendez   Attending: Dr. Felix Grant
+
+Chief complaint: shortness of breath follow-up.
+
+VS 118/72 66 98.0 12 99 158
+
+Medications continued:
+- tiotropium 18 mcg inhaled once daily
+- budesonide 160 mcg inhaled BID
+- albuterol 90 mcg inhaled PRN
+
+No prednisone burst at this time.
+
+Follow up in pulmonary clinic 6 weeks.
+Call clinic if rescue inhaler needed more than 2x per week.

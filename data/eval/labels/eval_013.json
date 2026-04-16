@@ -1,0 +1,32 @@
+{
+  "vitals": {
+    "blood_pressure": "124/78",
+    "heart_rate": "74",
+    "temperature": "98.4",
+    "respiratory_rate": "14",
+    "oxygen_saturation": "99",
+    "weight": "155 lbs"
+  },
+  "medications": [
+    {
+      "name": "levothyroxine",
+      "dose": "75 mcg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "simvastatin",
+      "dose": "40 mg",
+      "route": "PO",
+      "frequency": "QHS"
+    }
+  ],
+  "instructions": {
+    "follow_up": "refills provided, labs in 6 months, return PRN."
+  },
+  "metadata": {
+    "patient_name": "Laura Chen",
+    "date_of_service": "2024-11-01",
+    "provider_name": "Dr. Raj Kapoor"
+  }
+}

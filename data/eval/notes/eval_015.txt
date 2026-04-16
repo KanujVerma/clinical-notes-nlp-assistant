@@ -1,0 +1,15 @@
+Patient: Nancy Rivera
+Date of visit: December 2, 2024
+Treating physician: Dr. Omar Farouk
+
+Vitals: BP 110/68. HR 58. Temp 97.5 F. RR 11. O2 sat 100%. Weight 118 lbs.
+
+On allopurinol 300 mg PO daily and colchicine 0.6 mg PO daily for gout management.
+Not taking any OTC pain medications at this time.
+
+Discharge plan:
+Stay well hydrated. Avoid high-purine foods (red meat, shellfish, beer).
+
+See Dr. Farouk in 4 weeks.
+
+Come to ER if sudden severe joint pain, fever, or confusion.

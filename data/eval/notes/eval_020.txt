@@ -1,0 +1,19 @@
+Note created: April 1, 2025
+Patient: Sam Young
+Provider: Dr. Karen Lim
+
+Vitals: Blood pressure 149/94. Heart rate 92. Temperature 98.9 degrees Fahrenheit. Respiratory rate 20 breaths per minute. Oxygen saturation 94 percent. Weight 250 lbs.
+
+Current medication regimen:
+clopidogrel 75 mg by mouth once daily
+aspirin 81mg PO daily
+atorvastatin 40mg oral at bedtime
+metoprolol 100mg by mouth twice daily
+
+Patient reports good compliance. Denies chest pain at rest.
+
+Discharge instructions: Continue all medications. Follow up with cardiologist.
+
+Follow up appointment: see cardiologist in 2 weeks.
+
+Return precautions: Return to ED for chest pain, jaw pain, left arm pain, or sudden severe headache.

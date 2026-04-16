@@ -1,0 +1,20 @@
+DISCHARGE SUMMARY
+
+Name: George Hill     Admit Date: 2024-07-02     Discharge Date: 2024-07-04
+Attending: Dr. Yara Solis
+
+Discharge Vitals: bp 118/74, heart rate 72, temperature 98.4F, resp rate 16, O2 sat 98 percent, wt 195 lbs.
+
+Discharge Medications:
+furosemide 40 mg oral once daily
+spironolactone 25 mg PO daily
+carvedilol 12.5 mg PO BID
+
+Discharge Instructions:
+Weigh yourself daily. If weight increases by more than 3 lbs in a day or 5 lbs in a week, call the clinic immediately. Fluid restriction to 1.5L/day.
+
+Follow-Up:
+Cardiology follow-up in 1 week.
+
+Return Precautions:
+Return to ED for shortness of breath at rest, leg swelling, or weight gain > 3 lbs/day.

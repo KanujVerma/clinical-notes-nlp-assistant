@@ -1,0 +1,46 @@
+{
+  "vitals": {
+    "blood_pressure": "149/94",
+    "heart_rate": "92",
+    "temperature": "98.9",
+    "respiratory_rate": "20",
+    "oxygen_saturation": "94",
+    "weight": "250 lbs"
+  },
+  "medications": [
+    {
+      "name": "clopidogrel",
+      "dose": "75 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "aspirin",
+      "dose": "81 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "atorvastatin",
+      "dose": "40 mg",
+      "route": "PO",
+      "frequency": "daily"
+    },
+    {
+      "name": "metoprolol",
+      "dose": "100 mg",
+      "route": "PO",
+      "frequency": "BID"
+    }
+  ],
+  "instructions": {
+    "discharge_instructions": "Continue all medications. Follow up with cardiologist.",
+    "follow_up": "see cardiologist in 2 weeks.",
+    "return_precautions": "Return to ED for chest pain, jaw pain, left arm pain, or sudden severe headache."
+  },
+  "metadata": {
+    "patient_name": "Sam Young",
+    "date_of_service": "April 1, 2025",
+    "provider_name": "Dr. Karen Lim"
+  }
+}

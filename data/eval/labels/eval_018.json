@@ -1,0 +1,34 @@
+{
+  "vitals": {
+    "blood_pressure": "136/86",
+    "heart_rate": "84",
+    "temperature": "99.1",
+    "respiratory_rate": "18",
+    "oxygen_saturation": "95",
+    "weight": "215 lbs"
+  },
+  "medications": [
+    {
+      "name": "doxycycline",
+      "dose": "100 mg",
+      "route": "PO",
+      "frequency": "BID"
+    },
+    {
+      "name": "montelukast",
+      "dose": "10 mg",
+      "route": "PO",
+      "frequency": "daily"
+    }
+  ],
+  "instructions": {
+    "discharge_instructions": "take doxycycline with full glass of water, avoid lying down for 30 min. Stay out of direct sunlight.",
+    "follow_up": "return in 3 weeks or sooner if rash appears.",
+    "return_precautions": "if difficulty breathing, throat tightness, or severe skin reaction."
+  },
+  "metadata": {
+    "patient_name": "Quinn Adams",
+    "date_of_service": "02/12/2025",
+    "provider_name": "Dr. Sam Patel"
+  }
+}
