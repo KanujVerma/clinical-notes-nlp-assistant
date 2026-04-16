@@ -1,6 +1,6 @@
 # backend/tests/test_utils_pdf.py
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from PIL import Image
 from pytesseract import Output
 

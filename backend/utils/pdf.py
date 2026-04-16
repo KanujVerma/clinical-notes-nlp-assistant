@@ -6,7 +6,7 @@ from PIL import Image, ImageFilter, ImageOps
 from pdf2image import convert_from_path
 
 _MIN_TEXT_LEN = 50
-_TESS_CONFIG = "--psm 6 --oem 1 -l eng"
+_TESS_CONFIG = "--psm 6 --oem 1 -l eng"  # Clinical notes are assumed to be in English
 
 
 def _preprocess_image(img: Image.Image) -> Image.Image:
@@ -19,28 +19,28 @@ def _preprocess_image(img: Image.Image) -> Image.Image:
     4. Noise removal via median filter
     """
     # 1. Grayscale
-    img = img.convert("L")
+    out = img.convert("L")
 
     # 2. Autocontrast then binarize at threshold 128
-    img = ImageOps.autocontrast(img)
-    img = img.point(lambda p: 255 if p >= 128 else 0)
+    out = ImageOps.autocontrast(out)
+    out = out.point(lambda p: 255 if p >= 128 else 0)
 
     # 3. Deskew
     try:
-        osd = pytesseract.image_to_osd(img, config="--psm 0 -c min_characters_to_try=5")
+        osd = pytesseract.image_to_osd(out, config="--psm 0 -c min_characters_to_try=5")
         for line in osd.splitlines():
             if "Rotate:" in line:
                 angle = int(line.split(":")[-1].strip())
                 if angle != 0:
-                    img = img.rotate(-angle, expand=True)
+                    out = out.rotate(-angle, expand=True)
                 break
     except pytesseract.TesseractError:
         pass  # skip deskew gracefully
 
     # 4. Noise removal
-    img = img.filter(ImageFilter.MedianFilter(size=3))
+    out = out.filter(ImageFilter.MedianFilter(size=3))
 
-    return img
+    return out
 
 
 def _ocr_image_with_confidence(img: Image.Image) -> tuple[str, float]:
@@ -64,8 +64,9 @@ def _ocr_pdf(filepath: str) -> tuple[str, float]:
     """Convert each PDF page to an image and run Tesseract OCR on it.
 
     Returns:
-        (text, ocr_confidence) where ocr_confidence is the mean word-level
-        confidence across all pages, expressed as a float 0.0–1.0.
+        (text, ocr_confidence) where ocr_confidence is the mean per-page
+        confidence (each page's confidence is itself a mean of its word-level
+        confidences), expressed as a float 0.0–1.0.
     """
     images = convert_from_path(filepath)
     page_texts: list[str] = []
