@@ -119,6 +119,7 @@ export default function Upload() {
     let successCount = 0;
     let failCount = 0;
     let firstSuccessId: number | null = null;
+    let firstSuccessResult: Awaited<ReturnType<typeof api.uploadFile>> | null = null;
 
     for (const idx of queuedIndices) {
       if (cancelRef.current) break;
@@ -128,7 +129,10 @@ export default function Upload() {
         const result = await api.uploadFile(files[idx].file);
         updateFileStatus(idx, { phase: "done", noteId: result.note_id });
         successCount++;
-        if (firstSuccessId === null) firstSuccessId = result.note_id;
+        if (firstSuccessId === null) {
+          firstSuccessId = result.note_id;
+          firstSuccessResult = result;
+        }
       } catch (e: any) {
         updateFileStatus(idx, { phase: "error", message: e.message ?? "Upload failed" });
         failCount++;
@@ -139,8 +143,11 @@ export default function Upload() {
     if (successCount > 0 || failCount > 0) {
       bumpQueue();
     }
-    return { successCount, failCount, firstSuccessId };
+    return { successCount, failCount, firstSuccessId, firstSuccessResult };
   }
+
+  // Track the first upload result for OCR-aware routing
+  const [firstUploadResult, setFirstUploadResult] = useState<Awaited<ReturnType<typeof api.uploadFile>> | null>(null);
 
   // Summary derived from current files state
   const doneCount = files.filter((f) => f.status.phase === "done").length;
@@ -268,7 +275,10 @@ export default function Upload() {
             <div className="mt-3 flex gap-2">
               {!uploading ? (
                 <button
-                  onClick={startUpload}
+                  onClick={async () => {
+                    const { firstSuccessResult } = await startUpload();
+                    if (firstSuccessResult) setFirstUploadResult(firstSuccessResult);
+                  }}
                   className="px-5 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700"
                 >
                   Upload {queuedCount} file{queuedCount !== 1 ? "s" : ""}
@@ -282,7 +292,7 @@ export default function Upload() {
                 </button>
               )}
               <button
-                onClick={() => setFiles([])}
+                onClick={() => { setFiles([]); setFirstUploadResult(null); }}
                 disabled={uploading}
                 className="px-3 py-2 border border-slate-200 text-slate-400 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-40"
               >
@@ -299,14 +309,25 @@ export default function Upload() {
               </p>
               {firstSuccessNoteId !== null && (
                 <button
-                  onClick={() => navigate(`/review/${firstSuccessNoteId}`)}
+                  onClick={() => {
+                    const r = firstUploadResult;
+                    const isOcr = r?.source === "ocr";
+                    const lowConf = isOcr && r?.ocr_confidence != null && r.ocr_confidence < 0.7;
+                    if (lowConf && r) {
+                      navigate(`/review/${r.note_id}/preview`, {
+                        state: { rawText: r.raw_text, ocrConfidence: r.ocr_confidence },
+                      });
+                    } else {
+                      navigate(`/review/${firstSuccessNoteId}`);
+                    }
+                  }}
                   className="px-5 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700"
                 >
                   Start Reviewing →
                 </button>
               )}
               <button
-                onClick={() => setFiles([])}
+                onClick={() => { setFiles([]); setFirstUploadResult(null); }}
                 className="px-3 py-2 border border-slate-200 text-slate-400 rounded-lg text-sm hover:bg-slate-50"
               >
                 Clear
