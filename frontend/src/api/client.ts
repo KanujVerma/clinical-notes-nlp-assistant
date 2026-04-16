@@ -1,4 +1,6 @@
 // frontend/src/api/client.ts
+import { QueueResponse } from "../types";
+
 const BASE = "/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -32,7 +34,13 @@ export const api = {
           const err = await r.json().catch(() => ({ error: r.statusText }));
           throw new Error(err.error || "Upload failed");
         }
-        return r.json() as Promise<{ note_id: number; extracted_json: any }>;
+        return r.json() as Promise<{
+          note_id: number;
+          extracted_json: any;
+          raw_text: string;
+          ocr_confidence: number | null;
+          source: string;
+        }>;
       });
   },
 
@@ -42,7 +50,7 @@ export const api = {
     status: string;
     review_duration_ms: number;
   }) =>
-    request<{ ok: boolean; correction_count: number }>("/validate", {
+    request<{ ok: boolean; correction_count: number; next_pending_id: number | null }>("/validate", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -57,4 +65,12 @@ export const api = {
 
   seedDemo: () =>
     request<{ loaded: number; skipped: number }>("/seed-demo", { method: "POST" }),
+
+  getQueue: () => request<QueueResponse>("/queue"),
+
+  updateNoteText: (noteId: number, text: string) =>
+    request<{ note_id: number; extracted_json: any }>(`/notes/${noteId}/text`, {
+      method: "PUT",
+      body: JSON.stringify({ text }),
+    }),
 };

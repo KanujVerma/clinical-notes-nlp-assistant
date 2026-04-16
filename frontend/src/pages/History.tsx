@@ -16,14 +16,7 @@ export default function History() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-slate-800 text-slate-100 px-6 py-2.5 flex items-center justify-between">
-        <span className="font-semibold text-sm tracking-wide">History</span>
-        <nav className="flex gap-4 text-sm text-slate-400">
-          <a href="/" className="hover:text-slate-200 transition-colors">Home</a>
-          <a href="/metrics" className="hover:text-slate-200 transition-colors">Metrics</a>
-        </nav>
-      </header>
+    <div className="h-full overflow-auto bg-slate-50">
       <main className="max-w-5xl mx-auto p-6">
         {loading ? <p className="text-slate-400">Loading...</p> : notes.length === 0 ? (
           <p className="text-slate-400">No notes yet. <a href="/" className="text-blue-600 hover:underline">Extract a note</a> or seed demo data.</p>

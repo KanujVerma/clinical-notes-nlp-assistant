@@ -19,14 +19,7 @@ export default function Metrics() {
     : [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-slate-800 text-slate-100 px-6 py-2.5 flex items-center justify-between">
-        <span className="font-semibold text-sm tracking-wide">Metrics</span>
-        <nav className="flex gap-4 text-sm text-slate-400">
-          <a href="/" className="hover:text-slate-200 transition-colors">Home</a>
-          <a href="/history" className="hover:text-slate-200 transition-colors">History</a>
-        </nav>
-      </header>
+    <div className="h-full overflow-auto bg-slate-50">
       <main className="max-w-5xl mx-auto p-6 space-y-8">
         {!evalData ? (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-700 text-sm">

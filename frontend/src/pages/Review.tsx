@@ -277,7 +277,7 @@ export default function Review() {
             validated.metadata[rest[0]].value = value;
           } else if (section === "med") {
             const idx = parseInt(rest[0]);
-            const field = rest[1] as keyof (typeof validated.medications)[number];
+            const field = rest[1] as string;
             if (!removedMedIndices.has(idx) && validated.medications[idx]) {
               (validated.medications[idx] as Record<string, string>)[field] = value;
             }
@@ -303,7 +303,7 @@ export default function Review() {
 
   if (!extracted) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 text-sm">
+      <div className="h-full bg-slate-50 flex items-center justify-center text-slate-400 text-sm">
         Loading...
       </div>
     );
@@ -315,11 +315,10 @@ export default function Review() {
   const pendingCount = Object.values(fields).filter((f) => f.status === "pending").length;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Dark nav */}
+    <div className="h-full bg-slate-50 flex flex-col overflow-hidden">
+      {/* Review top bar */}
       <header className="bg-slate-800 text-slate-100 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
-          <a href="/" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">&#8592; Back</a>
           <span className="font-semibold text-sm tracking-wide">Reviewer</span>
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -338,7 +337,7 @@ export default function Review() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden" style={{ height: "calc(100vh - 45px)" }}>
+      <div className="flex-1 flex overflow-hidden">
         {/* Left: NoteViewer */}
         <div className="w-1/2 border-r border-slate-200 flex flex-col overflow-hidden bg-white">
           {/* Legend */}
