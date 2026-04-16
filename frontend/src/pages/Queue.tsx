@@ -1,5 +1,6 @@
 // frontend/src/pages/Queue.tsx
 import { useEffect, useState } from "react";
+import { useQueue } from "../context/QueueContext";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../api/client";
 import { QueueNote } from "../types";
@@ -7,12 +8,14 @@ import SourceBadge from "../components/SourceBadge";
 
 export default function Queue() {
   const navigate = useNavigate();
+  const { queueVersion } = useQueue();
   const [notes, setNotes] = useState<QueueNote[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
     api
       .getQueue()
       .then((data) => {
@@ -24,7 +27,7 @@ export default function Queue() {
         setError(e.message ?? "Failed to load queue");
         setLoading(false);
       });
-  }, []);
+  }, [queueVersion]);
 
   return (
     <div className="h-full overflow-auto bg-slate-50">

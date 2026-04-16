@@ -1,6 +1,6 @@
 // frontend/src/components/AppShell.tsx
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useParams } from "react-router-dom";
+import { NavLink, Outlet, useMatch } from "react-router-dom";
 import { api } from "../api/client";
 import { QueueNote } from "../types";
 import { useQueue } from "../context/QueueContext";
@@ -37,7 +37,8 @@ function NavItem({
 }
 
 export default function AppShell() {
-  const { noteId: activeNoteId } = useParams<{ noteId?: string }>();
+  const reviewMatch = useMatch("/review/:noteId");
+  const activeNoteId = reviewMatch?.params.noteId;
   const { queueVersion } = useQueue();
   const [pendingNotes, setPendingNotes] = useState<QueueNote[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
