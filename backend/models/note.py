@@ -7,5 +7,5 @@ class Note(Base):
     id = Column(Integer, primary_key=True)
     filename = Column(String, nullable=True)
     raw_text = Column(Text, nullable=False)
-    source = Column(String, nullable=False)  # paste|txt|pdf|demo
+    source = Column(String, nullable=False)  # paste|txt|pdf|ocr|demo
     created_at = Column(DateTime, server_default=func.now())

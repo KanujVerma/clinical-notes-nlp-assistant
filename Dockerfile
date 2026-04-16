@@ -15,6 +15,7 @@ WORKDIR /app/backend
 # Install system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libmupdf-dev \
+    tesseract-ocr poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps
