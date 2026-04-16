@@ -1,0 +1,20 @@
+Patient: Jennifer Taylor
+Date of Service: 2024-01-27
+Provider: Dr. Mark Torres
+
+Vitals:
+BP: 133/83. HR: 93 bpm. Temp: 97.7F. RR: 14. SpO2: 94%. Wt: 159 lbs.
+
+Medications:
+- lisinopril 20 mg PO daily
+- amoxicillin 500 mg PO TID
+- albuterol 2.5 mg inhaled PRN
+
+DISCHARGE INSTRUCTIONS:
+Continue current medications. Monitor blood pressure daily. Record readings.
+
+Follow-Up:
+Return to clinic in 1 days.
+
+PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

@@ -1,0 +1,15 @@
+Patient: Robert Brown
+Date of Service: 2024-09-18
+Provider: Dr. Mark Torres
+
+Vitals:
+BP 141/79 HR 63 T 98.5 RR 18 O2 99% Wt 161#
+
+Medications:
+- lisinopril 20 mg PO daily
+- metformin 500 mg PO BID
+- albuterol 90 mcg inhaled PRN
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Follow up with PCP in 1 weeks.

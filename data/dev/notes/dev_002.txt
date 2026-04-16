@@ -1,0 +1,16 @@
+Patient: Sarah Johnson
+Date of Service: 2024-12-14
+Provider: Dr. Mark Torres
+
+Vitals:
+BP 131/73 HR 67 T 97.8 RR 17 O2 94% Wt 131#
+
+Medications:
+- metformin 1000 mg PO BID
+- amoxicillin 500 mg PO TID
+- sertraline 100 mg PO daily
+- omeprazole 20 mg PO QHS
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Return to clinic in 2 days.

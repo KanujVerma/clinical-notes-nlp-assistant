@@ -1,0 +1,18 @@
+Patient: Michael Wilson
+Date of Service: 2024-08-04
+Provider: Dr. Robert Evans
+
+Vitals:
+BP: 143/94. HR: 87 bpm. Temp: 97.4F. RR: 14. SpO2: 97%. Wt: 231 lbs.
+
+Medications:
+- metformin 1000 mg PO BID
+- metoprolol 50 mg PO BID
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW-UP:
+Return to clinic in 4 days.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

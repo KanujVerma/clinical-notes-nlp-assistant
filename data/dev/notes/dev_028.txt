@@ -1,0 +1,21 @@
+Patient: Michael Wilson
+Date of Service: 2024-12-19
+Provider: Dr. Robert Evans
+
+Vitals:
+Blood pressure 127/75 mmHg, heart rate 73 beats/min, temperature 98.9 degrees F, respirations 13/min, oxygen saturation 96% on room air, weight 232 lbs.
+
+Medications:
+- albuterol 2.5 mg inhaled PRN
+- metoprolol 50 mg PO BID
+- amlodipine 10 mg PO daily
+- atorvastatin 10 mg PO daily
+
+D/C Instructions:
+Follow a low-sodium diet. Take medications with food. Avoid alcohol.
+
+Follow Up Instructions:
+Return to clinic in 3 days.
+
+Return Precautions:
+Call the clinic if symptoms worsen or if you develop new symptoms.

@@ -1,0 +1,14 @@
+Patient: Maria Garcia
+Date of Service: 2024-07-08
+Provider: Dr. Mark Torres
+
+Vitals:
+Blood pressure 119/85 mmHg, heart rate 102 beats/min, temperature 97.4 degrees F, respirations 13/min, oxygen saturation 100% on room air, weight 174 lbs.
+
+Medications:
+- atorvastatin 20 mg PO daily
+- sertraline 50 mg PO daily
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Follow up with PCP in 4 weeks.

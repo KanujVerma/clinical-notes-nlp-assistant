@@ -1,0 +1,13 @@
+Patient: Lisa Martinez
+Date of Service: 2024-06-03
+Provider: Dr. Alice Chen
+
+Vitals:
+Blood pressure 125/76 mmHg, heart rate 76 beats/min, temperature 97.7 degrees F, respirations 20/min, oxygen saturation 99% on room air, weight 158 lbs.
+
+Medications:
+- sertraline 100 mg PO daily
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Follow up with PCP in 1 weeks.

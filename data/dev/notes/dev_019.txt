@@ -1,0 +1,19 @@
+Patient: William Anderson
+Date of Service: 2024-03-07
+Provider: Dr. Priya Patel
+
+Vitals:
+BP 136/86 HR 82 T 98.6 RR 14 O2 98% Wt 192#
+
+Medications:
+- amlodipine 10 mg PO daily
+- sertraline 100 mg PO daily
+- lisinopril 5 mg PO daily
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW-UP:
+See Dr. Patel in 4 weeks for re-evaluation.
+
+PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

@@ -1,0 +1,13 @@
+Patient: Michael Wilson
+Date of Service: 2024-04-09
+Provider: Dr. Priya Patel
+
+Vitals:
+Blood pressure 152/67 mmHg, heart rate 68 beats/min, temperature 97.8 degrees F, respirations 20/min, oxygen saturation 94% on room air, weight 140 lbs.
+
+Medications:
+- amlodipine 10 mg PO daily
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Return to clinic in 1 days.

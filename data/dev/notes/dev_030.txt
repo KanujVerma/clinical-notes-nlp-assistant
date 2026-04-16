@@ -1,0 +1,14 @@
+Patient: Emily Davis
+Date of Service: 2024-08-09
+Provider: Dr. Mark Torres
+
+Vitals:
+BP 129/73 HR 72 T 97.6 RR 15 O2 96% Wt 135#
+
+Medications:
+- albuterol 90 mcg inhaled PRN
+- gabapentin 600 mg PO TID
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. See Dr. Torres in 3 weeks for re-evaluation.

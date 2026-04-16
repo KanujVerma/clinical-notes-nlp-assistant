@@ -1,0 +1,17 @@
+Patient: Michael Wilson
+Date of Service: 2024-12-14
+Provider: Dr. Alice Chen
+
+Vitals:
+Blood pressure 110/81 mmHg, heart rate 92 beats/min, temperature 98.6 degrees F, respirations 15/min, oxygen saturation 96% on room air, weight 175 lbs.
+
+Medications:
+- amoxicillin 875 mg PO TID
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW-UP:
+Follow up with PCP in 4 weeks.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

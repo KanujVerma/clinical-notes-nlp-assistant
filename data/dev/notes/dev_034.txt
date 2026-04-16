@@ -1,0 +1,20 @@
+Patient: John Smith
+Date of Service: 2024-11-08
+Provider: Dr. Robert Evans
+
+Vitals:
+Blood pressure 126/90 mmHg, heart rate 98 beats/min, temperature 98.5 degrees F, respirations 15/min, oxygen saturation 97% on room air, weight 134 lbs.
+
+Medications:
+- atorvastatin 10 mg PO daily
+- omeprazole 20 mg PO QHS
+Patient denies use of omeprazole. Not currently taking omeprazole.
+
+
+Patient presents for follow-up. Doing well overall.
+
+Follow Up Instructions:
+See Dr. Evans in 3 weeks for re-evaluation.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

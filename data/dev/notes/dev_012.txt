@@ -1,0 +1,20 @@
+Patient: Michael Wilson
+Date of Service: 2024-11-19
+Provider: Dr. Alice Chen
+
+Vitals:
+Blood pressure 146/81 mmHg, heart rate 78 beats/min, temperature 99.1 degrees F, respirations 15/min, oxygen saturation 99% on room air, weight 211 lbs.
+
+Medications:
+- albuterol 2.5 mg inhaled PRN
+- omeprazole 40 mg PO QHS
+- amlodipine 10 mg PO daily
+
+DISCHARGE INSTRUCTIONS:
+Take all medications as prescribed. Rest and avoid strenuous activity for 2 days.
+
+FOLLOW UP:
+Follow up with PCP in 2 weeks.
+
+Return Precautions:
+Call the clinic if symptoms worsen or if you develop new symptoms.

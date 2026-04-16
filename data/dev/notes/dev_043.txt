@@ -1,0 +1,17 @@
+Patient: William Anderson
+Date of Service: 2024-07-23
+Provider: Dr. Robert Evans
+
+Vitals:
+BP 126/79 HR 77 T 97.8 RR 18 O2 100% Wt 181#
+
+Medications:
+- albuterol 90 mcg inhaled PRN
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW-UP:
+See Dr. Evans in 1 weeks for re-evaluation.
+
+PRECAUTIONS:
+Call the clinic if symptoms worsen or if you develop new symptoms.

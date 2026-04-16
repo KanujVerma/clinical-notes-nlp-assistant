@@ -1,0 +1,15 @@
+Patient: Michael Wilson
+Date of Service: 2024-02-15
+Provider: Dr. Priya Patel
+
+Vitals:
+BP 133/86 HR 105 T 98.6 RR 18 O2 100% Wt 201#
+
+Medications:
+- metformin 500 mg PO BID
+- albuterol 90 mcg inhaled PRN
+- metoprolol 25 mg PO BID
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. See Dr. Patel in 1 weeks for re-evaluation.

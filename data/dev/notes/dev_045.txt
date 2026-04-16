@@ -1,0 +1,20 @@
+Patient: Robert Brown
+Date of Service: 2024-05-11
+Provider: Dr. Mark Torres
+
+Vitals:
+Blood pressure 157/78 mmHg, heart rate 69 beats/min, temperature 97.8 degrees F, respirations 20/min, oxygen saturation 96% on room air, weight 187 lbs.
+
+Medications:
+- atorvastatin 20 mg PO daily
+- omeprazole 40 mg PO QHS
+- metoprolol 25 mg PO BID
+
+DISCHARGE INSTRUCTIONS
+Take all medications as prescribed. Rest and avoid strenuous activity for 1 days.
+
+Follow-Up:
+Follow up with PCP in 1 weeks.
+
+RETURN PRECAUTIONS:
+Return to ED if fever > 101.5F, chest pain, or shortness of breath.

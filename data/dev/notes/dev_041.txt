@@ -1,0 +1,18 @@
+Patient: Emily Davis
+Date of Service: 2024-02-08
+Provider: Dr. Mark Torres
+
+Vitals:
+Blood pressure 150/86 mmHg, heart rate 76 beats/min, temperature 99.2 degrees F, respirations 13/min, oxygen saturation 97% on room air, weight 132 lbs.
+
+Medications:
+- metoprolol 25 mg PO BID
+
+D/C Instructions:
+Take all medications as prescribed. Rest and avoid strenuous activity for 3 days.
+
+FOLLOW UP:
+Follow up with PCP in 3 weeks.
+
+PRECAUTIONS:
+Call the clinic if symptoms worsen or if you develop new symptoms.

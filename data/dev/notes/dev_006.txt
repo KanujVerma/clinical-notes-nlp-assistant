@@ -1,0 +1,17 @@
+Patient: John Smith
+Date of Service: 2024-09-20
+Provider: Dr. Priya Patel
+
+Vitals:
+Blood pressure 122/69 mmHg, heart rate 81 beats/min, temperature 98.8 degrees F, respirations 20/min, oxygen saturation 100% on room air, weight 238 lbs.
+
+Medications:
+- gabapentin 600 mg PO TID
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW-UP:
+Follow up with PCP in 2 weeks.
+
+PRECAUTIONS:
+Call the clinic if symptoms worsen or if you develop new symptoms.

@@ -1,0 +1,14 @@
+Patient: Robert Brown
+Date of Service: 2024-05-01
+Provider: Dr. Alice Chen
+
+Vitals:
+BP 155/82 HR 66 T 97.9 RR 12 O2 98% Wt 157#
+
+Medications:
+- metoprolol 25 mg PO BID
+- metformin 1000 mg PO BID
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Return to clinic in 2 days.

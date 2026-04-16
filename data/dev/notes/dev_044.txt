@@ -1,0 +1,14 @@
+Patient: Robert Brown
+Date of Service: 2024-12-16
+Provider: Dr. Alice Chen
+
+Vitals:
+BP 128/89 HR 72 T 98.5 RR 17 O2 95% Wt 201#
+
+Medications:
+- gabapentin 300 mg PO TID
+- omeprazole 20 mg PO QHS
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. See Dr. Chen in 4 weeks for re-evaluation.

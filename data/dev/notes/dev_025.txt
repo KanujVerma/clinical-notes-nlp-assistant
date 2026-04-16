@@ -1,0 +1,23 @@
+Patient: Maria Garcia
+Date of Service: 2024-07-11
+Provider: Dr. Mark Torres
+
+Vitals:
+BP 123/79 HR 78 T 98.0 RR 18 O2 96% Wt 216#
+
+Medications:
+- omeprazole 20 mg PO QHS
+- metformin 1000 mg PO BID
+- metoprolol 25 mg PO BID
+- lisinopril 20 mg PO daily
+Patient denies use of lisinopril. Not currently taking lisinopril.
+
+
+Discharge Instructions:
+Take all medications as prescribed. Rest and avoid strenuous activity for 2 days.
+
+FOLLOW UP:
+Follow up with PCP in 2 weeks.
+
+Return Precautions:
+Return to ED if fever > 101.5F, chest pain, or shortness of breath.

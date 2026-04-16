@@ -1,0 +1,21 @@
+Patient: William Anderson
+Date of Service: 2024-11-08
+Provider: Dr. Priya Patel
+
+Vitals:
+Blood pressure 159/74 mmHg, heart rate 63 beats/min, temperature 98.9 degrees F, respirations 13/min, oxygen saturation 97% on room air, weight 155 lbs.
+
+Medications:
+- amoxicillin 500 mg PO TID
+- atorvastatin 40 mg PO daily
+- gabapentin 600 mg PO TID
+- sertraline 50 mg PO daily
+
+Discharge Instructions:
+Take all medications as prescribed. Rest and avoid strenuous activity for 3 days.
+
+FOLLOW UP:
+See Dr. Patel in 3 weeks for re-evaluation.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

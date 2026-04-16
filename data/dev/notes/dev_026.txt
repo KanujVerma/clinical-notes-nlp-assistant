@@ -1,0 +1,19 @@
+Patient: Lisa Martinez
+Date of Service: 2024-04-15
+Provider: Dr. Robert Evans
+
+Vitals:
+BP: 154/73. HR: 81 bpm. Temp: 97.7F. RR: 13. SpO2: 100%. Wt: 224 lbs.
+
+Medications:
+- omeprazole 20 mg PO QHS
+- metformin 1000 mg PO BID
+
+D/C Instructions:
+Follow a low-sodium diet. Take medications with food. Avoid alcohol.
+
+FOLLOW UP:
+Return to clinic in 2 days.
+
+PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

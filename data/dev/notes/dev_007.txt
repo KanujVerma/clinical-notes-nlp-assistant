@@ -1,0 +1,18 @@
+Patient: Sarah Johnson
+Date of Service: 2024-08-27
+Provider: Dr. Alice Chen
+
+Vitals:
+Blood pressure 114/89 mmHg, heart rate 92 beats/min, temperature 98.8 degrees F, respirations 14/min, oxygen saturation 99% on room air, weight 180 lbs.
+
+Medications:
+- omeprazole 40 mg PO QHS
+- sertraline 50 mg PO daily
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW UP:
+See Dr. Chen in 2 weeks for re-evaluation.
+
+PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

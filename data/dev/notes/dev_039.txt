@@ -1,0 +1,19 @@
+Patient: William Anderson
+Date of Service: 2024-08-18
+Provider: Dr. Priya Patel
+
+Vitals:
+BP 140/76 HR 79 T 98.4 RR 20 O2 97% Wt 178#
+
+Medications:
+- albuterol 2.5 mg inhaled PRN
+- gabapentin 600 mg PO TID
+- amlodipine 5 mg PO daily
+
+Patient presents for follow-up. Doing well overall.
+
+Follow Up Instructions:
+Return to clinic in 1 days.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

@@ -1,0 +1,16 @@
+Patient: Michael Wilson
+Date of Service: 2024-03-16
+Provider: Dr. Alice Chen
+
+Vitals:
+BP: 155/74. HR: 90 bpm. Temp: 98.7F. RR: 18. SpO2: 100%. Wt: 181 lbs.
+
+Medications:
+- albuterol 2.5 mg inhaled PRN
+- metoprolol 25 mg PO BID
+- atorvastatin 10 mg PO daily
+- gabapentin 600 mg PO TID
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Return to clinic in 2 days.

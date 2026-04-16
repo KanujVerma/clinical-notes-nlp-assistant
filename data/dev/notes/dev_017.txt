@@ -1,0 +1,23 @@
+Patient: Jennifer Taylor
+Date of Service: 2024-04-13
+Provider: Dr. Priya Patel
+
+Vitals:
+BP: 131/73. HR: 62 bpm. Temp: 99.1F. RR: 16. SpO2: 96%. Wt: 202 lbs.
+
+Medications:
+- sertraline 100 mg PO daily
+- amoxicillin 500 mg PO TID
+- lisinopril 20 mg PO daily
+- metoprolol 50 mg PO BID
+Patient denies use of gabapentin. Not currently taking gabapentin.
+
+
+Discharge Instructions:
+Follow a low-sodium diet. Take medications with food. Avoid alcohol.
+
+FOLLOW UP:
+Return to clinic in 3 days.
+
+PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

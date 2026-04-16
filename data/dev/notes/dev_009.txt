@@ -1,0 +1,23 @@
+Patient: Robert Brown
+Date of Service: 2024-08-26
+Provider: Dr. Mark Torres
+
+Vitals:
+Blood pressure 136/71 mmHg, heart rate 64 beats/min, temperature 97.6 degrees F, respirations 18/min, oxygen saturation 96% on room air, weight 174 lbs.
+
+Medications:
+- metoprolol 50 mg PO BID
+- lisinopril 20 mg PO daily
+- metformin 1000 mg PO BID
+- sertraline 50 mg PO daily
+Patient denies use of albuterol. Not currently taking albuterol.
+
+
+Discharge Instructions:
+Continue current medications. Monitor blood pressure daily. Record readings.
+
+Follow Up Instructions:
+Return to clinic in 2 days.
+
+RETURN PRECAUTIONS:
+Return to ED if fever > 101.5F, chest pain, or shortness of breath.

@@ -1,0 +1,18 @@
+Patient: William Anderson
+Date of Service: 2024-01-09
+Provider: Dr. Robert Evans
+
+Vitals:
+BP: 119/69. HR: 92 bpm. Temp: 97.9F. RR: 14. SpO2: 94%. Wt: 204 lbs.
+
+Medications:
+- atorvastatin 10 mg PO daily
+
+DISCHARGE INSTRUCTIONS
+Take all medications as prescribed. Rest and avoid strenuous activity for 2 days.
+
+Follow-Up:
+See Dr. Evans in 2 weeks for re-evaluation.
+
+PRECAUTIONS:
+Call the clinic if symptoms worsen or if you develop new symptoms.

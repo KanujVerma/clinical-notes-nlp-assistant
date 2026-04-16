@@ -1,0 +1,19 @@
+Patient: Lisa Martinez
+Date of Service: 2024-12-14
+Provider: Dr. Priya Patel
+
+Vitals:
+Blood pressure 141/82 mmHg, heart rate 73 beats/min, temperature 98.6 degrees F, respirations 19/min, oxygen saturation 97% on room air, weight 221 lbs.
+
+Medications:
+- metformin 1000 mg PO BID
+Patient denies use of albuterol. Not currently taking albuterol.
+
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW UP:
+Return to clinic in 1 days.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

@@ -1,0 +1,21 @@
+Patient: James Lee
+Date of Service: 2024-07-14
+Provider: Dr. Robert Evans
+
+Vitals:
+Blood pressure 131/82 mmHg, heart rate 87 beats/min, temperature 98.1 degrees F, respirations 15/min, oxygen saturation 100% on room air, weight 173 lbs.
+
+Medications:
+- gabapentin 300 mg PO TID
+- lisinopril 10 mg PO daily
+- amlodipine 10 mg PO daily
+- albuterol 90 mcg inhaled PRN
+
+Discharge Instructions:
+Follow a low-sodium diet. Take medications with food. Avoid alcohol.
+
+Follow-Up:
+See Dr. Evans in 4 weeks for re-evaluation.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

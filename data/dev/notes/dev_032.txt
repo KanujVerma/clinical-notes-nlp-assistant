@@ -1,0 +1,19 @@
+Patient: James Lee
+Date of Service: 2024-08-03
+Provider: Dr. Alice Chen
+
+Vitals:
+BP 146/85 HR 101 T 97.5 RR 14 O2 100% Wt 192#
+
+Medications:
+- metformin 1000 mg PO BID
+- albuterol 2.5 mg inhaled PRN
+- gabapentin 600 mg PO TID
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW UP:
+Return to clinic in 3 days.
+
+Return Precautions:
+Call the clinic if symptoms worsen or if you develop new symptoms.

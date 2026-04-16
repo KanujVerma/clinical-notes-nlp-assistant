@@ -1,0 +1,21 @@
+Patient: Robert Brown
+Date of Service: 2024-07-19
+Provider: Dr. Priya Patel
+
+Vitals:
+BP 153/90 HR 69 T 97.7 RR 13 O2 98% Wt 231#
+
+Medications:
+- gabapentin 300 mg PO TID
+- albuterol 2.5 mg inhaled PRN
+- metoprolol 50 mg PO BID
+- omeprazole 40 mg PO QHS
+
+Discharge Instructions:
+Continue current medications. Monitor blood pressure daily. Record readings.
+
+Follow-Up:
+Follow up with PCP in 3 weeks.
+
+PRECAUTIONS:
+Call the clinic if symptoms worsen or if you develop new symptoms.

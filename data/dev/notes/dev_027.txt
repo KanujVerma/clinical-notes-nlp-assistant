@@ -1,0 +1,20 @@
+Patient: Maria Garcia
+Date of Service: 2024-01-12
+Provider: Dr. Robert Evans
+
+Vitals:
+Blood pressure 144/78 mmHg, heart rate 100 beats/min, temperature 98.1 degrees F, respirations 20/min, oxygen saturation 99% on room air, weight 163 lbs.
+
+Medications:
+- amlodipine 10 mg PO daily
+Patient denies use of amoxicillin. Not currently taking amoxicillin.
+
+
+DISCHARGE INSTRUCTIONS
+Continue current medications. Monitor blood pressure daily. Record readings.
+
+FOLLOW UP:
+Return to clinic in 1 days.
+
+PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

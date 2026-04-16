@@ -1,0 +1,20 @@
+Patient: Robert Brown
+Date of Service: 2024-10-07
+Provider: Dr. Alice Chen
+
+Vitals:
+Blood pressure 155/75 mmHg, heart rate 71 beats/min, temperature 98.6 degrees F, respirations 16/min, oxygen saturation 98% on room air, weight 182 lbs.
+
+Medications:
+- lisinopril 10 mg PO daily
+- metformin 500 mg PO BID
+- amlodipine 5 mg PO daily
+
+Discharge Instructions:
+Take all medications as prescribed. Rest and avoid strenuous activity for 1 days.
+
+FOLLOW-UP:
+See Dr. Chen in 1 weeks for re-evaluation.
+
+Return Precautions:
+Call the clinic if symptoms worsen or if you develop new symptoms.

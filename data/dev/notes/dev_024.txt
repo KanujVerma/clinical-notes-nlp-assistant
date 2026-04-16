@@ -1,0 +1,14 @@
+Patient: William Anderson
+Date of Service: 2024-01-13
+Provider: Dr. Robert Evans
+
+Vitals:
+BP: 131/86. HR: 101 bpm. Temp: 98.8F. RR: 14. SpO2: 100%. Wt: 179 lbs.
+
+Medications:
+- gabapentin 300 mg PO TID
+- sertraline 100 mg PO daily
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. See Dr. Evans in 4 weeks for re-evaluation.

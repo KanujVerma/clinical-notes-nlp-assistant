@@ -1,0 +1,18 @@
+Patient: Robert Brown
+Date of Service: 2024-04-03
+Provider: Dr. Mark Torres
+
+Vitals:
+BP 131/65 HR 95 T 98.4 RR 15 O2 94% Wt 129#
+
+Medications:
+- albuterol 2.5 mg inhaled PRN
+
+D/C Instructions:
+Follow a low-sodium diet. Take medications with food. Avoid alcohol.
+
+FOLLOW UP:
+Follow up with PCP in 3 weeks.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

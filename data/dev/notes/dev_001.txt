@@ -1,0 +1,13 @@
+Patient: Maria Garcia
+Date of Service: 2024-02-22
+Provider: Dr. Alice Chen
+
+Vitals:
+BP: 157/93. HR: 92 bpm. Temp: 97.6F. RR: 18. SpO2: 94%. Wt: 123 lbs.
+
+Medications:
+- albuterol 2.5 mg inhaled PRN
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Follow up with PCP in 3 weeks.

@@ -1,0 +1,22 @@
+Patient: William Anderson
+Date of Service: 2024-08-12
+Provider: Dr. Mark Torres
+
+Vitals:
+BP: 136/75. HR: 78 bpm. Temp: 98.6F. RR: 14. SpO2: 96%. Wt: 172 lbs.
+
+Medications:
+- omeprazole 20 mg PO QHS
+- amlodipine 10 mg PO daily
+- lisinopril 10 mg PO daily
+- albuterol 90 mcg inhaled PRN
+Patient denies use of amlodipine. Not currently taking amlodipine.
+
+
+Patient presents for follow-up. Doing well overall.
+
+Follow Up Instructions:
+See Dr. Torres in 3 weeks for re-evaluation.
+
+RETURN PRECAUTIONS:
+Return to ED if fever > 101.5F, chest pain, or shortness of breath.

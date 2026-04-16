@@ -1,0 +1,22 @@
+Patient: James Lee
+Date of Service: 2024-02-02
+Provider: Dr. Priya Patel
+
+Vitals:
+BP: 151/82. HR: 58 bpm. Temp: 99.1F. RR: 15. SpO2: 95%. Wt: 172 lbs.
+
+Medications:
+- metoprolol 25 mg PO BID
+- albuterol 90 mcg inhaled PRN
+- amlodipine 5 mg PO daily
+- lisinopril 10 mg PO daily
+Patient denies use of metoprolol. Not currently taking metoprolol.
+
+
+Patient presents for follow-up. Doing well overall.
+
+Follow Up Instructions:
+Return to clinic in 4 days.
+
+PRECAUTIONS:
+Call the clinic if symptoms worsen or if you develop new symptoms.

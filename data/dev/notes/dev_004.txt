@@ -1,0 +1,22 @@
+Patient: James Lee
+Date of Service: 2024-04-27
+Provider: Dr. Mark Torres
+
+Vitals:
+BP 112/90 HR 78 T 98.1 RR 13 O2 95% Wt 236#
+
+Medications:
+- albuterol 90 mcg inhaled PRN
+- metoprolol 25 mg PO BID
+- amlodipine 10 mg PO daily
+Patient denies use of sertraline. Not currently taking sertraline.
+
+
+Discharge Instructions:
+Continue current medications. Monitor blood pressure daily. Record readings.
+
+FOLLOW-UP:
+Return to clinic in 4 days.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if you experience severe chest pain or difficulty breathing.

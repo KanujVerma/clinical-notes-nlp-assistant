@@ -1,0 +1,20 @@
+Patient: James Lee
+Date of Service: 2024-12-28
+Provider: Dr. Mark Torres
+
+Vitals:
+BP 140/79 HR 74 T 98.8 RR 16 O2 100% Wt 219#
+
+Medications:
+- albuterol 90 mcg inhaled PRN
+- omeprazole 20 mg PO QHS
+- metoprolol 50 mg PO BID
+- lisinopril 10 mg PO daily
+
+Patient presents for follow-up. Doing well overall.
+
+Follow Up Instructions:
+See Dr. Torres in 3 weeks for re-evaluation.
+
+RETURN PRECAUTIONS:
+Return to ED if fever > 101.5F, chest pain, or shortness of breath.

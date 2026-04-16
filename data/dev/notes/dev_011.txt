@@ -1,0 +1,16 @@
+Patient: William Anderson
+Date of Service: 2024-10-24
+Provider: Dr. Mark Torres
+
+Vitals:
+BP: 144/66. HR: 105 bpm. Temp: 98.0F. RR: 12. SpO2: 98%. Wt: 181 lbs.
+
+Medications:
+- lisinopril 5 mg PO daily
+- sertraline 50 mg PO daily
+Patient denies use of metformin. Not currently taking metformin.
+
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. See Dr. Torres in 2 weeks for re-evaluation.

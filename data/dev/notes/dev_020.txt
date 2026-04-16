@@ -1,0 +1,16 @@
+Patient: Emily Davis
+Date of Service: 2024-03-22
+Provider: Dr. Mark Torres
+
+Vitals:
+BP 115/74 HR 90 T 98.6 RR 17 O2 94% Wt 224#
+
+Medications:
+- omeprazole 20 mg PO QHS
+- albuterol 2.5 mg inhaled PRN
+Patient denies use of albuterol. Not currently taking albuterol.
+
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Return to clinic in 4 days.

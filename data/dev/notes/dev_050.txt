@@ -1,0 +1,19 @@
+Patient: James Lee
+Date of Service: 2024-02-16
+Provider: Dr. Priya Patel
+
+Vitals:
+BP: 138/89. HR: 81 bpm. Temp: 98.3F. RR: 13. SpO2: 97%. Wt: 184 lbs.
+
+Medications:
+- gabapentin 600 mg PO TID
+- lisinopril 10 mg PO daily
+
+D/C Instructions:
+Take all medications as prescribed. Rest and avoid strenuous activity for 1 days.
+
+FOLLOW UP:
+Follow up with PCP in 1 weeks.
+
+PRECAUTIONS:
+Call the clinic if symptoms worsen or if you develop new symptoms.

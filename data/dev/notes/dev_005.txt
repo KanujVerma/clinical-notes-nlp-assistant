@@ -1,0 +1,18 @@
+Patient: Michael Wilson
+Date of Service: 2024-01-28
+Provider: Dr. Mark Torres
+
+Vitals:
+BP: 117/69. HR: 98 bpm. Temp: 97.7F. RR: 18. SpO2: 98%. Wt: 128 lbs.
+
+Medications:
+- amlodipine 5 mg PO daily
+- metoprolol 25 mg PO BID
+- omeprazole 40 mg PO QHS
+- sertraline 100 mg PO daily
+Patient denies use of amlodipine. Not currently taking amlodipine.
+
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Follow up with PCP in 3 weeks.

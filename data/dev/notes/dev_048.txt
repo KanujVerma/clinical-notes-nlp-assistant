@@ -1,0 +1,20 @@
+Patient: Sarah Johnson
+Date of Service: 2024-07-09
+Provider: Dr. Priya Patel
+
+Vitals:
+Blood pressure 122/95 mmHg, heart rate 65 beats/min, temperature 99.1 degrees F, respirations 19/min, oxygen saturation 94% on room air, weight 204 lbs.
+
+Medications:
+- gabapentin 300 mg PO TID
+- lisinopril 10 mg PO daily
+Patient denies use of atorvastatin. Not currently taking atorvastatin.
+
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW-UP:
+See Dr. Patel in 1 weeks for re-evaluation.
+
+RETURN PRECAUTIONS:
+Return to ED if fever > 101.5F, chest pain, or shortness of breath.

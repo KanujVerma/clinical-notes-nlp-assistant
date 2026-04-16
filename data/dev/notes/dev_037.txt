@@ -1,0 +1,15 @@
+Patient: William Anderson
+Date of Service: 2024-08-21
+Provider: Dr. Mark Torres
+
+Vitals:
+BP: 138/89. HR: 61 bpm. Temp: 97.8F. RR: 20. SpO2: 95%. Wt: 238 lbs.
+
+Medications:
+- metoprolol 25 mg PO BID
+- gabapentin 300 mg PO TID
+- metformin 500 mg PO BID
+
+Brief progress note. Patient stable.
+
+Plan: Continue current management. Follow up with PCP in 4 weeks.

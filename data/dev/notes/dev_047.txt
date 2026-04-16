@@ -1,0 +1,22 @@
+Patient: Robert Brown
+Date of Service: 2024-08-04
+Provider: Dr. Mark Torres
+
+Vitals:
+BP: 116/72. HR: 92 bpm. Temp: 97.6F. RR: 19. SpO2: 96%. Wt: 205 lbs.
+
+Medications:
+- gabapentin 300 mg PO TID
+- atorvastatin 20 mg PO daily
+- amlodipine 10 mg PO daily
+- amoxicillin 875 mg PO TID
+Patient denies use of amoxicillin. Not currently taking amoxicillin.
+
+
+Patient presents for follow-up. Doing well overall.
+
+FOLLOW UP:
+Follow up with PCP in 1 weeks.
+
+Return Precautions:
+Call the clinic if symptoms worsen or if you develop new symptoms.
