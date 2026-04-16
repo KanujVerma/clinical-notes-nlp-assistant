@@ -46,7 +46,8 @@ Expand `_SECTION_PATTERNS` with all realistic header aliases. Each entry maps on
 | `hpi` | Interval History, Hospital Course |
 | `chief_complaint` | CC, Reason for Visit |
 | `assessment_plan` | Impression, Diagnoses, Problem List, A/P, Assessment and Plan |
-| `discharge_instructions` | Plan (when no other plan section found), Discharge Instructions |
+| `plan` | Plan (mapped to its own `plan` category — content is sub-classified by instructions.py, not mapped wholesale to discharge_instructions) |
+| `discharge_instructions` | Discharge Instructions |
 | `follow_up` | Follow-up, Follow Up |
 | `return_precautions` | Return Precautions, When to Return |
 
@@ -91,7 +92,7 @@ When a medications section is detected, parse it line by line. For each non-empt
 
 **Route abbreviations extended:** PO, IV, IM, SQ, subq, subcutaneous, inhaled, inhalation, topical, SL, PR, transdermal, **intranasal, ophthalmic, otic, rectal, oral**
 
-**Frequency extended:** once daily, twice daily, BID, TID, QID, QHS, QAM, daily, qd, **q4h, q6h, q8h, q12h, q24h,** PRN, as needed, at bedtime, bedtime, weekly, monthly
+**Frequency extended:** once daily, twice daily, BID, TID, QID, QHS, QAM, QAM, QPM, qpm, daily, qd, **q4h, q6h, q8h, q12h, q24h,** every 4 hours, every 6 hours, every 8 hours, every 12 hours, PRN, as needed, at bedtime, bedtime, weekly, monthly, once weekly, twice weekly (all matched case-insensitively)
 
 **Inhaler-style dosing:** Pattern `\d+\s+puffs?\s+(?:q\d+h|BID|TID|daily|PRN)` is matched as a valid dose+frequency combination.
 
@@ -107,7 +108,7 @@ A line is rejected as a medication candidate if **any** of the following is true
 
 1. **No dose or sig token present:** The line contains no dose-like token (`\d+\s*(?:mg|mcg|g|ml|units?|mEq|puffs?|tabs?|tablets?|capsules?|cap|patch|spray|drops)`) AND no unambiguous route token (PO, IV, IM, SQ, inhaled, topical, SL) AND no unambiguous frequency token (BID, TID, QID, QHS, q\d+h, daily, PRN, as needed).
 
-2. **Entirely uppercase:** The stripped line is `== line.upper()` (section headers like "MEDICATIONS", "ASSESSMENT").
+2. **Entirely uppercase AND no dose/sig structure:** The stripped line is `== line.upper()` AND the line contains no dose-like token, route token, or frequency token. A line like `LISINOPRIL 10 MG PO DAILY` is uppercase but passes guard 1 (dose token present), so it is NOT rejected. Only content-free all-caps lines like `MEDICATIONS` or `ASSESSMENT` are rejected by this guard.
 
 3. **Matches a non-medication reject pattern** (applied as regex search, case-insensitive):
    - Date line: `\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b` OR `\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}`
@@ -135,8 +136,13 @@ Date field: capture the full value string (date formats are not normalized — l
 
 ### 5. Instructions (`instructions.py`)
 
-**Section mapping additions:**  
-Map `hospital_course` (from the `hpi` section category) and `plan` (from `assessment_plan`) as additional sources for `discharge_instructions` when no dedicated `discharge_instructions` section is found.
+**Section mapping for Plan:**  
+When a `plan` section is detected, its text is **not** mapped wholesale to `discharge_instructions`. Instead, it is passed through the same trigger-based classification as the fallback (see below): sentences matching `follow_up` triggers are extracted as `follow_up`, sentences matching `return_precautions` triggers as `return_precautions`, and the remainder (or sentences matching `discharge_instructions` triggers) as `discharge_instructions`. This fills whichever categories are not already populated by a dedicated section.
+
+`hospital_course` (from the `hpi` section category) is treated the same way — sub-classified by trigger, not mapped wholesale.
+
+**Sentence-level fallback (enhanced):**  
+Sentence splitting is tolerant of OCR/newline artifacts: splits on `.`, `!`, `?`, `;`, newlines, and colon-led list introductions (e.g., `Return to ER for:` is treated as a trigger sentence, with the items that follow as the aggregated continuation). Leading bullets (`-`, `•`, `*`), numbers (`1.`, `2)`), and whitespace are stripped before trigger matching.
 
 **Sentence-level fallback (enhanced):**  
 The existing fallback fires on individual sentences. Extend the trigger patterns:
@@ -164,7 +170,7 @@ New tests added in `backend/tests/`:
 
 - `test_sections.py` — extend with discharge summary and SOAP note fixtures, verify all new aliases are recognized
 - `test_vitals.py` — test all new format variants for each vital sign
-- `test_medications.py` — test structured line parsing (bullets, numbered, inhaler-style, missing route/freq, prose fallback), test over-greedy guard
+- `test_medications.py` — test structured line parsing (bullets, numbered, inhaler-style, missing route/freq, prose fallback), test over-greedy guard; **negative tests**: confirm the following lines are NOT parsed as medications: `Continue medications as above`, `No home meds listed`, `NKDA`, `Allergies: penicillin`, `See medication reconciliation form`; confirm all-caps with dose structure IS parsed: `LISINOPRIL 10 MG PO DAILY`
 - `test_metadata.py` — test all new header variants
 - `test_instructions.py` — test section-source mapping from Plan/Hospital Course; test multi-sentence aggregation (fixture: note with `return_precautions` content split across 3 lines, no section header, verify all 3 lines are captured in the value); test that aggregation stops at the next trigger
 - `test_pipeline.py` — end-to-end test using the full discharge summary from the design spec (John Smith note); verify all 3 medications are extracted with correct dose/route/freq; additionally test a headerless note (free-text only) and verify at least follow_up and return_precautions are populated via fallback
