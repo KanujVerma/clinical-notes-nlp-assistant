@@ -3,17 +3,25 @@ import re
 from typing import Any
 
 _SECTION_PATTERNS = [
+    # Instructions
     (r"discharge\s+instructions?", "discharge_instructions"),
     (r"follow[\s\-]?up", "follow_up"),
-    (r"return\s+precautions?", "return_precautions"),
-    (r"medications?(\s+list)?", "medications"),
-    (r"assessment\s*/\s*plan|a\s*/\s*p", "assessment_plan"),
-    (r"(assessment|plan)", "assessment_plan"),
-    (r"history\s+of\s+present\s+illness|hpi", "hpi"),
-    (r"(physical\s+exam|pe|examination)", "physical_exam"),
-    (r"vital\s*signs?|vitals?", "vitals"),
-    (r"(past\s+medical\s+history|pmh)", "pmh"),
-    (r"(chief\s+complaint|cc)", "chief_complaint"),
+    (r"return\s+precautions?|when\s+to\s+return", "return_precautions"),
+    # Medications (all aliases map to same category)
+    (r"discharge\s+medications?|home\s+medications?|current\s+medications?|medications?\s*(list)?|meds", "medications"),
+    # Assessment/Plan — compound forms before single words
+    (r"assessment\s*/\s*plan|a\s*/\s*p|assessment\s+and\s+plan", "assessment_plan"),
+    (r"assessment|impression|diagnoses|problem\s+list", "assessment_plan"),
+    # Plan as its own category (sub-classified by instructions.py)
+    (r"plan", "plan"),
+    # HPI / Hospital Course
+    (r"history\s+of\s+present\s+illness|hpi|interval\s+history|hospital\s+course", "hpi"),
+    # Vitals
+    (r"vital\s*signs?|vitals?|objective|physical\s+exam(?:ination)?|exam|pe\b", "vitals"),
+    # Chief complaint
+    (r"chief\s+complaint|cc\b|reason\s+for\s+visit", "chief_complaint"),
+    # Past medical history
+    (r"past\s+medical\s+history|pmh", "pmh"),
 ]
 
 _COMPILED = [
