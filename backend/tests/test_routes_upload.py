@@ -102,3 +102,27 @@ class TestUploadOCR:
             )
         assert resp.status_code == 400
         assert resp.get_json()["code"] == "OCR_EMPTY"
+
+    def test_pdf_tesseract_not_found_returns_503(self, client):
+        """Scanned PDF where Tesseract binary is missing → 503 OCR_UNAVAILABLE."""
+        with patch("routes.upload.extract_text_from_pdf",
+                   side_effect=pytesseract.TesseractNotFoundError()):
+            resp = client.post(
+                "/api/upload",
+                data={"file": (io.BytesIO(b"%PDF"), "scan.pdf")},
+                content_type="multipart/form-data",
+            )
+        assert resp.status_code == 503
+        assert resp.get_json()["code"] == "OCR_UNAVAILABLE"
+
+    def test_pdf_ocr_empty_returns_400(self, client):
+        """Scanned PDF where OCR finds no text → 400 OCR_EMPTY."""
+        with patch("routes.upload.extract_text_from_pdf",
+                   side_effect=ValueError("OCR produced no readable text.")):
+            resp = client.post(
+                "/api/upload",
+                data={"file": (io.BytesIO(b"%PDF"), "scan.pdf")},
+                content_type="multipart/form-data",
+            )
+        assert resp.status_code == 400
+        assert resp.get_json()["code"] == "OCR_EMPTY"
