@@ -31,7 +31,7 @@ def run_pipeline(raw_text: str) -> dict[str, Any]:
 
     # 3. Extraction
     vitals_raw = extract_vitals(clean)
-    meds_raw = extract_medications(clean)
+    meds_raw = extract_medications(clean, sections)
     instr_raw = extract_instructions(clean, sections)
     meta_raw = extract_metadata(clean)
 
