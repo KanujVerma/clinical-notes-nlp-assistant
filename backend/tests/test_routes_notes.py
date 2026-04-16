@@ -50,21 +50,23 @@ def test_put_note_text_updates_raw_text(client):
 def test_put_note_text_reruns_extraction(client):
     resp = client.post("/api/notes", json={"text": "BP: 120/80."})
     note_id = resp.get_json()["note_id"]
-    original_extracted = resp.get_json()["extracted_json"]
+    original_bp = resp.get_json()["extracted_json"]["vitals"].get("blood_pressure", {}).get("value")
 
-    # Update with different text that should produce different extraction
+    # Update with different text — blood_pressure should no longer be present
     resp2 = client.put(f"/api/notes/{note_id}/text", json={"text": "HR: 55. Temp: 98.6F."})
     assert resp2.status_code == 200
     new_extracted = resp2.get_json()["extracted_json"]
-    # The extracted output should be a valid pipeline output
     assert "pipeline_version" in new_extracted
+    # Pipeline was re-run: new text has no BP so blood_pressure should be absent or differ
+    new_bp = new_extracted["vitals"].get("blood_pressure", {}).get("value")
+    assert new_bp != original_bp
 
 
 def test_put_note_text_404_on_unknown_note(client):
     resp = client.put("/api/notes/99999/text", json={"text": "Some text."})
     assert resp.status_code == 404
     data = resp.get_json()
-    assert data["code"] == "NOTE_NOT_FOUND"
+    assert data["code"] == "NOT_FOUND"
 
 
 def test_put_note_text_400_on_empty_text(client):

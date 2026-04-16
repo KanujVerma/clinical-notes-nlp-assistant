@@ -1,4 +1,4 @@
-import sys, os, json, pytest
+import sys, os, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from app import create_app
 
