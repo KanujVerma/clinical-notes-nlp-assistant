@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float
 from sqlalchemy.sql import func
 from models.base import Base
 
@@ -8,4 +8,5 @@ class Note(Base):
     filename = Column(String, nullable=True)
     raw_text = Column(Text, nullable=False)
     source = Column(String, nullable=False)  # paste|txt|pdf|ocr|demo
+    ocr_confidence = Column(Float, nullable=True)
     created_at = Column(DateTime, server_default=func.now())

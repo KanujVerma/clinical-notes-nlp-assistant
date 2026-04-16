@@ -6,6 +6,7 @@ from models.extraction import Extraction
 from models.validation import Validation
 from utils.corrections import compute_correction_count
 
+
 bp = Blueprint("validate", __name__)
 
 
@@ -50,4 +51,15 @@ def validate():
         g.db.add(val)
 
     g.db.commit()
-    return jsonify({"ok": True, "correction_count": correction_count})
+
+    # Find next pending note: has extraction but no validation, excluding just-validated note
+    next_pending = g.db.execute(
+        select(Note.id)
+        .join(Extraction, Extraction.note_id == Note.id)
+        .outerjoin(Validation, Validation.note_id == Note.id)
+        .where(Validation.id == None)  # noqa: E711
+        .where(Note.id != note_id)
+        .order_by(Note.created_at.asc())
+    ).scalar_one_or_none()
+
+    return jsonify({"message": "Validation saved", "correction_count": correction_count, "next_pending_id": next_pending})

@@ -66,3 +66,37 @@ def test_metrics_null_eval_when_no_results_file(client):
     assert "eval" in data
     assert data["eval"] is None
     assert "db_stats" in data
+
+
+def test_validate_response_includes_message_and_next_pending_id(client, note_id):
+    resp = client.post("/api/validate", json={
+        "note_id": note_id,
+        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
+        "status": "accepted",
+    })
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "message" in body
+    assert "next_pending_id" in body
+    # Only one note in DB, no pending notes after validation
+    assert body["next_pending_id"] is None
+
+
+def test_validate_next_pending_id_returns_unvalidated_note(client):
+    """When two notes exist and only one is validated, next_pending_id points to the other."""
+    # Create two notes
+    resp1 = client.post("/api/notes", json={"text": "BP: 120/80. HR: 72."})
+    note_id_1 = resp1.get_json()["note_id"]
+    resp2 = client.post("/api/notes", json={"text": "HR: 68. Weight: 150 lbs."})
+    note_id_2 = resp2.get_json()["note_id"]
+
+    # Validate the first note
+    resp = client.post("/api/validate", json={
+        "note_id": note_id_1,
+        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
+        "status": "accepted",
+    })
+    body = resp.get_json()
+    assert resp.status_code == 200
+    # Second note is pending
+    assert body["next_pending_id"] == note_id_2

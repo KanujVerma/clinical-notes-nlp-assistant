@@ -81,5 +81,21 @@ export interface MetricsResponse {
   } | null;
   db_stats: {
     by_status: Array<{ status: string; count: number; avg_corrections: number; avg_review_ms: number }>;
+    correction_rates?: {
+      by_category: Record<string, { reviewed: number; corrected: number; rate: number }>;
+      by_field: Record<string, { reviewed: number; corrected: number; rate: number }>;
+    };
   };
+}
+
+export interface QueueNote {
+  id: number;
+  filename: string | null;
+  source: string;
+  created_at: string;
+}
+
+export interface QueueResponse {
+  notes: QueueNote[];
+  count: number;
 }

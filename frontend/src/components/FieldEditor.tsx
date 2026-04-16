@@ -1,17 +1,20 @@
 // frontend/src/components/FieldEditor.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export type FieldStatus = "accepted" | "corrected" | "removed" | "pending";
 export type FieldCategory = "vitals" | "med" | "instr" | "meta";
 
 interface Props {
   label: string;
-  value: string;
+  value: string;          // current value (may have been corrected)
+  originalValue?: string; // the original extracted value (for diff display)
   status: FieldStatus;
   category: FieldCategory;
   isActive: boolean;
   onActivate: () => void;
   onChange: (value: string, status: FieldStatus) => void;
+  triggerEdit?: boolean;  // when true, auto-open edit mode
+  onEditTriggered?: () => void; // called after edit mode opens
 }
 
 // Left border color per category, inactive vs active
@@ -38,10 +41,19 @@ const CAT_LABEL_ACTIVE: Record<FieldCategory, string> = {
 };
 
 export default function FieldEditor({
-  label, value, status, category, isActive, onActivate, onChange,
+  label, value, originalValue, status, category, isActive, onActivate, onChange,
+  triggerEdit, onEditTriggered,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+
+  // Handle external edit trigger (E key shortcut)
+  useEffect(() => {
+    if (triggerEdit && !editing) {
+      setEditing(true);
+      onEditTriggered?.();
+    }
+  }, [triggerEdit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- REMOVED ---
   if (status === "removed") {
@@ -70,12 +82,19 @@ export default function FieldEditor({
       >
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-green-300">{label}</span>
-          <span className="flex items-center gap-1 text-[10px] text-green-600">
+          <span className="flex items-center gap-2 text-[10px] text-green-600">
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
               <circle cx="6" cy="6" r="5.5" stroke="#16a34a" strokeWidth="1" />
               <path d="M3.5 6l1.8 1.8 3-3.6" stroke="#16a34a" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             accepted
+            {/* Undo button */}
+            <button
+              onClick={() => onChange(value, "pending")}
+              className="text-[10px] text-slate-400 hover:text-slate-600 hover:underline"
+            >
+              undo
+            </button>
           </span>
         </div>
         <p className="mt-1 text-sm text-green-800">{value}</p>
@@ -89,6 +108,7 @@ export default function FieldEditor({
       setEditing(false);
       onChange(draft, draft !== value ? "corrected" : "accepted");
     }
+    const showDiff = originalValue && originalValue !== value;
     return (
       <div
         className="rounded-lg border border-amber-100 px-3 py-2.5 bg-amber-50"
@@ -98,6 +118,22 @@ export default function FieldEditor({
           <span className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">{label}</span>
           <span className="text-[10px] text-amber-600">corrected</span>
         </div>
+        {/* Diff view: original → corrected */}
+        {showDiff && !editing && (
+          <div className="mt-1 flex items-center gap-2 text-sm">
+            <span className="text-slate-400 line-through">{originalValue}</span>
+            <span className="text-slate-400">→</span>
+            <span className="text-amber-700 font-medium">{draft || value}</span>
+          </div>
+        )}
+        {/* Diff view inline above input when editing */}
+        {showDiff && editing && (
+          <div className="mt-1 flex items-center gap-2 text-sm mb-1">
+            <span className="text-slate-400 line-through">{originalValue}</span>
+            <span className="text-slate-400">→</span>
+            <span className="text-amber-700 font-medium">{draft || value}</span>
+          </div>
+        )}
         {editing ? (
           <div className="mt-1 flex gap-2">
             <input value={draft} onChange={(e) => setDraft(e.target.value)}
@@ -106,8 +142,16 @@ export default function FieldEditor({
             <button onClick={() => { setEditing(false); setDraft(value); }} className="text-[10px] px-2 py-1 border border-slate-300 rounded hover:bg-slate-50">cancel</button>
           </div>
         ) : (
-          <p className="mt-1 text-sm text-slate-700 cursor-pointer hover:opacity-80" onClick={() => setEditing(true)}
-            data-testid="field-value">{draft}</p>
+          !showDiff && (
+            <p className="mt-1 text-sm text-slate-700 cursor-pointer hover:opacity-80" onClick={() => setEditing(true)}
+              data-testid="field-value">{draft}</p>
+          )
+        )}
+        {/* Click-to-edit when showing diff — value is displayed in the diff row above */}
+        {showDiff && !editing && (
+          <p className="mt-0.5 text-[10px] text-slate-400 cursor-pointer hover:text-slate-600" onClick={() => setEditing(true)}>
+            click to re-edit
+          </p>
         )}
       </div>
     );
