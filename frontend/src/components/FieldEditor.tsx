@@ -85,7 +85,7 @@ export default function FieldEditor({
 
   // --- CORRECTED ---
   if (status === "corrected") {
-    function save() {
+    function saveCorrected() {
       setEditing(false);
       onChange(draft, draft !== value ? "corrected" : "accepted");
     }
@@ -102,7 +102,7 @@ export default function FieldEditor({
           <div className="mt-1 flex gap-2">
             <input value={draft} onChange={(e) => setDraft(e.target.value)}
               className="flex-1 border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400" />
-            <button onClick={save} className="text-[10px] px-3 py-1 bg-amber-500 text-white rounded hover:bg-amber-600">save</button>
+            <button onClick={saveCorrected} className="text-[10px] px-3 py-1 bg-amber-500 text-white rounded hover:bg-amber-600">save</button>
             <button onClick={() => { setEditing(false); setDraft(value); }} className="text-[10px] px-2 py-1 border border-slate-300 rounded hover:bg-slate-50">cancel</button>
           </div>
         ) : (
@@ -114,7 +114,7 @@ export default function FieldEditor({
   }
 
   // --- PENDING (inactive or active) ---
-  function save() {
+  function savePending() {
     setEditing(false);
     onChange(draft, draft !== value ? "corrected" : "accepted");
   }
@@ -155,7 +155,7 @@ export default function FieldEditor({
         <div className="mt-1 flex gap-2">
           <input value={draft} onChange={(e) => setDraft(e.target.value)}
             className="flex-1 border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
-          <button onClick={save} className="text-[10px] px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">save</button>
+          <button onClick={savePending} className="text-[10px] px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">save</button>
           <button onClick={() => { setEditing(false); setDraft(value); }} className="text-[10px] px-2 py-1 border border-slate-300 rounded hover:bg-slate-50">cancel</button>
         </div>
       ) : (
