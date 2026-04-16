@@ -1,6 +1,7 @@
 # backend/tests/test_ocr.py
 import pytest
 from unittest.mock import patch, MagicMock
+from utils.pdf import extract_text_from_pdf, extract_text_from_image
 
 
 class TestExtractTextFromPdf:
@@ -72,7 +73,3 @@ class TestExtractTextFromImage:
             mock_tess.image_to_string.return_value = "  "
             with pytest.raises(ValueError, match="no readable text"):
                 extract_text_from_image(img_path)
-
-
-# Deferred import so tests can patch before import
-from utils.pdf import extract_text_from_pdf, extract_text_from_image  # noqa: E402
