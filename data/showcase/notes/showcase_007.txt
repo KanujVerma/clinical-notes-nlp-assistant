@@ -1,0 +1,6 @@
+Pt:Demo Patient Seven DOS:2025-01-21 MD:Dr.Demo Provider
+VS:BP138/86 HR88 T98.8 RR16 O2:96% Wt:202lbs
+Meds:furosemide 40mg PO daily,spironolactone 25mg PO daily,carvedilol 12.5mg PO BID
+DC Instrs:Weigh daily.Low-sodium diet.Fluid restriction 1.5L/day.
+FU:Cardiology 1wk.
+Return:SOB at rest,wt gain>3lbs/day,leg edema worsening.

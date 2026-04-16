@@ -1,0 +1,48 @@
+Patient: Demo Patient Eight
+
+
+Date of Service:   2025-01-22
+
+
+Provider:  Dr. Demo Provider
+
+
+
+VITALS
+
+
+
+BP:   132/80   |   HR:   74   |   Temp:   98.5F   |   RR:   14   |   SpO2:   98%   |   Wt:   168 lbs
+
+
+
+CURRENT MEDICATIONS
+
+
+
+warfarin   5mg   PO   daily
+hydrochlorothiazide   25mg   PO   daily
+
+
+
+DISCHARGE INSTRUCTIONS
+
+
+
+Continue warfarin. INR recheck in 1 week. Avoid grapefruit and significant changes to leafy green vegetable intake.
+
+
+
+FOLLOW-UP:
+
+
+
+Hematology clinic   in   2   weeks.
+
+
+
+RETURN PRECAUTIONS:
+
+
+
+Return to ED for unusual bleeding, blood in urine, or signs of stroke.

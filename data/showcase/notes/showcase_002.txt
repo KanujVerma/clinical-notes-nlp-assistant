@@ -1,0 +1,18 @@
+Patient: Demo Patient Two
+Date of Service: 2025-01-16
+Provider: Dr. Demo Provider
+
+VITALS: BP 118/72. HR 84 bpm. Patient declined temperature, weight, and SpO2 measurements.
+
+MEDICATIONS:
+- amlodipine 5 mg PO daily
+- omeprazole 20 mg PO QHS
+
+DISCHARGE INSTRUCTIONS:
+Continue all current medications. Maintain a low-sodium diet.
+
+FOLLOW UP:
+Return to clinic in 4 weeks.
+
+RETURN PRECAUTIONS:
+Go to the ER if you develop severe chest pain or dizziness.

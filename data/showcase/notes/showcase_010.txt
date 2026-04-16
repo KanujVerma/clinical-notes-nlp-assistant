@@ -1,0 +1,18 @@
+Patient: Demo Patient Ten (pediatric case)
+Date of Service: 2025-01-24
+Provider: Dr. Demo Provider
+
+VITALS: BP 102/64. HR 96 bpm. Temp 37.8C. RR 22. SpO2 97%. Wt 28 kg.
+
+MEDICATIONS:
+- amoxicillin 250 mg PO TID x 10 days
+- ibuprofen 200 mg PO TID PRN fever or pain
+
+DISCHARGE INSTRUCTIONS:
+Complete the full course of amoxicillin. Ibuprofen for fever above 38.5C or for discomfort. Encourage fluids and rest.
+
+FOLLOW UP:
+Return to pediatric clinic in 10 days or sooner if not improving.
+
+RETURN PRECAUTIONS:
+Return to ED if fever exceeds 40C, child is not drinking fluids, or has difficulty breathing.

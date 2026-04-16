@@ -1,0 +1,19 @@
+Patient: Demo Patient One
+Date of Service: 2025-01-15
+Provider: Dr. Demo Provider
+
+VITALS: BP 130/82. HR 76 bpm. Temp 98.6F. RR 14. SpO2 98%. Wt 175 lbs.
+
+MEDICATIONS:
+- lisinopril 10 mg PO daily
+- metformin 500 mg PO BID
+- atorvastatin 20 mg PO daily
+
+DISCHARGE INSTRUCTIONS:
+Take all medications as prescribed. Follow a heart-healthy diet. Weigh yourself daily.
+
+FOLLOW UP:
+Return to clinic in 2 weeks for follow-up labs and blood pressure check.
+
+RETURN PRECAUTIONS:
+Return to the emergency department if you experience chest pain, shortness of breath, or blood pressure above 180/110 mmHg.

@@ -1,0 +1,20 @@
+Patient: Demo Patient Four
+Date of Service: 2025-01-18
+Provider: Dr. Demo Provider
+
+VITALS: BP 128/80. HR 72. Temp 98.3F. RR 13. SpO2 99%. Wt 162 lbs.
+
+MEDICATIONS:
+- albuterol 90 mcg inhaled PRN
+- metoprolol 25 mg PO BID
+
+Patient denies use of theophylline. Not currently taking prednisone. Patient reports she stopped taking ibuprofen 2 weeks ago.
+
+DISCHARGE INSTRUCTIONS:
+Use albuterol only as needed. Do not exceed 4 puffs per day. Keep a rescue inhaler accessible at all times.
+
+FOLLOW UP:
+Pulmonology clinic in 4 weeks.
+
+RETURN PRECAUTIONS:
+Go to the ER immediately if albuterol provides no relief or symptoms worsen rapidly.

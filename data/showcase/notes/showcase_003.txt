@@ -1,0 +1,21 @@
+Patient: Demo Patient Three
+Date of Service: 2025-01-17
+Provider: Dr. Demo Provider
+
+VITALS: BP 144/88. HR 90 bpm. Temp 99.0F. RR 16. SpO2 96%. Wt 210 lbs.
+
+MEDICATIONS (5 active):
+- metformin 1000 mg PO BID
+- lisinopril 20 mg PO daily
+- atorvastatin 40 mg PO daily
+- sertraline 50 mg PO daily
+- gabapentin 300 mg PO TID
+
+DISCHARGE INSTRUCTIONS:
+Take medications as directed. Monitor blood glucose daily. Avoid alcohol with gabapentin.
+
+FOLLOW UP:
+Endocrinology in 3 weeks. PCP in 6 weeks.
+
+RETURN PRECAUTIONS:
+Return to ED for severe hypoglycemia (blood sugar < 60), confusion, or chest pain.

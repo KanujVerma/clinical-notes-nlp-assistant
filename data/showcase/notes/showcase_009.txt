@@ -1,0 +1,13 @@
+Patient: Demo Patient Nine
+Date of Service: 2025-01-23
+Provider: Dr. Demo Provider
+
+Follow-up for hypothyroidism. Patient feeling well. Fatigue improved.
+
+VITALS: BP 114/70. HR 62. Temp 97.8F. RR 12. SpO2 100%. Wt 138 lbs.
+
+MEDICATIONS:
+- levothyroxine 75 mcg PO daily (take on empty stomach, 30 min before food)
+
+FOLLOW UP:
+Repeat TSH labs in 6 weeks. Return appointment with endocrinology in 3 months.

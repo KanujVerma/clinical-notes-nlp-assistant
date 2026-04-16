@@ -1,0 +1,16 @@
+Patient: Demo Patient Five
+Date of Service: 2025-01-19
+Provider: Dr. Demo Provider
+
+VITALS: BP 136/84. HR 80 bpm. Temp 98.7F. RR 15. SpO2 97%. Wt 188 lbs.
+
+The patient was started on amoxicillin 500 mg three times daily for a suspected upper respiratory infection. She is already taking omeprazole 20 mg nightly for reflux and her cardiologist recently added aspirin 81 mg once daily for cardiovascular prophylaxis. No allergies to penicillin reported.
+
+DISCHARGE INSTRUCTIONS:
+Take amoxicillin with food. Complete the full 10-day course. Continue omeprazole and aspirin as prescribed.
+
+FOLLOW UP:
+Check in with primary care in 1 week if symptoms have not improved.
+
+RETURN PRECAUTIONS:
+Seek emergency care if rash, throat swelling, or difficulty breathing develops.
