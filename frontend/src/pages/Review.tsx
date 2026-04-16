@@ -200,6 +200,7 @@ export default function Review() {
   const location = useLocation();
   const { noteId } = useParams();
   const navigate = useNavigate();
+  const fromHistory = (location.state as any)?.from === "history";
   const startTime = useRef(Date.now());
   const { bumpQueue } = useQueue();
 
@@ -502,6 +503,14 @@ export default function Review() {
       {/* Review top bar */}
       <header className="bg-slate-800 text-slate-100 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
+          {fromHistory && (
+            <button
+              onClick={() => navigate("/history")}
+              className="text-slate-400 hover:text-slate-200 text-xs flex items-center gap-1"
+            >
+              ← History
+            </button>
+          )}
           <span className="font-semibold text-sm tracking-wide">Reviewer</span>
         </div>
         {/* D: Progress indicator */}
