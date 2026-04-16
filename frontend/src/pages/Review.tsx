@@ -178,6 +178,11 @@ export default function Review() {
     return () => clearInterval(id);
   }, []);
 
+  // Cleanup deactivate timeout on unmount
+  useEffect(() => () => {
+    if (deactivateTimeout.current) clearTimeout(deactivateTimeout.current);
+  }, []);
+
   // Load data from nav state or API
   useEffect(() => {
     const state = location.state as {
