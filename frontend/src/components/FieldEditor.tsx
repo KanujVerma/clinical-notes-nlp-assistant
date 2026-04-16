@@ -147,10 +147,11 @@ export default function FieldEditor({
               data-testid="field-value">{draft}</p>
           )
         )}
-        {/* Click-to-edit hint when showing diff */}
+        {/* Click-to-edit when showing diff — value is displayed in the diff row above */}
         {showDiff && !editing && (
-          <p className="mt-0.5 text-sm text-slate-700 cursor-pointer hover:opacity-80" onClick={() => setEditing(true)}
-            data-testid="field-value">{/* value already shown in diff */}</p>
+          <p className="mt-0.5 text-[10px] text-slate-400 cursor-pointer hover:text-slate-600" onClick={() => setEditing(true)}>
+            click to re-edit
+          </p>
         )}
       </div>
     );

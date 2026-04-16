@@ -318,9 +318,8 @@ export default function Review() {
             }
           });
           setFields(m);
-          // Clear extracted so the normal flatten useEffect doesn't overwrite
-          setExtracted(null);
-          // Re-set extracted for NoteViewer (keep it for rendering)
+          // reReviewBanner is set to true above; the flatten useEffect guards on it,
+          // so setExtracted won't overwrite these statuses.
           setExtracted(ext);
         }
       });
