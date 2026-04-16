@@ -99,7 +99,7 @@ When a medications section is detected, parse it line by line. For each non-empt
 
 #### 3b. medSpaCy fallback
 
-After structured parsing, run medSpaCy on the full note text to catch medication mentions in prose (e.g., in HPI, assessment). De-duplicate against already-found medications by name (case-insensitive). The fallback result is tagged `"source": "medspacy"` while the line parser results are tagged `"source": "section"`.
+After structured parsing, run medSpaCy on the full note text to catch medication mentions in prose (e.g., in HPI, assessment). De-duplicate against already-found medications by name (case-insensitive). **When both sources return the same medication name, the structured line parser result takes precedence** (it has more context for dose/route/freq). The fallback result is tagged `"source": "medspacy"` while the line parser results are tagged `"source": "section"`.
 
 #### 3c. Guard against over-greedy matching
 
