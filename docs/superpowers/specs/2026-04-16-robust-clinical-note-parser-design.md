@@ -103,10 +103,19 @@ After structured parsing, run medSpaCy on the full note text to catch medication
 
 #### 3c. Guard against over-greedy matching
 
-A line is rejected as a medication candidate if:
-- It contains no dose-like token AND no unambiguous route/frequency token
-- It is entirely uppercase (likely a section header)
-- It matches a known non-medication pattern: date lines, diagnosis lines (containing ICD-like patterns), instruction sentences (containing "return to", "follow up", "avoid", "drink")
+A line is rejected as a medication candidate if **any** of the following is true:
+
+1. **No dose or sig token present:** The line contains no dose-like token (`\d+\s*(?:mg|mcg|g|ml|units?|mEq|puffs?|tabs?|tablets?|capsules?|cap|patch|spray|drops)`) AND no unambiguous route token (PO, IV, IM, SQ, inhaled, topical, SL) AND no unambiguous frequency token (BID, TID, QID, QHS, q\d+h, daily, PRN, as needed).
+
+2. **Entirely uppercase:** The stripped line is `== line.upper()` (section headers like "MEDICATIONS", "ASSESSMENT").
+
+3. **Matches a non-medication reject pattern** (applied as regex search, case-insensitive):
+   - Date line: `\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b` OR `\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}`
+   - Diagnosis/ICD line: `\b[A-Z]\d{2,3}\.?\d*\b` (ICD-10 code pattern)
+   - Instruction/prose sentence: line starts with `(return to|follow up|follow-up|avoid|drink|if you|go to|call|seek|use the|take all)`
+   - Pure numeric or single-character line
+
+Lines that pass all guards but are missing `route` or `frequency` are still accepted — those fields are left as empty strings.
 
 ---
 
@@ -141,7 +150,11 @@ The existing fallback fires on individual sentences. Extend the trigger patterns
 `discharge_instructions` triggers (prose):
 - `take your`, `rest`, `avoid`, `do not`, `drink plenty`, `use your`, `continue your`, `apply`
 
-**Multi-sentence aggregation:** When a fallback trigger is found, collect that sentence **and** the following 1–2 sentences (up to the next trigger or section boundary) into the value. This handles cases like "Return to ER for: chest pain, shortness of breath, fever." split across lines.
+**Multi-sentence aggregation:** When a fallback trigger is found, collect that sentence **and the following 2 sentences** into the value, stopping early if:
+- A new trigger (for any category) is encountered, or
+- A section header pattern is encountered.
+
+Window size is fixed at 2 additional sentences (not variable). This handles cases like "Return to ER for: chest pain, shortness of breath, fever." split across lines without pulling in unrelated content.
 
 ---
 
@@ -153,8 +166,8 @@ New tests added in `backend/tests/`:
 - `test_vitals.py` — test all new format variants for each vital sign
 - `test_medications.py` — test structured line parsing (bullets, numbered, inhaler-style, missing route/freq, prose fallback), test over-greedy guard
 - `test_metadata.py` — test all new header variants
-- `test_instructions.py` — test section-source mapping from Plan/Hospital Course, test multi-sentence fallback aggregation
-- `test_pipeline.py` — end-to-end test using the full discharge summary from the design spec (John Smith note); verify all 3 medications are extracted with correct dose/route/freq
+- `test_instructions.py` — test section-source mapping from Plan/Hospital Course; test multi-sentence aggregation (fixture: note with `return_precautions` content split across 3 lines, no section header, verify all 3 lines are captured in the value); test that aggregation stops at the next trigger
+- `test_pipeline.py` — end-to-end test using the full discharge summary from the design spec (John Smith note); verify all 3 medications are extracted with correct dose/route/freq; additionally test a headerless note (free-text only) and verify at least follow_up and return_precautions are populated via fallback
 
 ---
 
