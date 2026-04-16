@@ -10,9 +10,11 @@ bp = Blueprint("metrics", __name__)
 @bp.get("/api/metrics")
 def metrics():
     # Load eval results (may not exist yet)
+    from flask import current_app
+    eval_results_path = current_app.config.get("EVAL_RESULTS_PATH", Config.EVAL_RESULTS_PATH)
     eval_data = None
-    if os.path.exists(Config.EVAL_RESULTS_PATH):
-        with open(Config.EVAL_RESULTS_PATH) as f:
+    if os.path.exists(eval_results_path):
+        with open(eval_results_path) as f:
             eval_data = json.load(f)
 
     # DB-based correction stats
