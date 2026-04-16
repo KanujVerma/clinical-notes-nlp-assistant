@@ -15,7 +15,8 @@ class TestExtractTextFromPdf:
             mock_page = MagicMock()
             mock_page.get_text.return_value = long_text
             mock_doc.__iter__ = lambda s: iter([mock_page])
-            mock_doc.close = MagicMock()
+            mock_doc.__enter__ = MagicMock(return_value=mock_doc)
+            mock_doc.__exit__ = MagicMock(return_value=None)
             mock_open.return_value = mock_doc
             text, source = extract_text_from_pdf(pdf_path)
         assert source == "pdf"
@@ -32,7 +33,8 @@ class TestExtractTextFromPdf:
             mock_page = MagicMock()
             mock_page.get_text.return_value = "   "
             mock_doc.__iter__ = lambda s: iter([mock_page])
-            mock_doc.close = MagicMock()
+            mock_doc.__enter__ = MagicMock(return_value=mock_doc)
+            mock_doc.__exit__ = MagicMock(return_value=None)
             mock_open.return_value = mock_doc
             mock_ocr.return_value = ocr_text
             text, source = extract_text_from_pdf(pdf_path)
@@ -47,7 +49,8 @@ class TestExtractTextFromPdf:
             mock_page = MagicMock()
             mock_page.get_text.return_value = ""
             mock_doc.__iter__ = lambda s: iter([mock_page])
-            mock_doc.close = MagicMock()
+            mock_doc.__enter__ = MagicMock(return_value=mock_doc)
+            mock_doc.__exit__ = MagicMock(return_value=None)
             mock_open.return_value = mock_doc
             mock_ocr.return_value = "   "
             with pytest.raises(ValueError, match="no readable text"):
@@ -60,7 +63,10 @@ class TestExtractTextFromImage:
         ocr_text = "BP 120/80\nHR 76\n" * 4
         with patch("utils.pdf.Image") as mock_Image, \
              patch("utils.pdf.pytesseract") as mock_tess:
-            mock_Image.open.return_value = MagicMock()
+            mock_img = MagicMock()
+            mock_img.__enter__ = MagicMock(return_value=mock_img)
+            mock_img.__exit__ = MagicMock(return_value=None)
+            mock_Image.open.return_value = mock_img
             mock_tess.image_to_string.return_value = ocr_text
             text = extract_text_from_image(img_path)
         assert "BP" in text
@@ -69,7 +75,10 @@ class TestExtractTextFromImage:
         img_path = str(tmp_path / "blank.png")
         with patch("utils.pdf.Image") as mock_Image, \
              patch("utils.pdf.pytesseract") as mock_tess:
-            mock_Image.open.return_value = MagicMock()
+            mock_img = MagicMock()
+            mock_img.__enter__ = MagicMock(return_value=mock_img)
+            mock_img.__exit__ = MagicMock(return_value=None)
+            mock_Image.open.return_value = mock_img
             mock_tess.image_to_string.return_value = "  "
             with pytest.raises(ValueError, match="no readable text"):
                 extract_text_from_image(img_path)

@@ -25,9 +25,8 @@ def extract_text_from_pdf(filepath: str) -> tuple[str, str]:
         ValueError: if both PyMuPDF and OCR produce fewer than 50 characters.
         pytesseract.TesseractNotFoundError: if tesseract binary is not installed.
     """
-    doc = fitz.open(filepath)
-    text = "\n".join(page.get_text() for page in doc)
-    doc.close()
+    with fitz.open(filepath) as doc:
+        text = "\n".join(page.get_text() for page in doc)
     if len(text.strip()) >= _MIN_TEXT_LEN:
         return text, "pdf"
     # Fall back to Tesseract OCR
@@ -44,8 +43,8 @@ def extract_text_from_image(filepath: str) -> str:
         ValueError: if Tesseract output is under 50 characters after stripping.
         pytesseract.TesseractNotFoundError: if tesseract binary is not installed.
     """
-    img = Image.open(filepath)
-    text = pytesseract.image_to_string(img)
+    with Image.open(filepath) as img:
+        text = pytesseract.image_to_string(img)
     if len(text.strip()) < _MIN_TEXT_LEN:
         raise ValueError("OCR produced no readable text.")
     return text
