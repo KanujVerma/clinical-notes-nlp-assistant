@@ -79,14 +79,14 @@ Return to ER if chest pain or shortness of breath.`;
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+      <header className="bg-slate-800 text-slate-100 px-6 py-2.5 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">Clinical Notes NLP Assistant</h1>
-          <p className="text-xs text-amber-600 mt-0.5">Demo mode — all data is synthetic</p>
+          <span className="font-semibold text-sm tracking-wide">Clinical Notes NLP Assistant</span>
+          <p className="text-xs text-slate-500 mt-0.5">Demo mode — all data is synthetic</p>
         </div>
-        <nav className="flex gap-4 text-sm text-slate-600">
-          <a href="/history" className="hover:text-blue-600">History</a>
-          <a href="/metrics" className="hover:text-blue-600">Metrics</a>
+        <nav className="flex gap-4 text-sm text-slate-400">
+          <a href="/history" className="hover:text-slate-200 transition-colors">History</a>
+          <a href="/metrics" className="hover:text-slate-200 transition-colors">Metrics</a>
         </nav>
       </header>
 
@@ -98,7 +98,7 @@ Return to ER if chest pain or shortness of breath.`;
 
         {/* Text area */}
         <textarea
-          className="w-full h-48 border border-slate-300 rounded-lg p-3 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full h-48 border border-slate-300 rounded-lg p-3 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 text-slate-900 leading-relaxed"
           placeholder="Paste clinical note text here..."
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -113,8 +113,8 @@ Return to ER if chest pain or shortness of breath.`;
           className={`w-full border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
             ${dragging ? "border-blue-400 bg-blue-50" : "border-slate-300 hover:border-blue-300"}`}
         >
-          <p className="text-slate-500 text-sm">Drop a .txt or .pdf file here, or click to browse</p>
-          <input ref={fileRef} type="file" accept=".txt,.pdf" className="hidden"
+          <p className="text-slate-500 text-sm">Drop a .txt, .pdf, or image file here, or click to browse</p>
+          <input ref={fileRef} type="file" accept=".txt,.pdf,.png,.jpg,.jpeg,.tiff,.tif" className="hidden"
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
         </div>
 
@@ -123,7 +123,7 @@ Return to ER if chest pain or shortness of breath.`;
         <div className="flex gap-3 flex-wrap justify-center">
           <button onClick={handleSubmitText} disabled={!text.trim() || loading}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-            {loading ? "Extracting..." : "Extract →"}
+            {loading ? "Processing..." : "Extract →"}
           </button>
           <button onClick={() => setText(SAMPLE_NOTE)}
             className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-100">
