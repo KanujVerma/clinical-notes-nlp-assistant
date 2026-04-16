@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { NoteListItem } from "../types";
 import StatusBadge from "../components/StatusBadge";
+import SourceBadge from "../components/SourceBadge";
 
 export default function History() {
   const navigate = useNavigate();
@@ -16,11 +17,11 @@ export default function History() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">History</h1>
-        <nav className="flex gap-4 text-sm text-slate-600">
-          <a href="/" className="hover:text-blue-600">Home</a>
-          <a href="/metrics" className="hover:text-blue-600">Metrics</a>
+      <header className="bg-slate-800 text-slate-100 px-6 py-2.5 flex items-center justify-between">
+        <span className="font-semibold text-sm tracking-wide">History</span>
+        <nav className="flex gap-4 text-sm text-slate-400">
+          <a href="/" className="hover:text-slate-200 transition-colors">Home</a>
+          <a href="/metrics" className="hover:text-slate-200 transition-colors">Metrics</a>
         </nav>
       </header>
       <main className="max-w-5xl mx-auto p-6">
@@ -40,7 +41,7 @@ export default function History() {
                 <tr key={note.id} onClick={() => navigate(`/review/${note.id}`)}
                   className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
                   <td className="px-4 py-3 text-slate-700">{note.filename ?? `note #${note.id}`}</td>
-                  <td className="px-4 py-3 text-slate-500">{note.source}</td>
+                  <td className="px-4 py-3"><SourceBadge source={note.source} /></td>
                   <td className="px-4 py-3 text-slate-500">{new Date(note.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-3"><StatusBadge status={note.status} /></td>
                   <td className="px-4 py-3 text-slate-500">{note.correction_count}</td>
