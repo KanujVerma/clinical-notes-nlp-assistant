@@ -1,31 +1,52 @@
 # Clinical Notes NLP Assistant
 
-Extracts structured information from unstructured clinical notes, presents it in a reviewer UI for correction, persists everything in SQLite, and evaluates pipeline quality against a labeled synthetic test set.
+A full-stack web app that extracts structured data from unstructured clinical notes, presents it in a keyboard-driven reviewer UI, and tracks correction rates and evaluation metrics over time.
 
 > **All data is entirely synthetic.** No real patient information is used anywhere in this project.
 
 ---
 
+## Screenshots
+
+**Upload / Queue**
+
+*[screenshot]*
+
+**Review workflow**
+
+*[screenshot]*
+
+**History**
+
+*[screenshot]*
+
+**Metrics**
+
+*[screenshot]*
+
+---
+
 ## What it does
 
-A clinical note comes in as pasted text, a `.txt` file, a text-based PDF, a scanned printed document, or a typed image file. The NLP pipeline breaks it into sections, then runs parallel extractors over those sections to produce structured output:
+A clinical note comes in as pasted text, a `.txt` file, a text-based PDF, a scanned printed document, or a typed image. The pipeline breaks it into sections and extracts:
 
-- **Vitals** — BP, HR, temperature, RR, SpO2, weight — with units preserved
-- **Medications** — name, dose, route, frequency, duration, PRN qualifier; combines structured line parsing, prose extraction from Plan/A&P sections, and a curated vocabulary with medSpaCy fallback. Still a prototype, not a production-grade medication normalizer.
+- **Vitals** — BP, HR, temperature, RR, SpO2, weight, with units preserved
+- **Medications** — name, dose, route, frequency, duration, PRN qualifier
 - **Instructions** — discharge instructions, follow-up plan, return precautions
 - **Metadata** — patient name, date of service, provider
 
-That output goes into a review UI where a reviewer can accept, edit, or remove individual fields. Corrections are stored and surfaced in a metrics dashboard alongside F1 scores from an offline evaluation run.
+The extracted fields go into a reviewer UI where each one can be accepted, edited, or removed. Corrections are saved back to the database and surface in a Metrics page alongside F1 scores from an offline evaluation run.
 
 ---
 
 ## Demo flow
 
-1. Upload or paste a synthetic clinical note
-2. Review extracted vitals, medications, instructions, and metadata
-3. Accept, edit, or remove fields using the keyboard-driven review UI
-4. Save and auto-advance to the next pending note
-5. Inspect correction rates and evaluation results in the Metrics page
+1. Paste a note or upload a file, or click **Seed demo data** to load a set of synthetic notes
+2. Open the Queue — pending notes waiting for review are listed there
+3. Click a note to open it in the Review page
+4. Accept, edit, or remove fields using the keyboard or mouse
+5. Save — the UI auto-advances to the next pending note
+6. Check the Metrics page to see correction rates by category and field
 
 ---
 
@@ -37,36 +58,23 @@ That output goes into a review UI where a reviewer can accept, edit, or remove i
         │
         ▼
 [Flask API — port 5000]
-  POST /api/notes    (text)
-  POST /api/upload   (file)
         │
         ▼
 [NLP Pipeline]
-  preprocess
-    → section detection   (medSpaCy Sectionizer + header regex)
-    → vitals extractor    (regex, unit-preserving)
-    → medication extractor (structured line parsing → prose A/P → medSpaCy TargetMatcher + ConText)
-    → instruction extractor (dedicated sections → sub-classification → keyword fallback)
-    → metadata extractor  (header patterns)
+    section detection → vitals → medications → instructions → metadata
         │
         ▼
 [SQLite via SQLAlchemy]
-  notes  →  extractions  →  validations
+  notes → extractions → validations
         ▲
         │
 [React UI — port 5173 (dev) / 5000 (Docker)]
   Upload → Queue → Review → History → Metrics
 ```
 
-The pipeline is entirely rule-based — no LLM calls, no API keys, and deterministic output for the same input note.
+The pipeline is entirely rule-based — no LLM calls, no API keys, and deterministic output for the same input note. Section detection uses medSpaCy's Sectionizer plus header regex patterns. Vitals use unit-preserving regex. The medication extractor combines structured line parsing, prose extraction from Plan/A&P sections, and a medSpaCy TargetMatcher with ConText for negation handling. Instructions use a three-tier approach: dedicated sections first, then sub-classification of Plan/HPI text, then a keyword fallback.
 
----
-
-## Why rule-based
-
-This was a deliberate choice rather than a limitation. Rule-based extraction is deterministic, which makes evaluation honest: the F1 scores in the Metrics page reflect real system behavior, not sampling variance. ConText handles negation (so "no chest pain" doesn't produce a finding), and the sentence-local medication scanner prevents cross-sentence dose binding without needing a dependency parser.
-
-The trade-off is that coverage is bounded by the implemented rules and patterns rather than learned from data. The medication extractor is the clearest example of this — see Limitations below.
+The deterministic design makes evaluation honest — the F1 scores in the Metrics page reflect real system behavior.
 
 ---
 
@@ -138,31 +146,35 @@ docker compose up
 
 ## Review workflow
 
-The review UI is designed to be keyboard-driven:
+The reviewer UI is keyboard-driven. Hover over any field card to activate it, then:
 
 | Key | Action |
 |-----|--------|
-| `A` | Accept active field |
-| `E` | Open edit on active field |
-| `R` | Remove active field |
+| `A` | Accept |
+| `E` | Edit |
+| `R` | Remove |
 | `Tab` / `Shift+Tab` | Cycle through fields |
 | `Esc` | Deactivate |
 | `⌘S` / `Ctrl+S` | Save |
 
-The top bar shows a progress bar ("X of Y fields reviewed") and a timer. After saving, the UI auto-advances to the next pending note. If you re-open a previously reviewed note, it reconstructs the prior field statuses from the diff of extracted vs. validated JSON, and carries the timer forward.
+A progress bar in the top bar tracks how many fields have been reviewed. After saving, the app auto-advances to the next pending note. Navigating away with unsaved changes triggers a confirmation prompt.
 
-Medication cards group dose/route/frequency/duration under the drug name with a visual indent. Medications extracted with no sig (pure name mentions from HPI prose) get a "mention only" label so the reviewer knows to confirm or discard them.
+Medication cards group dose, route, frequency, and duration under the drug name with a visual indent so it is clear which sig belongs to which drug. Medications captured from prose with no sig information get a **mention only** label — the reviewer decides whether to keep or remove them.
+
+Re-opening a previously reviewed note reconstructs the prior field statuses from the diff of extracted vs. validated data, shows a banner, and carries the review timer forward.
 
 ---
 
 ## Evaluation
 
+The Metrics page shows F1 scores from an offline evaluation run against 20 hand-labeled synthetic notes, plus reviewer correction rates by category and field from all validated notes in the database.
+
+To generate the evaluation results:
+
 ```bash
 source .venv/bin/activate
 python scripts/run_evaluation.py
 ```
-
-Evaluates the pipeline against 20 hand-labeled synthetic notes in `data/eval/labels/`. Results are written to `backend/evaluation/results.json`, which the Metrics page reads.
 
 Sample output:
 ```
@@ -179,71 +191,44 @@ Sample output:
   Notes evaluated: 20
 ```
 
-Vitals precision is high — the regex patterns are tight and unit-preserving. Medication recall is lower for a few reasons: the eval set includes drugs outside the curated vocabulary, some medications only appear as prose mentions without the action-verb patterns the extractor looks for, and a handful of note formats fall outside the implemented section/header patterns. Expanding vocabulary coverage and broadening the prose extraction rules are the clearest paths to improvement.
-
-The Metrics page also shows reviewer correction rates by category and by field, computed from all validated notes in the database. This tells you where the pipeline is least reliable in practice.
+Vitals precision is high because the regex patterns are tight. Medication recall is lower — the eval set includes drugs outside the curated vocabulary, some medications appear only as prose mentions without the action-verb patterns the extractor looks for, and a handful of note formats fall outside the supported section header patterns. These are the clearest paths to improvement.
 
 ---
 
 ## Limitations
 
-- **Medication extraction is a prototype.** Structured medication lines (with dose/sig) usually parse correctly even for drugs outside the curated vocabulary. Prose-only mentions — drugs referenced in HPI narrative without a standard sig format — are more dependent on the curated vocabulary and the action-verb sentence patterns. No RxNorm, no brand/generic normalization, no dose unit conversion.
-- **Handwritten notes are not supported.** OCR is implemented for clean printed documents and typed scans. Handwriting degrades Tesseract output significantly and is out of scope for this version.
-- **OCR quality depends on image quality.** Clean typed scans work well. Degraded images, unusual fonts, or poor contrast may produce garbled text the extractor can't recover from.
+- **Medication extraction is a prototype.** Structured medication lines with dose/sig usually parse correctly even for drugs outside the curated vocabulary. Prose-only mentions in HPI narrative are more dependent on the curated vocabulary and action-verb sentence patterns. No RxNorm, no brand/generic normalization, no dose unit conversion.
+- **Handwritten notes are not supported.** OCR works for clean printed and typed scans. Handwriting degrades Tesseract output significantly and is out of scope for this version.
+- **OCR quality depends on scan quality.** Poor contrast, unusual fonts, or heavy artifacts may produce garbled text the extractor can't recover from.
 - **Coverage is bounded by the implemented rules.** Unusual phrasings, heavy abbreviations, or note formats outside the supported section/header patterns will reduce extraction quality.
 - **No authentication.** Single-user local tool.
 - **No real PHI.** Do not use with real patient data.
-- **spaCy model: `en_core_web_sm`.** A general-purpose model. The scispaCy `en_core_sci_sm` model (set `SPACY_MODEL=en_core_sci_sm` in config) would improve clinical tokenization but isn't required.
-
----
-
-## Tests
-
-118 unit and integration tests covering each extractor independently and end-to-end pipeline behavior across four realistic note types (discharge summary, SOAP note, follow-up note, headerless text):
-
-```bash
-source .venv/bin/activate
-pytest backend/tests/ -v
-```
-
-The four full-note fixtures in `test_pipeline.py` act as a regression pack. They cover structured medication sections, prose extraction from A&P, sentence-local dose binding, follow-up disambiguation from HPI narrative, and unit preservation in vitals.
-
-An 11-test Playwright smoke suite covers the end-to-end browser flow:
-
-```bash
-cd frontend
-npx playwright test
-```
-
----
-
-## Screenshots
-
-**Upload / Queue**
-
-*[screenshot]*
-
-**Review workflow**
-
-*[screenshot]*
-
-**History**
-
-*[screenshot]*
-
-**Metrics**
-
-*[screenshot]*
 
 ---
 
 ## Potential next steps
 
-- RxNorm integration for drug normalization and vocabulary expansion
+- RxNorm integration for drug normalization and broader vocabulary coverage
 - scispaCy (`en_core_sci_sm`) for better clinical tokenization
 - LLM fallback for fields the rule-based extractors miss consistently
 - FHIR-structured output
-- Active learning loop: surface low-confidence extractions for review and use corrections to retrain or extend the rules
+- Active learning: surface low-confidence extractions and use reviewer corrections to extend the rules
+
+---
+
+## Development
+
+**Backend tests** (118 unit + integration, includes a four-note regression pack):
+```bash
+source .venv/bin/activate
+pytest backend/tests/ -v
+```
+
+**End-to-end smoke tests** (Playwright, requires both servers running):
+```bash
+cd frontend
+npx playwright test
+```
 
 ---
 
