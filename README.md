@@ -196,11 +196,11 @@ Sample output:
   Clinical NLP Evaluation — pipeline v0.1.0
 ============================================================
   Category              Precision     Recall         F1
-  vitals                    1.000      0.652      0.790
-  medications               0.238      0.222      0.230
-  instructions              0.696      0.327      0.444
-  metadata                  0.897      0.531      0.667
-  OVERALL                   0.754      0.494      0.597
+  vitals                    0.892      0.627      0.736
+  medications               0.488      0.467      0.477
+  instructions              0.821      0.469      0.597
+  metadata                  0.775      0.633      0.697
+  OVERALL                   0.768      0.571      0.655
 ============================================================
   Notes evaluated: 20
 ```
