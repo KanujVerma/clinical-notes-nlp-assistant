@@ -1,6 +1,6 @@
 # Clinical Notes NLP Assistant
 
-A full-stack web app that extracts structured data from unstructured clinical notes, presents it in a keyboard-driven reviewer UI, and tracks correction rates and evaluation metrics over time.
+A full-stack web app that extracts structured data from clinical notes, presents it in a keyboard-driven reviewer UI, and tracks correction rates and offline evaluation metrics.
 
 > **All data is entirely synthetic.** No real patient information is used anywhere in this project.
 
@@ -8,27 +8,41 @@ A full-stack web app that extracts structured data from unstructured clinical no
 
 ## Screenshots
 
-**Upload / Queue**
+**Upload**
 
-*[screenshot]*
+![Upload page](docs/screenshots/upload.png)
 
-**Review workflow**
+**Queue**
 
-*[screenshot]*
+![Queue page](docs/screenshots/queue.png)
+
+**Review**
+
+![Review page](docs/screenshots/review.png)
 
 **History**
 
-*[screenshot]*
+![History page](docs/screenshots/history.png)
 
 **Metrics**
 
-*[screenshot]*
+![Metrics page](docs/screenshots/metrics.png)
+
+---
+
+## Tech stack
+
+| Layer | Technologies |
+|-------|-------------|
+| Backend | Flask, SQLAlchemy, SQLite |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| NLP | medSpaCy, spaCy, regex, Tesseract OCR |
 
 ---
 
 ## What it does
 
-A clinical note comes in as pasted text, a `.txt` file, a text-based PDF, a scanned printed document, or a typed image. The pipeline breaks it into sections and extracts:
+A clinical note comes in as pasted text, a `.txt` file, a text-based PDF, a scanned printed document, or an image-based typed document. The pipeline breaks it into sections and extracts:
 
 - **Vitals** — BP, HR, temperature, RR, SpO2, weight, with units preserved
 - **Medications** — name, dose, route, frequency, duration, PRN qualifier
@@ -167,9 +181,9 @@ Re-opening a previously reviewed note reconstructs the prior field statuses from
 
 ## Evaluation
 
-The Metrics page shows F1 scores from an offline evaluation run against 20 hand-labeled synthetic notes, plus reviewer correction rates by category and field from all validated notes in the database.
+The Metrics page shows F1 scores alongside reviewer correction rates by category and field. The F1 scores are computed against a hand-labeled synthetic evaluation set of 20 notes included in the repo at `data/eval/labels/`.
 
-To generate the evaluation results:
+To generate or refresh the evaluation results:
 
 ```bash
 source .venv/bin/activate
@@ -191,7 +205,7 @@ Sample output:
   Notes evaluated: 20
 ```
 
-Vitals precision is high because the regex patterns are tight. Medication recall is lower — the eval set includes drugs outside the curated vocabulary, some medications appear only as prose mentions without the action-verb patterns the extractor looks for, and a handful of note formats fall outside the supported section header patterns. These are the clearest paths to improvement.
+Vitals precision is high because the regex patterns are tight. Medication recall is lower — the eval set includes drugs outside the curated vocabulary, some medications appear only as prose mentions without the action-verb patterns the extractor looks for, and a handful of note formats fall outside the supported section header patterns. Expanding vocabulary coverage and broadening the prose extraction rules are the clearest paths to improvement.
 
 ---
 
@@ -212,13 +226,13 @@ Vitals precision is high because the regex patterns are tight. Medication recall
 - scispaCy (`en_core_sci_sm`) for better clinical tokenization
 - LLM fallback for fields the rule-based extractors miss consistently
 - FHIR-structured output
-- Active learning: surface low-confidence extractions and use reviewer corrections to extend the rules
+- Active learning: surface low-confidence extractions and use reviewer corrections to extend the rules over time
 
 ---
 
 ## Development
 
-**Backend tests** (118 unit + integration, includes a four-note regression pack):
+**Backend tests** (118 unit + integration tests, includes a four-note regression pack):
 ```bash
 source .venv/bin/activate
 pytest backend/tests/ -v
@@ -227,7 +241,7 @@ pytest backend/tests/ -v
 **End-to-end smoke tests** (Playwright, requires both servers running):
 ```bash
 cd frontend
-npx playwright test
+npx playwright test e2e/smoke.spec.ts
 ```
 
 ---
