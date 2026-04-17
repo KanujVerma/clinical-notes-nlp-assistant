@@ -1,8 +1,10 @@
 # Clinical Notes NLP Assistant
 
-A full-stack web app that extracts structured data from clinical notes, presents it in a keyboard-driven reviewer UI, and tracks correction rates and offline evaluation metrics.
+A full-stack web app that extracts structured data from clinical notes, presents it in a keyboard-driven reviewer UI, and tracks live correction rates and review activity.
 
-> **All data is entirely synthetic.** No real patient information is used anywhere in this project.
+> **Live demo:** [clinical-nlp.vercel.app](https://clinical-nlp.vercel.app/)
+
+> **All data is entirely synthetic.** No real patient information is used anywhere in this project. Handwritten notes are not supported in v1.
 
 ---
 
@@ -30,16 +32,6 @@ A full-stack web app that extracts structured data from clinical notes, presents
 
 ---
 
-## Tech stack
-
-| Layer | Technologies |
-|-------|-------------|
-| Backend | Flask, SQLAlchemy, SQLite |
-| Frontend | React, TypeScript, Vite, Tailwind CSS |
-| NLP | medSpaCy, spaCy, regex, Tesseract OCR |
-
----
-
 ## What it does
 
 A clinical note comes in as pasted text, a `.txt` file, a text-based PDF, a scanned printed document, or an image-based typed document. The pipeline breaks it into sections and extracts:
@@ -49,18 +41,40 @@ A clinical note comes in as pasted text, a `.txt` file, a text-based PDF, a scan
 - **Instructions** — discharge instructions, follow-up plan, return precautions
 - **Metadata** — patient name, date of service, provider
 
-The extracted fields are presented in a reviewer UI where each one can be accepted, edited, or removed. Corrections are saved back to the database and surface in a Metrics page alongside F1 scores from an offline evaluation run.
+The extracted fields are presented in a reviewer UI where each one can be accepted, edited, or removed. Corrections persist to the hosted database and surface as live product metrics — correction rates by category and field, review counts, and avg review time.
 
 ---
 
 ## Demo flow
 
-1. Paste a note or upload a file, or click **Seed demo data** to load a set of synthetic notes
+1. Open the [live app](https://clinical-nlp.vercel.app/) and click **Seed demo data** to load synthetic notes
 2. Open the Queue — pending notes waiting for review are listed there
 3. Click a note to open it in the Review page
 4. Accept, edit, or remove fields using the keyboard or mouse
 5. Save — the UI auto-advances to the next pending note
-6. Check the Metrics page to see correction rates by category and field
+6. Check the Metrics page to see live correction rates and review activity
+
+All uploaded notes, validations, history, and metrics persist in the hosted Supabase database.
+
+---
+
+## Deployment
+
+| Layer | Service |
+|-------|---------|
+| Frontend | [Vercel](https://vercel.com) — Vite/React, deployed from `frontend/` |
+| Backend | [Render](https://render.com) — Flask + gunicorn, free web service |
+| Database | [Supabase](https://supabase.com) — managed Postgres, tables auto-created on first start |
+
+---
+
+## Tech stack
+
+| Layer | Technologies |
+|-------|-------------|
+| Backend | Flask, SQLAlchemy, Postgres (prod) / SQLite (local) |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| NLP | medSpaCy, spaCy, regex, Tesseract OCR |
 
 ---
 
@@ -71,28 +85,26 @@ The extracted fields are presented in a reviewer UI where each one can be accept
   paste text / .txt / .pdf (text layer) / .pdf (OCR) / image (.png, .jpg, .tiff)
         │
         ▼
-[Flask API — port 5000]
+[Flask API — Render (prod) / localhost:5000 (dev)]
         │
         ▼
 [NLP Pipeline]
     section detection → vitals → medications → instructions → metadata
         │
         ▼
-[SQLite via SQLAlchemy]
+[Postgres via SQLAlchemy (prod) / SQLite (dev)]
   notes → extractions → validations
         ▲
         │
-[React UI — port 5173 (dev) / 5000 (Docker)]
+[React UI — Vercel (prod) / localhost:5173 (dev)]
   Upload → Queue → Review → History → Metrics
 ```
 
 The pipeline is entirely rule-based — no LLM calls, no API keys, and deterministic output for the same input note. Section detection uses medSpaCy's Sectionizer plus header regex patterns. Vitals use unit-preserving regex. The medication extractor combines structured line parsing, prose extraction from Plan/A&P sections, and a medSpaCy TargetMatcher with ConText for negation handling. Instructions use a three-tier approach: dedicated sections first, then sub-classification of Plan/HPI text, then a keyword fallback.
 
-The deterministic design makes evaluation honest — the F1 scores in the Metrics page reflect real system behavior.
-
 ---
 
-## Setup
+## Local setup
 
 Requires Python 3.11, Node 18+, and Tesseract (for OCR on images/scanned PDFs).
 
@@ -105,14 +117,13 @@ sudo apt-get install -y tesseract-ocr poppler-utils
 ```
 
 ```bash
-git clone <repo>
+git clone https://github.com/KanujVerma/clinical-notes-nlp-assistant
 cd clinical-notes-nlp-assistant
 
 # Python environment
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 
 # Frontend
 cd frontend
@@ -139,7 +150,7 @@ npm run dev
 # Vite on http://localhost:5173
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173`. Local dev uses SQLite — no database setup required.
 
 **Seed demo data (optional):**
 ```bash
@@ -179,11 +190,19 @@ Re-opening a previously reviewed note reconstructs the prior field statuses from
 
 ---
 
-## Evaluation
+## Metrics
 
-The Metrics page shows F1 scores alongside reviewer correction rates by category and field. The F1 scores are computed against a hand-labeled synthetic evaluation set of 20 notes included in the repo at `data/eval/labels/`.
+The deployed app's Metrics page shows **live product signals** computed from real reviewer activity:
 
-To generate or refresh the evaluation results:
+- Correction rate by category (vitals, medications, instructions, metadata)
+- Correction rate by field (top 10 most-corrected fields)
+- Review counts and average review time by status
+
+These update in real time as notes are reviewed and saved.
+
+### Offline evaluation benchmark (development only)
+
+A separate offline evaluation script measures parser F1 against a hand-labeled synthetic evaluation set of 20 notes (`data/eval/labels/`). This is a development benchmarking workflow and is not surfaced in the deployed app UI.
 
 ```bash
 source .venv/bin/activate
@@ -205,8 +224,6 @@ Sample output:
   Notes evaluated: 20
 ```
 
-Vitals precision is high because the regex patterns are tight. Medication recall is lower — the eval set includes drugs outside the curated vocabulary, some medications appear only as prose mentions without the action-verb patterns the extractor looks for, and a handful of note formats fall outside the supported section header patterns. Expanding vocabulary coverage and broadening the prose extraction rules are the clearest paths to improvement.
-
 ---
 
 ## Limitations
@@ -215,8 +232,8 @@ Vitals precision is high because the regex patterns are tight. Medication recall
 - **Handwritten notes are not supported.** OCR works for clean printed and typed scans. Handwriting degrades Tesseract output significantly and is out of scope for this version.
 - **OCR quality depends on scan quality.** Poor contrast, unusual fonts, or heavy artifacts may produce garbled text the extractor can't recover from.
 - **Coverage is bounded by the implemented rules.** Unusual phrasings, heavy abbreviations, or note formats outside the supported section/header patterns will reduce extraction quality.
-- **No authentication.** Single-user local tool.
-- **No real PHI.** Do not use with real patient data.
+- **No authentication.** The live demo is open — do not upload real patient data.
+- **No real PHI.** All demo data is synthetic. Do not use with real patient information.
 
 ---
 
