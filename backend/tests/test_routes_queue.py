@@ -5,7 +5,7 @@ from app import create_app
 
 @pytest.fixture
 def client(tmp_path):
-    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "test.db")})
+    app = create_app({"TESTING": True, "DATABASE_URL": "sqlite:///" + str(tmp_path / "test.db")})
     with app.test_client() as c:
         yield c
 

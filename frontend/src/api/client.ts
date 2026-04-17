@@ -1,7 +1,10 @@
 // frontend/src/api/client.ts
 import { QueueResponse } from "../types";
 
-const BASE = "/api";
+// In production (Vercel), set VITE_API_BASE_URL to the Render backend URL,
+// e.g. https://your-app.onrender.com
+// In local dev, leave it unset — Vite proxies /api to localhost:5000.
+const BASE = (import.meta.env.VITE_API_BASE_URL ?? "") + "/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE}${path}`, {

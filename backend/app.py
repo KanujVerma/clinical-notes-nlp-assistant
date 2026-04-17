@@ -7,16 +7,19 @@ from utils.db import get_engine, init_db, get_session
 
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, static_folder="static", static_url_path="")
-    CORS(app)
+
+    # CORS: allow all origins locally; restrict to FRONTEND_URL in production.
+    allowed_origins = Config.FRONTEND_URL if Config.FRONTEND_URL else "*"
+    CORS(app, origins=allowed_origins)
 
     # Config
-    app.config["DB_PATH"] = Config.DB_PATH
+    app.config["DATABASE_URL"] = Config.DATABASE_URL
     app.config["PIPELINE_VERSION"] = Config.PIPELINE_VERSION
     if test_config:
         app.config.update(test_config)
 
     # DB
-    engine = get_engine(app.config["DB_PATH"])
+    engine = get_engine(app.config["DATABASE_URL"])
     init_db(engine)
     app.config["ENGINE"] = engine
 

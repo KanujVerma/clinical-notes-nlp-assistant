@@ -7,7 +7,7 @@ from app import create_app
 def client(tmp_path):
     app = create_app({
         "TESTING": True,
-        "DB_PATH": str(tmp_path / "test.db"),
+        "DATABASE_URL": "sqlite:///" + str(tmp_path / "test.db"),
         "EVAL_RESULTS_PATH": str(tmp_path / "nonexistent_results.json"),
     })
     with app.test_client() as c:
