@@ -36,7 +36,7 @@ def create_note():
 def update_note_text(note_id: int):
     note = g.db.get(Note, note_id)
     if not note:
-        return jsonify({"error": "Note not found", "code": "NOTE_NOT_FOUND"}), 404
+        return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
 
     body = request.get_json(silent=True) or {}
     text = body.get("text", "").strip()
