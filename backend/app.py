@@ -20,7 +20,11 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     # DB
     engine = get_engine(app.config["DATABASE_URL"])
-    init_db(engine)
+    try:
+        init_db(engine)
+    except Exception as exc:
+        import logging
+        logging.warning("DB init failed on startup (will retry per-request): %s", exc)
     app.config["ENGINE"] = engine
 
     @app.before_request
