@@ -1,9 +1,5 @@
 // frontend/src/pages/Metrics.tsx
 import { useEffect, useState } from "react";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, Legend,
-} from "recharts";
 import { api } from "../api/client";
 import { MetricsResponse } from "../types";
 
@@ -36,13 +32,6 @@ export default function Metrics() {
 
   if (!data) return null;
 
-  const evalData = data.eval;
-  const perfChartData = evalData
-    ? Object.entries(evalData.by_category).map(([cat, m]) => ({
-        category: cat, precision: m.precision, recall: m.recall, f1: m.f1,
-      }))
-    : [];
-
   const corrRates = data.db_stats.correction_rates;
   const corrByCategory = corrRates?.by_category ?? {};
   const corrByField = corrRates?.by_field ?? {};
@@ -63,50 +52,6 @@ export default function Metrics() {
   return (
     <div className="h-full overflow-auto bg-slate-50">
       <main className="max-w-5xl mx-auto p-6 space-y-8">
-        {!evalData ? (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-700 text-sm">
-            Evaluation results not yet available. Run{" "}
-            <code className="bg-amber-100 px-1 rounded">python scripts/run_evaluation.py</code>{" "}
-            to generate metrics.
-          </div>
-        ) : (
-          <>
-            {/* Overall cards */}
-            <div className="grid grid-cols-3 gap-4">
-              {(["precision", "recall", "f1"] as const).map((metric) => (
-                <div key={metric} className="bg-white rounded-lg border border-slate-200 p-4 text-center shadow-sm">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">{metric}</p>
-                  <p className="text-3xl font-semibold text-blue-600 mt-1">
-                    {(evalData.overall[metric] * 100).toFixed(1)}%
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* Per-category performance chart */}
-            <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-600 mb-4">Pipeline Performance by Category</h2>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={perfChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="category" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[0, 1]} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(v) => typeof v === "number" ? `${(v * 100).toFixed(1)}%` : String(v ?? "")} />
-                  <Legend />
-                  <Bar dataKey="precision" fill="#93c5fd" name="Precision" />
-                  <Bar dataKey="recall" fill="#6ee7b7" name="Recall" />
-                  <Bar dataKey="f1" fill="#818cf8" name="F1" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <p className="text-xs text-slate-400">
-              Evaluated on 20 hand-written synthetic notes · pipeline v{evalData.pipeline_version}{" "}
-              · run at {new Date(evalData.run_at).toLocaleString()}
-            </p>
-          </>
-        )}
-
         {/* Correction rate by category */}
         {corrCatChartData.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
