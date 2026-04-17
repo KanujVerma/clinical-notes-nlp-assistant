@@ -49,7 +49,7 @@ A clinical note comes in as pasted text, a `.txt` file, a text-based PDF, a scan
 - **Instructions** — discharge instructions, follow-up plan, return precautions
 - **Metadata** — patient name, date of service, provider
 
-The extracted fields go into a reviewer UI where each one can be accepted, edited, or removed. Corrections are saved back to the database and surface in a Metrics page alongside F1 scores from an offline evaluation run.
+The extracted fields are presented in a reviewer UI where each one can be accepted, edited, or removed. Corrections are saved back to the database and surface in a Metrics page alongside F1 scores from an offline evaluation run.
 
 ---
 
@@ -160,7 +160,7 @@ docker compose up
 
 ## Review workflow
 
-The reviewer UI is keyboard-driven. Hover over any field card to activate it, then:
+The reviewer UI is keyboard-driven. Select or focus a field card, then use the following shortcuts:
 
 | Key | Action |
 |-----|--------|
@@ -211,7 +211,7 @@ Vitals precision is high because the regex patterns are tight. Medication recall
 
 ## Limitations
 
-- **Medication extraction is a prototype.** Structured medication lines with dose/sig usually parse correctly even for drugs outside the curated vocabulary. Prose-only mentions in HPI narrative are more dependent on the curated vocabulary and action-verb sentence patterns. No RxNorm, no brand/generic normalization, no dose unit conversion.
+- **Medication extraction is a prototype.** Structured medication lines with dose/sig usually parse correctly even for drugs outside the curated vocabulary. Prose-only medication mentions are more dependent on the curated vocabulary and sentence-level action patterns. No RxNorm, no brand/generic normalization, no dose unit conversion.
 - **Handwritten notes are not supported.** OCR works for clean printed and typed scans. Handwriting degrades Tesseract output significantly and is out of scope for this version.
 - **OCR quality depends on scan quality.** Poor contrast, unusual fonts, or heavy artifacts may produce garbled text the extractor can't recover from.
 - **Coverage is bounded by the implemented rules.** Unusual phrasings, heavy abbreviations, or note formats outside the supported section/header patterns will reduce extraction quality.
@@ -238,7 +238,7 @@ source .venv/bin/activate
 pytest backend/tests/ -v
 ```
 
-**End-to-end smoke tests** (Playwright, requires both servers running):
+**Optional end-to-end smoke tests** (Playwright, requires both servers running):
 ```bash
 cd frontend
 npx playwright test e2e/smoke.spec.ts
