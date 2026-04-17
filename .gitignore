@@ -5,7 +5,7 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
-backend/evaluation/results.json
+# backend/evaluation/results.json  -- committed so production has eval metrics
 node_modules/
 frontend/node_modules/
 frontend/dist/

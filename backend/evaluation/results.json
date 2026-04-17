@@ -1,0 +1,173 @@
+{
+  "run_at": "2026-04-17T15:45:46.121299+00:00",
+  "pipeline_version": "0.1.0",
+  "overall": {
+    "precision": 0.768,
+    "recall": 0.5709,
+    "f1": 0.6549
+  },
+  "by_category": {
+    "vitals": {
+      "precision": 0.8916,
+      "recall": 0.6271,
+      "f1": 0.7363
+    },
+    "medications": {
+      "precision": 0.4884,
+      "recall": 0.4667,
+      "f1": 0.4773
+    },
+    "instructions": {
+      "precision": 0.8214,
+      "recall": 0.4694,
+      "f1": 0.5974
+    },
+    "metadata": {
+      "precision": 0.775,
+      "recall": 0.6327,
+      "f1": 0.6966
+    }
+  },
+  "per_note": [
+    {
+      "note": "eval_001.txt",
+      "vitals_f1": 0.8333,
+      "medications_f1": 1.0,
+      "instructions_f1": 1.0,
+      "metadata_f1": 1.0
+    },
+    {
+      "note": "eval_002.txt",
+      "vitals_f1": 0.9091,
+      "medications_f1": 0.5,
+      "instructions_f1": 0.5,
+      "metadata_f1": 1.0
+    },
+    {
+      "note": "eval_003.txt",
+      "vitals_f1": 1.0,
+      "medications_f1": 0.5,
+      "instructions_f1": 1.0,
+      "metadata_f1": 0.0
+    },
+    {
+      "note": "eval_004.txt",
+      "vitals_f1": 1.0,
+      "medications_f1": 0.0,
+      "instructions_f1": 0.4,
+      "metadata_f1": 1.0
+    },
+    {
+      "note": "eval_005.txt",
+      "vitals_f1": 1.0,
+      "medications_f1": 0.5,
+      "instructions_f1": 0.0,
+      "metadata_f1": 0.0
+    },
+    {
+      "note": "eval_006.txt",
+      "vitals_f1": 0.8333,
+      "medications_f1": 1.0,
+      "instructions_f1": 1.0,
+      "metadata_f1": 1.0
+    },
+    {
+      "note": "eval_007.txt",
+      "vitals_f1": 0.8333,
+      "medications_f1": 0.0,
+      "instructions_f1": 1.0,
+      "metadata_f1": 0.4
+    },
+    {
+      "note": "eval_008.txt",
+      "vitals_f1": 0.7273,
+      "medications_f1": 1.0,
+      "instructions_f1": 1.0,
+      "metadata_f1": 0.4
+    },
+    {
+      "note": "eval_009.txt",
+      "vitals_f1": 0.2857,
+      "medications_f1": 0.5,
+      "instructions_f1": 0.0,
+      "metadata_f1": 1.0
+    },
+    {
+      "note": "eval_010.txt",
+      "vitals_f1": 0.8,
+      "medications_f1": 0.5,
+      "instructions_f1": 1.0,
+      "metadata_f1": 0.0
+    },
+    {
+      "note": "eval_011.txt",
+      "vitals_f1": 1.0,
+      "medications_f1": 0.0,
+      "instructions_f1": 0.0,
+      "metadata_f1": 0.4
+    },
+    {
+      "note": "eval_012.txt",
+      "vitals_f1": 0.8,
+      "medications_f1": 0.5,
+      "instructions_f1": 0.4,
+      "metadata_f1": 1.0
+    },
+    {
+      "note": "eval_013.txt",
+      "vitals_f1": 0.0,
+      "medications_f1": 0.6667,
+      "instructions_f1": 0.0,
+      "metadata_f1": 0.0
+    },
+    {
+      "note": "eval_014.txt",
+      "vitals_f1": 0.6,
+      "medications_f1": 0.2857,
+      "instructions_f1": 0.8,
+      "metadata_f1": 0.5
+    },
+    {
+      "note": "eval_015.txt",
+      "vitals_f1": 0.8333,
+      "medications_f1": 0.5,
+      "instructions_f1": 0.0,
+      "metadata_f1": 0.8
+    },
+    {
+      "note": "eval_016.txt",
+      "vitals_f1": 0.0,
+      "medications_f1": 0.0,
+      "instructions_f1": 0.4,
+      "metadata_f1": 0.5
+    },
+    {
+      "note": "eval_017.txt",
+      "vitals_f1": 0.8333,
+      "medications_f1": 0.6667,
+      "instructions_f1": 0.0,
+      "metadata_f1": 0.6667
+    },
+    {
+      "note": "eval_018.txt",
+      "vitals_f1": 0.0,
+      "medications_f1": 0.0,
+      "instructions_f1": 0.5,
+      "metadata_f1": 0.6667
+    },
+    {
+      "note": "eval_019.txt",
+      "vitals_f1": 0.0,
+      "medications_f1": 1.0,
+      "instructions_f1": 0.6667,
+      "metadata_f1": 0.4
+    },
+    {
+      "note": "eval_020.txt",
+      "vitals_f1": 0.9091,
+      "medications_f1": 0.25,
+      "instructions_f1": 0.4,
+      "metadata_f1": 0.8
+    }
+  ]
+}
