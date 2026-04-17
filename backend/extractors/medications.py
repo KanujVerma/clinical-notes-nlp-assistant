@@ -51,8 +51,6 @@ _REJECT_PROSE = re.compile(
     re.IGNORECASE,
 )
 
-_WINDOW = 60  # characters for medSpaCy window scan
-
 _nlp = None
 
 
@@ -131,20 +129,57 @@ def _parse_line(line: str, char_offset: int) -> "dict[str, Any] | None":
     if not name:
         return None
 
-    # Build frequency: append PRN qualifier if present after main freq match
-    freq = ""
-    if fm:
-        freq = fm.group(1)
-        after_freq = clean[fm.end():]
-        prn_match = re.search(r"\bPRN\b", after_freq, re.IGNORECASE)
-        if prn_match:
-            freq = f"{freq} PRN"
+    # Build frequency (just the core dosing interval, no appendages)
+    freq = fm.group(1) if fm else ""
+
+    # Duration: "for N days/weeks/months" anywhere after frequency (or after dose if no freq)
+    search_start = fm.end() if fm else (dm.end() if dm else 0)
+    duration = ""
+    duration_match = re.search(
+        r"\bfor\s+(?:\d+\s+)?(?:more\s+)?\d*\s*(?:days?|weeks?|months?)\b",
+        clean[search_start:],
+        re.IGNORECASE,
+    )
+    if duration_match:
+        duration = duration_match.group().strip()
+
+    # PRN + qualifier: collect "PRN" and whatever reason phrase follows (up to 4 words)
+    qualifier = ""
+    prn_match = re.search(r"\bPRN\b", clean[search_start:], re.IGNORECASE)
+    if prn_match:
+        prn_pos = search_start + prn_match.start()
+        after_prn = clean[prn_pos + len("PRN"):].strip()
+        # Grab up to 4 words as the qualifier reason (stop at punctuation)
+        reason_match = re.match(r"((?:\w+\s*){0,4})", after_prn)
+        reason = reason_match.group(1).strip() if reason_match else ""
+        qualifier = f"PRN {reason}".strip() if reason else "PRN"
+        # Remove PRN from freq if it was included there
+        freq = re.sub(r"\s*PRN\b.*", "", freq, flags=re.IGNORECASE).strip()
+
+    # "as needed" with optional reason (when no explicit PRN token)
+    if not qualifier:
+        as_needed_match = re.search(
+            r"\bas\s+needed(?:\s+for\s+([\w\s]{1,30}?))?(?:[,.]|$)",
+            clean[search_start:],
+            re.IGNORECASE,
+        )
+        if as_needed_match:
+            reason = (as_needed_match.group(1) or "").strip()
+            qualifier = f"as needed for {reason}".rstrip(" for").strip() if reason else "as needed"
+            freq = re.sub(r"\s*as\s+needed\b.*", "", freq, flags=re.IGNORECASE).strip()
+
+    # Route inference: if name contains "inhaler" and no explicit route found, infer "inhaled"
+    route = rm.group(1) if rm else ""
+    if not route and re.search(r"\binhaler\b", name, re.IGNORECASE):
+        route = "inhaled"
 
     return {
         "name": name.lower(),
         "dose": dm.group(1).strip() if dm else "",
-        "route": rm.group(1) if rm else "",
+        "route": route,
         "frequency": freq,
+        "duration": duration,
+        "qualifier": qualifier,
         "span": [char_offset, char_offset + len(line)],
         "source": "section",
         "confidence": 0.85,
@@ -163,21 +198,80 @@ def _parse_section_lines(section_text: str, section_start: int) -> "list[dict[st
     return results
 
 
-def _scan_window(text: str, start: int, end: int) -> "dict[str, str]":
-    window_start = max(0, start - _WINDOW)
-    window_end = min(len(text), end + _WINDOW)
-    snippet = text[window_start:window_end]
+def _find_sentence_bounds(text: str, char_pos: int) -> "tuple[int, int]":
+    """Return (start, end) of the sentence containing char_pos."""
+    start = char_pos
+    while start > 0 and text[start - 1] not in ".\n!?":
+        start -= 1
+    end = char_pos
+    while end < len(text) and text[end] not in ".\n!?":
+        end += 1
+    if end < len(text):
+        end += 1  # include terminator
+    return start, end
+
+
+def _scan_sentence(text: str, entity_start: int) -> "dict[str, str]":
+    """Scan only within the sentence containing entity_start for dose/route/freq.
+    Searching starts at entity_start to avoid binding sig from earlier in the sentence.
+    """
+    s_start, s_end = _find_sentence_bounds(text, entity_start)
+    snippet = text[s_start:s_end]
+    local_pos = entity_start - s_start
     result: dict[str, str] = {}
-    dm = _DOSE_RE.search(snippet)
+    dm = _DOSE_RE.search(snippet, local_pos)
     if dm:
         result["dose"] = dm.group(1).strip()
-    rm = _ROUTE_RE.search(snippet)
+    rm = _ROUTE_RE.search(snippet, local_pos)
     if rm:
         result["route"] = rm.group(1)
-    fm = _FREQ_RE.search(snippet)
+    fm = _FREQ_RE.search(snippet, local_pos)
     if fm:
         result["frequency"] = fm.group(1)
     return result
+
+
+# Action verbs that introduce a medication order in prose (A/P, Plan, HPI)
+_PROSE_VERB_RE = re.compile(
+    r"(?i)^\s*(?:continue|start|resume|add|prescribe|may\s+use|use|initiate|begin)\s+"
+)
+
+
+def _split_prose_sentences(text: str) -> "list[tuple[str, int, int]]":
+    """Return (sentence_text, start, end) for each sentence in text."""
+    pattern = re.compile(r"(?<=[.!?])\s+|\n+")
+    sentences = []
+    last = 0
+    for m in pattern.finditer(text):
+        s = text[last:m.start()].strip()
+        if s:
+            sentences.append((s, last, m.start()))
+        last = m.end()
+    remaining = text[last:].strip()
+    if remaining:
+        sentences.append((remaining, last, len(text)))
+    return sentences
+
+
+def _parse_prose_sections(
+    sections: "list[dict[str, Any]]",
+    prose_cats: "set[str]",
+) -> "list[dict[str, Any]]":
+    """Parse action-verb medication sentences from non-medication prose sections."""
+    results: list[dict[str, Any]] = []
+    for sec in sections:
+        if sec["category"] not in prose_cats:
+            continue
+        text_start = sec["end"] - len(sec["text"])
+        for sent, s_start, _ in _split_prose_sentences(sec["text"]):
+            vm = _PROSE_VERB_RE.match(sent)
+            if not vm:
+                continue
+            remainder = sent[vm.end():]
+            med = _parse_line(remainder, text_start + s_start)
+            if med:
+                results.append(med)
+    return results
 
 
 def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = None) -> "list[dict[str, Any]]":
@@ -195,34 +289,54 @@ def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = Non
     section_results: list[dict[str, Any]] = []
     for sec in sections:
         if sec["category"] == "medications":
-            # sec["text"] is the text after the header (already stripped)
-            # We reconstruct the offset as: sec["start"] + len(sec["header"]) + 1
-            header_end = sec["start"] + len(sec["header"]) + 1  # +1 for the colon/newline
+            header_end = sec["start"] + len(sec["header"]) + 1  # +1 for colon/newline
             section_results.extend(_parse_section_lines(sec["text"], header_end))
 
-    section_names = {m["name"].lower() for m in section_results}
+    # Step 2: action-verb prose parser on plan / hpi / assessment_plan sections
+    # Sentence-local by construction — each sentence is parsed independently.
+    prose_section_results = _parse_prose_sections(
+        sections, {"plan", "hpi", "assessment_plan"}
+    )
 
-    # Step 2: medSpaCy prose fallback
+    # Merge steps 1 & 2, preferring step 1 (structured) on name collision
+    known_names: set[str] = {m["name"].lower() for m in section_results}
+    for med in prose_section_results:
+        n = med["name"].lower()
+        if not any(sn == n or sn.startswith(n + " ") or n.startswith(sn + " ")
+                   for sn in known_names):
+            section_results.append(med)
+            known_names.add(n)
+
+    # Step 3: medSpaCy prose fallback — sentence-local window scan only
     nlp = _get_nlp()
     doc = nlp(text)
-    prose_results: list[dict[str, Any]] = []
+    spacy_results: list[dict[str, Any]] = []
     for ent in doc.ents:
         if ent.label_ != "MEDICATION":
             continue
         if ent._.is_negated:
             continue
         name = ent.text.lower()
-        if name in section_names:
-            continue  # already found by line parser; skip
-        extra = _scan_window(text, ent.start_char, ent.end_char)
-        prose_results.append({
+        # Skip if already found by steps 1 or 2
+        if any(sn == name or sn.startswith(name + " ") or name.startswith(sn + " ")
+               for sn in known_names):
+            continue
+        # Sentence-local scan — never crosses a sentence boundary
+        extra = _scan_sentence(text, ent.start_char)
+        # Skip entities where no sig could be found AND no dose/route/freq anywhere nearby
+        # (prevents pure-name noise, but keeps entities with freq like "as needed")
+        if not extra and not _FREQ_RE.search(text[max(0, ent.start_char - 80):ent.end_char + 80]):
+            continue
+        spacy_results.append({
             "name": name,
             "dose": extra.get("dose", ""),
             "route": extra.get("route", ""),
             "frequency": extra.get("frequency", ""),
+            "duration": "",
+            "qualifier": "",
             "span": [ent.start_char, ent.end_char],
             "source": "medspacy",
             "confidence": 0.9,
         })
 
-    return section_results + prose_results
+    return section_results + spacy_results

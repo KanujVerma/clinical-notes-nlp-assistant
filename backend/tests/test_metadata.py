@@ -65,3 +65,11 @@ def test_john_smith_note():
     assert m["patient_name"]["value"] == "John Smith"
     assert m["date_of_service"]["value"] == "2024-03-15"
     assert "Chen" in m["provider_name"]["value"]
+
+def test_name_alias():
+    m = extract_metadata("Name: Robert Lee\nDate Seen: 2025-01-14")
+    assert m["patient_name"]["value"] == "Robert Lee"
+
+def test_physician_alias():
+    m = extract_metadata("Physician: Dr. Anita Morris")
+    assert "Morris" in m["provider_name"]["value"]

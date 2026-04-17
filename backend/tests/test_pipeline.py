@@ -142,3 +142,128 @@ def test_headerless_fallback_follow_up():
 def test_headerless_fallback_return_precautions():
     out = run_pipeline(HEADERLESS)
     assert "return_precautions" in out["instructions"]
+
+
+ELEANOR_PRICE = """SOAP NOTE
+
+Name: Eleanor Price
+Date: 2025-03-04
+Doctor: Dr. Jason Liu
+
+O:
+BP 102/64
+HR: 96
+T 99.3 F
+Resp 18
+SpO2 97% RA
+Wt 146 lb
+
+Current Medications:
+1. Albuterol inhaler 2 puffs q6h PRN wheezing
+2. Azithromycin 250 mg PO daily for 3 more days
+3. Lisinopril 10 mg PO daily
+4. Benzonatate 100 mg PO TID as needed for cough
+
+A/P:
+Encourage fluids and slow position changes. Continue nitrofurantoin 100 mg BID for 3 more days.
+Hold lisinopril tomorrow if systolic BP remains under 100. Continue metformin 500 mg PO BID.
+May use ondansetron 4 mg q8h PRN nausea.
+RTC with PCP in 2-3 days if not improving.
+Go to the ER for fainting, chest pain, worsening weakness, inability to keep fluids down.
+"""
+
+def test_eleanor_nitrofurantoin_not_misparsed_as_lisinopril():
+    """Continue nitrofurantoin 100 mg BID must NOT bind dose to lisinopril."""
+    out = run_pipeline(ELEANOR_PRICE)
+    names = [m["name"].lower() for m in out["medications"]]
+    # nitrofurantoin should be present
+    assert any("nitrofurantoin" in n for n in names)
+    # lisinopril should not have dose=100mg (cross-sentence contamination)
+    for m in out["medications"]:
+        if "lisinopril" in m["name"].lower():
+            assert m.get("dose", "") != "100 mg", \
+                "lisinopril incorrectly bound to nitrofurantoin's 100 mg dose"
+
+def test_eleanor_ondansetron_extracted():
+    """May use ondansetron 4 mg q8h PRN nausea must be captured from A/P prose."""
+    out = run_pipeline(ELEANOR_PRICE)
+    names = [m["name"].lower() for m in out["medications"]]
+    assert any("ondansetron" in n for n in names)
+    ond = next((m for m in out["medications"] if "ondansetron" in m["name"].lower()), None)
+    assert ond is not None
+    assert ond.get("dose") == "4 mg"
+    assert "q8h" in ond.get("frequency", "").lower() or "8h" in ond.get("frequency", "").lower()
+
+def test_eleanor_rtc_captured_as_follow_up():
+    """RTC with PCP in 2-3 days if not improving should map to follow_up."""
+    out = run_pipeline(ELEANOR_PRICE)
+    assert "follow_up" in out["instructions"]
+    assert "rtc" in out["instructions"]["follow_up"]["value"].lower() \
+        or "pcp" in out["instructions"]["follow_up"]["value"].lower() \
+        or "improving" in out["instructions"]["follow_up"]["value"].lower()
+
+def test_eleanor_return_precautions_captured():
+    """Go to the ER for... should be captured as return_precautions."""
+    out = run_pipeline(ELEANOR_PRICE)
+    assert "return_precautions" in out["instructions"]
+
+def test_eleanor_patient_name():
+    out = run_pipeline(ELEANOR_PRICE)
+    assert out["metadata"]["patient_name"]["value"] == "Eleanor Price"
+
+def test_eleanor_provider_name():
+    out = run_pipeline(ELEANOR_PRICE)
+    assert "Liu" in out["metadata"]["provider_name"]["value"]
+
+
+HAROLD_BENNETT = """FOLLOW-UP NOTE
+
+Patient: Harold Bennett
+Date Seen: 2025-04-02
+Provider: Dr. Nina Shah
+
+HPI:
+68-year-old male returning for follow-up. Still having burning with urination and fatigue,
+though dizziness is better. No CP, no SOB, no syncope. He says he is taking tamsulosin nightly.
+Also using zofran as needed for nausea.
+
+Vital Signs
+BP 118/70
+Pulse 90 bpm
+Temp 100.1 F
+Resp 19
+O2 sat 96% RA
+Wt 164 lb
+
+Plan
+Continue ciprofloxacin 500 mg PO BID x 2 more days.
+Continue tamsulosin 0.4 mg qhs.
+May use ondansetron 4 mg q8h PRN nausea.
+Push oral fluids and avoid sudden position changes.
+See PCP in 3 days if symptoms do not resolve.
+Return to ER for fever > 101.5, vomiting, inability to urinate, worsening weakness.
+"""
+
+def test_harold_follow_up_not_narrative_hpi():
+    """HPI 'returning for follow-up' must NOT be captured as follow-up instruction."""
+    out = run_pipeline(HAROLD_BENNETT)
+    fu = out["instructions"].get("follow_up", {})
+    value = fu.get("value", "")
+    assert "returning for follow-up" not in value.lower(), \
+        f"Narrative HPI text captured as follow-up: {value!r}"
+
+def test_harold_follow_up_is_plan_instruction():
+    """'See PCP in 3 days if symptoms do not resolve' should be the follow-up."""
+    out = run_pipeline(HAROLD_BENNETT)
+    assert "follow_up" in out["instructions"]
+    value = out["instructions"]["follow_up"]["value"]
+    assert "pcp" in value.lower() or "3 days" in value.lower() or "resolve" in value.lower()
+
+def test_harold_ciprofloxacin_extracted():
+    out = run_pipeline(HAROLD_BENNETT)
+    names = [m["name"].lower() for m in out["medications"]]
+    assert any("cipro" in n for n in names)
+
+def test_harold_return_precautions():
+    out = run_pipeline(HAROLD_BENNETT)
+    assert "return_precautions" in out["instructions"]

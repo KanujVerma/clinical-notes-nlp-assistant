@@ -77,7 +77,14 @@ export default function Upload() {
     try {
       const result = await api.seedDemo();
       bumpQueue();
-      showToast(`Seeded: ${result.loaded} loaded, ${result.skipped} already existed.`);
+      showToast(
+        result.loaded > 0
+          ? `Seeded ${result.loaded} note${result.loaded !== 1 ? "s" : ""} — opening queue…`
+          : `${result.skipped} notes already exist`
+      );
+      if (result.loaded > 0) {
+        setTimeout(() => navigate("/queue"), 1200);
+      }
     } catch (e: any) {
       setTextError(e.message);
     } finally {

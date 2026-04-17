@@ -3,14 +3,28 @@ from typing import Any
 
 _CATEGORIES = ["discharge_instructions", "follow_up", "return_precautions"]
 
+_FOLLOW_UP_REJECT = re.compile(
+    r"(?i)\b(?:returning\s+for|here\s+for|seen\s+for|presenting\s+for|"
+    r"scheduled\s+for|coming\s+for|came\s+for)\s+follow[\s\-]?up\b"
+    r"|follow[\s\-]?up\s+(?:visit|appointment|note|exam|today|care)\b"
+)
+
 _FALLBACK_TRIGGERS: dict[str, list[re.Pattern]] = {
     "follow_up": [
+        # Instruction-style: explicit "follow up WITH" or "follow up IN <time>"
         re.compile(r"(?i)\bfollow[\s\-]?up\s+with\b"),
-        re.compile(r"(?i)\bfollow[\s\-]?up\b"),
+        re.compile(r"(?i)\bfollow[\s\-]?up\s+in\b"),
+        # "See PCP / doctor / primary care / specialist"
+        re.compile(r"(?i)\bsee\s+(?:your\s+)?(?:pcp|primary\s+care|doctor|provider|physician|specialist)\b"),
         re.compile(r"(?i)\bsee\s+your\b"),
+        # Return to clinic / office (not ER — that's return_precautions)
         re.compile(r"(?i)\breturn\s+to\s+(clinic|office|your\s+doctor|primary\s+care|pcp)\b"),
-        re.compile(r"(?i)\bschedule\s+an?\s+appointment\b"),
-        re.compile(r"(?i)\bcall\s+your\s+doctor\b"),
+        re.compile(r"(?i)\bschedule\s+(?:a\s+)?(?:follow[\s\-]?up|appointment)\b"),
+        re.compile(r"(?i)\bcall\s+your\s+(doctor|provider|pcp|office)\b"),
+        re.compile(r"(?i)\br\.?t\.?c\.?\b"),        # RTC / R.T.C.
+        re.compile(r"(?i)\brtc\s+with\b"),
+        re.compile(r"(?i)\brecheck\s+in\b"),
+        re.compile(r"(?i)\bif\s+not\s+improving\b"),
     ],
     "return_precautions": [
         re.compile(r"(?i)\breturn\s+to\s+(the\s+)?(er|emergency|hospital)\b"),
@@ -24,12 +38,15 @@ _FALLBACK_TRIGGERS: dict[str, list[re.Pattern]] = {
     "discharge_instructions": [
         re.compile(r"(?i)\btake\s+(your|all)\b"),
         re.compile(r"(?i)\bdrink\s+plenty\b"),
+        re.compile(r"(?i)\bencourage\s+(fluid|oral|hydrat)\b"),
         re.compile(r"(?i)\brest\b"),
         re.compile(r"(?i)\bavoid\b"),
-        re.compile(r"(?i)\bdo\s+not\b"),
+        re.compile(r"(?i)^do\s+not\b"),  # directive only, not embedded in conditionals
         re.compile(r"(?i)\buse\s+your\b"),
         re.compile(r"(?i)\bcontinue\s+your\b"),
         re.compile(r"(?i)\bapply\b"),
+        re.compile(r"(?i)\bhydrate\b"),
+        re.compile(r"(?i)\bslow\s+position\s+changes?\b"),
     ],
 }
 
@@ -56,6 +73,9 @@ def _classify_sentence(sent: str) -> "str | None":
     for cat in _CATEGORIES:
         for trigger in _FALLBACK_TRIGGERS[cat]:
             if trigger.search(sent):
+                # Reject narrative follow-up phrasing before accepting
+                if cat == "follow_up" and _FOLLOW_UP_REJECT.search(sent):
+                    continue
                 return cat
     return None
 
@@ -109,9 +129,9 @@ def extract_instructions(
                 "confidence": 0.9,
             }
 
-    # Secondary: sub-classify Plan and HPI sections
+    # Secondary: sub-classify Plan, HPI, and A/P sections
     for section in sections:
-        if section["category"] in ("plan", "hpi") and len(result) < len(_CATEGORIES):
+        if section["category"] in ("plan", "hpi", "assessment_plan") and len(result) < len(_CATEGORIES):
             text_start = section["end"] - len(section["text"])
             new = _sub_classify_text(section["text"], text_start, result)
             for cat, val in new.items():

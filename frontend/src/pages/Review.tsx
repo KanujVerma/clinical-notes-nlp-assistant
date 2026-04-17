@@ -1,6 +1,6 @@
 // frontend/src/pages/Review.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation, useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate, useBlocker } from "react-router-dom";
 import { api } from "../api/client";
 import { ExtractionResult, NoteDetail } from "../types";
 import NoteViewer from "../components/NoteViewer";
@@ -173,6 +173,8 @@ function flattenExtracted(
       ...(med.dose ? [[`med.${i}.dose`, med.dose] as [string, string]] : []),
       ...(med.route ? [[`med.${i}.route`, med.route] as [string, string]] : []),
       ...(med.frequency ? [[`med.${i}.frequency`, med.frequency] as [string, string]] : []),
+      ...(med.duration ? [[`med.${i}.duration`, med.duration] as [string, string]] : []),
+      ...(med.qualifier ? [[`med.${i}.qualifier`, med.qualifier] as [string, string]] : []),
     ];
     entries.forEach(([key, val]) => {
       m[key] = { value: val, originalValue: val, status: overrides?.[key]?.status ?? "pending" };
@@ -232,6 +234,18 @@ export default function Review() {
     if (deactivateTimeout.current) clearTimeout(deactivateTimeout.current);
   }, []);
 
+  // Reset per-note UI state when navigating to a different note
+  useEffect(() => {
+    setSaved(false);
+    setSaveFlash(null);
+    setError(null);
+    setReReviewBanner(false);
+    setFields({});
+    setActiveKey(null);
+    setEditingKey(null);
+    startTime.current = Date.now();
+  }, [noteId]);
+
   // Load data from nav state or API
   useEffect(() => {
     const state = location.state as {
@@ -248,6 +262,12 @@ export default function Review() {
         setExtracted(d.extracted_json);
         setNoteIdState(d.id);
         setSource(d.source ?? "");
+        const loadedFrom = (location.state as any)?._loadedFrom;
+        if (loadedFrom === "saveNext") {
+          const name = d.filename ?? `Note #${d.id}`;
+          setSaveFlash(`Loaded ${name}`);
+          setTimeout(() => setSaveFlash(null), 2500);
+        }
 
         // G: Re-review awareness
         if (d.validation && d.extracted_json) {
@@ -264,11 +284,13 @@ export default function Review() {
           // Build a flat map of validated fields
           const valFlat: Record<string, string> = {};
           Object.entries(val.vitals ?? {}).forEach(([k, v]) => { if (v) valFlat[`vitals.${k}`] = (v as { value: string }).value; });
-          (val.medications ?? []).forEach((med: { name: string; dose?: string; route?: string; frequency?: string }, i: number) => {
+          (val.medications ?? []).forEach((med: { name: string; dose?: string; route?: string; frequency?: string; duration?: string; qualifier?: string }, i: number) => {
             valFlat[`med.${i}.name`] = med.name;
             if (med.dose) valFlat[`med.${i}.dose`] = med.dose;
             if (med.route) valFlat[`med.${i}.route`] = med.route;
             if (med.frequency) valFlat[`med.${i}.frequency`] = med.frequency;
+            if (med.duration) valFlat[`med.${i}.duration`] = med.duration;
+            if (med.qualifier) valFlat[`med.${i}.qualifier`] = med.qualifier;
           });
           Object.entries(val.instructions ?? {}).forEach(([k, v]) => { if (v) valFlat[`instr.${k}`] = (v as { value: string }).value; });
           Object.entries(val.metadata ?? {}).forEach(([k, v]) => { if (v) valFlat[`meta.${k}`] = (v as { value: string }).value; });
@@ -276,11 +298,13 @@ export default function Review() {
           // Build flat map of extracted fields
           const extFlat: Record<string, string> = {};
           Object.entries(ext.vitals ?? {}).forEach(([k, v]) => { if (v) extFlat[`vitals.${k}`] = (v as { value: string }).value; });
-          (ext.medications ?? []).forEach((med: { name: string; dose?: string; route?: string; frequency?: string }, i: number) => {
+          (ext.medications ?? []).forEach((med: { name: string; dose?: string; route?: string; frequency?: string; duration?: string; qualifier?: string }, i: number) => {
             extFlat[`med.${i}.name`] = med.name;
             if (med.dose) extFlat[`med.${i}.dose`] = med.dose;
             if (med.route) extFlat[`med.${i}.route`] = med.route;
             if (med.frequency) extFlat[`med.${i}.frequency`] = med.frequency;
+            if (med.duration) extFlat[`med.${i}.duration`] = med.duration;
+            if (med.qualifier) extFlat[`med.${i}.qualifier`] = med.qualifier;
           });
           Object.entries(ext.instructions ?? {}).forEach(([k, v]) => { if (v) extFlat[`instr.${k}`] = (v as { value: string }).value; });
           Object.entries(ext.metadata ?? {}).forEach(([k, v]) => { if (v) extFlat[`meta.${k}`] = (v as { value: string }).value; });
@@ -412,7 +436,7 @@ export default function Review() {
       if (result.next_pending_id !== null) {
         setSaveFlash("Saved — loading next note…");
         setTimeout(() => {
-          navigate(`/review/${result.next_pending_id}`);
+          navigate(`/review/${result.next_pending_id}`, { state: { _loadedFrom: "saveNext" } });
         }, 800);
       } else {
         setSaveFlash(null);
@@ -470,15 +494,29 @@ export default function Review() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [activeKey, fields, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
 
-  // H: Unsaved changes warning
+  // H: Unsaved changes warning — blocks both in-app nav and browser-level unload
+  const isDirty = Object.values(fields).some((f) => f.status !== "pending") && !saved;
+  const blocker = useBlocker(isDirty);
+
+  // Handle React Router in-app navigation block
   useEffect(() => {
-    const isDirty = Object.values(fields).some((f) => f.status !== "pending") && !saved;
+    if (blocker.state === "blocked") {
+      if (window.confirm("You have unsaved changes. Leave anyway?")) {
+        blocker.proceed?.();
+      } else {
+        blocker.reset?.();
+      }
+    }
+  }, [blocker]);
+
+  // Handle browser-level navigation (tab close, page refresh)
+  useEffect(() => {
     function handler(e: BeforeUnloadEvent) {
       if (isDirty) { e.preventDefault(); e.returnValue = ""; }
     }
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [fields, saved]);
+  }, [isDirty]);
 
   if (!extracted) {
     return (
@@ -596,6 +634,95 @@ export default function Review() {
             {CATEGORIES.map((cat) => {
               const prefix = CATEGORY_PREFIX[cat];
               const catFields = Object.entries(fields).filter(([k]) => k.startsWith(prefix));
+
+              // Medications: group fields by drug index into visual containers
+              if (cat === "med") {
+                const drugIndices = Array.from(
+                  new Set(catFields.map(([k]) => parseInt(k.split(".")[1])))
+                ).sort((a, b) => a - b);
+
+                return (
+                  <section key={cat}>
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 mb-2 px-1">
+                      {CATEGORY_DISPLAY[cat]}
+                    </h3>
+                    <div className="space-y-2">
+                      {drugIndices.map((idx) => {
+                        const drugFields = catFields.filter(([k]) => parseInt(k.split(".")[1]) === idx);
+                        const nameEntry = drugFields.find(([k]) => k.endsWith(".name"));
+                        const otherFields = drugFields.filter(([k]) => !k.endsWith(".name"));
+                        // Mention-only: extracted med with no sig fields at all
+                        const isMentionOnly = otherFields.length === 0 && extracted?.medications[idx] !== undefined;
+                        return (
+                          <div key={idx} className={`rounded-lg border overflow-hidden bg-white ${isMentionOnly ? "border-slate-200" : "border-green-100"}`}>
+                            {/* Name row */}
+                            {nameEntry && (
+                              <div
+                                ref={(el) => { cardRefs.current[nameEntry[0]] = el; }}
+                                onMouseEnter={() => handleActivate(nameEntry[0])}
+                                onMouseLeave={handleDeactivate}
+                                className={otherFields.length > 0 ? "border-b border-green-100" : ""}
+                              >
+                                <FieldEditor
+                                  label="name"
+                                  value={nameEntry[1].value}
+                                  originalValue={nameEntry[1].originalValue}
+                                  status={nameEntry[1].status}
+                                  category="med"
+                                  isActive={activeKey === nameEntry[0]}
+                                  onActivate={() => handleActivate(nameEntry[0])}
+                                  onChange={(v, s) => handleFieldChange(nameEntry[0], v, s)}
+                                  triggerEdit={editingKey === nameEntry[0]}
+                                  onEditTriggered={() => setEditingKey(null)}
+                                />
+                              </div>
+                            )}
+                            {/* Dose / route / frequency — indented */}
+                            {otherFields.length > 0 && (
+                              <div className="pl-3 border-l-2 border-green-200 ml-2 divide-y divide-green-50">
+                                {otherFields.map(([k, f]) => (
+                                  <div
+                                    key={k}
+                                    ref={(el) => { cardRefs.current[k] = el; }}
+                                    onMouseEnter={() => handleActivate(k)}
+                                    onMouseLeave={handleDeactivate}
+                                  >
+                                    <FieldEditor
+                                      label={k.split(".")[2]}
+                                      value={f.value}
+                                      originalValue={f.originalValue}
+                                      status={f.status}
+                                      category="med"
+                                      isActive={activeKey === k}
+                                      onActivate={() => handleActivate(k)}
+                                      onChange={(v, s) => handleFieldChange(k, v, s)}
+                                      triggerEdit={editingKey === k}
+                                      onEditTriggered={() => setEditingKey(null)}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Mention-only strip */}
+                            {isMentionOnly && (
+                              <div className="px-3 py-1 flex items-center gap-1.5 bg-slate-50 border-t border-slate-100">
+                                <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">mention only</span>
+                                <span className="text-[9px] text-slate-300">— no dose or sig captured</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <AddFieldRow
+                        category={cat}
+                        existingKeys={Object.keys(fields)}
+                        onAdd={handleAddField}
+                      />
+                    </div>
+                  </section>
+                );
+              }
+
               return (
                 <section key={cat}>
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 mb-2 px-1">

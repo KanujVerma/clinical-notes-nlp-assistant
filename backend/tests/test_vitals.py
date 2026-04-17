@@ -14,7 +14,7 @@ def test_extracts_heart_rate():
 
 def test_extracts_temperature():
     v = extract_vitals(SIMPLE)
-    assert v["temperature"]["value"] == "98.6"
+    assert v["temperature"]["value"] == "98.6 F"
 
 def test_extracts_respiratory_rate():
     v = extract_vitals(SIMPLE)
@@ -22,11 +22,11 @@ def test_extracts_respiratory_rate():
 
 def test_extracts_oxygen_saturation():
     v = extract_vitals(SIMPLE)
-    assert v["oxygen_saturation"]["value"] == "98"
+    assert v["oxygen_saturation"]["value"] == "98%"
 
 def test_extracts_weight():
     v = extract_vitals(SIMPLE)
-    assert v["weight"]["value"] == "185"
+    assert v["weight"]["value"] == "185 lbs"
 
 def test_missing_vital_not_in_output():
     v = extract_vitals("No vitals here.")
@@ -64,7 +64,7 @@ def test_blood_pressure_variant_with_mmhg():
 def test_pulse_alias():
     v = extract_vitals(VARIANTS)
     assert "heart_rate" in v
-    assert v["heart_rate"]["value"] == "78"
+    assert v["heart_rate"]["value"] == "78 bpm"
 
 def test_temperature_T_abbreviation():
     v = extract_vitals(ABBREVIATED)
@@ -74,7 +74,7 @@ def test_temperature_T_abbreviation():
 def test_respiratory_rate_resp_rate_alias():
     v = extract_vitals(VARIANTS)
     assert "respiratory_rate" in v
-    assert v["respiratory_rate"]["value"] == "18"
+    assert v["respiratory_rate"]["value"] == "18 breaths/min"
 
 def test_oxygen_saturation_o2_sat_alias():
     v = extract_vitals(VARIANTS)
@@ -95,4 +95,4 @@ def test_abbreviated_vitals_all_extracted():
 def test_respiratory_rate_breaths_per_min_standalone():
     v = extract_vitals("18 breaths/min")
     assert "respiratory_rate" in v
-    assert v["respiratory_rate"]["value"] == "18"
+    assert v["respiratory_rate"]["value"] == "18 breaths/min"

@@ -1,68 +1,82 @@
 # Clinical Notes NLP Assistant
 
-A portfolio-quality full-stack web application that extracts structured information from unstructured clinical notes, lets a human reviewer correct the output, persists corrections in SQLite, and reports honest evaluation metrics against a labeled synthetic test set.
+Extracts structured information from unstructured clinical notes, presents it in a reviewer UI for correction, persists everything in SQLite, and evaluates pipeline quality against a labeled synthetic test set.
 
 > **All data is entirely synthetic.** No real patient information is used anywhere in this project.
 
 ---
 
-## Problem Statement
+## What it does
 
-Unstructured clinical notes contain vital clinical information — vitals, medications, follow-up instructions — buried in free text, abbreviations, inconsistent formatting, and prose. Extracting this information reliably is a core challenge in clinical NLP.
+A clinical note comes in as pasted text, a `.txt` file, a PDF (text layer or OCR), or a scanned image. The NLP pipeline breaks it into sections, then runs parallel extractors over those sections to produce structured output:
 
-This project builds a practical extraction pipeline that:
-1. Parses a clinical note into structured fields (vitals, medications, instructions, metadata)
-2. Presents the output in a reviewer UI with span highlighting for verification
-3. Allows the reviewer to accept, correct, or remove any field
-4. Tracks corrections and computes evaluation metrics against ground-truth labels
+- **Vitals** — BP, HR, temperature, RR, SpO2, weight — with units preserved
+- **Medications** — name, dose, route, frequency, duration, PRN qualifier; prose mentions from Plan/A&P sections in addition to structured medication lists
+- **Instructions** — discharge instructions, follow-up plan, return precautions
+- **Metadata** — patient name, date of service, provider
+
+That output goes into a review UI where a clinician can accept, edit, or remove individual fields. Corrections are stored and surfaced in a metrics dashboard alongside F1 scores from an offline evaluation run.
 
 ---
 
-## Architecture Overview
+## Architecture
 
 ```
-[Note Input]
-  (paste text / upload .txt / upload .pdf)
+[Input]
+  paste text / .txt / .pdf (text layer) / .pdf (OCR) / image (.png, .jpg, .tiff)
         │
         ▼
-[Flask API :5000]
-  POST /api/notes    POST /api/upload
+[Flask API — port 5000]
+  POST /api/notes    (text)
+  POST /api/upload   (file)
         │
         ▼
 [NLP Pipeline]
-  preprocess → sections → [vitals, medications, instructions, metadata] → normalize
-  (medSpaCy TargetMatcher + ConText + Sectionizer) + (regex)
+  preprocess
+    → section detection   (medSpaCy Sectionizer + header regex)
+    → vitals extractor    (regex, unit-preserving)
+    → medication extractor (structured lines → prose A/P → medSpaCy TargetMatcher + ConText)
+    → instruction extractor (dedicated sections → sub-classification → keyword fallback)
+    → metadata extractor  (header patterns)
         │
         ▼
 [SQLite via SQLAlchemy]
-  notes ← extractions ← validations
+  notes  →  extractions  →  validations
         ▲
         │
-[React UI :5173]
-  Home → Review (span highlights + field editor) → History → Metrics
+[React UI — port 5173 (dev) / 5000 (Docker)]
+  Upload → Queue → Review → History → Metrics
 ```
+
+The pipeline is entirely rule-based — no LLM calls, no API keys required. Same note in, same output every time.
 
 ---
 
-## Why medSpaCy + Regex
+## Why rule-based
 
-**Rule-based extraction for interpretability and deterministic evaluation.**
+This was a deliberate choice rather than a limitation. Rule-based extraction is deterministic, which makes evaluation honest: the F1 scores in the Metrics page reflect real system behavior, not sampling variance. ConText handles negation (so "no chest pain" doesn't produce a finding), and the sentence-local medication scanner prevents cross-sentence dose binding without needing a dependency parser.
 
-- **medSpaCy** provides clinical-domain components: `Sectionizer` (section header detection), `ConText` (negation/uncertainty), and `TargetMatcher` (vocabulary-driven entity matching). These map directly to the clinical extraction task.
-- **Regex** handles the structured, predictable patterns of vitals (e.g. `BP 120/80`, `HR 72 bpm`) with high precision and no hallucination risk.
-- **No LLM dependency**: extraction is deterministic — run the same note twice, get the same output. This makes evaluation meaningful: F1 scores reflect real system behavior.
-- **No API cost**: the full pipeline runs locally with no external calls.
-- **Honest limitations**: the medication vocabulary is a curated prototype (~50 drugs). This is explicitly documented. Production deployment would require RxNorm integration and a full drug database.
+The trade-off is vocabulary coverage. The medication extractor knows roughly 50 common outpatient drugs. That's enough to exercise the full extraction and review workflow, but it's documented as a prototype, not a production drug normalizer.
 
 ---
 
 ## Setup
 
+Requires Python 3.11, Node 18+, and Tesseract (for OCR on images/scanned PDFs).
+
+```bash
+# macOS
+brew install tesseract poppler
+
+# Ubuntu / Debian
+sudo apt-get install -y tesseract-ocr poppler-utils
+```
+
 ```bash
 git clone <repo>
 cd clinical-notes-nlp-assistant
 
-# Backend
+# Python environment
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -76,31 +90,30 @@ cd ..
 
 ---
 
-## Local Development
+## Running locally
 
-**Terminal 1 — Backend:**
+**Terminal 1 — backend:**
 ```bash
 source .venv/bin/activate
 cd backend
 python app.py
-# Flask running on http://localhost:5000
+# Flask on http://localhost:5000
 ```
 
-**Terminal 2 — Frontend:**
+**Terminal 2 — frontend:**
 ```bash
 cd frontend
 npm run dev
-# Vite running on http://localhost:5173
+# Vite on http://localhost:5173
 ```
+
+Open `http://localhost:5173`.
 
 **Seed demo data (optional):**
 ```bash
 source .venv/bin/activate
 python scripts/seed_demo_data.py
-# Seeded: 60 loaded, 0 already existed.
 ```
-
-Open `http://localhost:5173` in your browser.
 
 ---
 
@@ -108,28 +121,27 @@ Open `http://localhost:5173` in your browser.
 
 ```bash
 docker compose up
-```
-
-App runs at `http://localhost:5000` (Flask serves the built React bundle).
-
-To build only:
-```bash
-docker build -t clinical-notes-nlp .
+# App at http://localhost:5000
 ```
 
 ---
 
-## Demo Mode
+## Review workflow
 
-1. Open the Home page
-2. Click **Load sample note** to populate the text area
-3. Click **Extract →** — the Review page opens
-4. Left pane: raw note text with color-coded span highlights (blue = vitals, green = medications, amber = instructions, purple = metadata)
-5. Right pane: editable structured fields. Try editing a field, then clicking **Save corrections**
-6. Navigate to **History** — the note appears with status `corrected` and a non-zero correction count
-7. Navigate to **Metrics** to see F1 scores (requires running the evaluation script first)
+The review UI is designed to be keyboard-driven:
 
-Alternatively, click **Seed demo data** on the Home page to load 60 synthetic notes, then browse History.
+| Key | Action |
+|-----|--------|
+| `A` | Accept active field |
+| `E` | Open edit on active field |
+| `R` | Remove active field |
+| `Tab` / `Shift+Tab` | Cycle through fields |
+| `Esc` | Deactivate |
+| `⌘S` / `Ctrl+S` | Save |
+
+The top bar shows a progress bar ("X of Y fields reviewed") and a timer. After saving, the UI auto-advances to the next pending note. If you re-open a previously reviewed note, it reconstructs the prior field statuses from the diff of extracted vs. validated JSON, and carries the timer forward.
+
+Medication cards group dose/route/frequency/duration under the drug name with a visual indent. Medications extracted with no sig (pure name mentions from HPI prose) get a "mention only" label so the reviewer knows to confirm or discard them.
 
 ---
 
@@ -140,7 +152,7 @@ source .venv/bin/activate
 python scripts/run_evaluation.py
 ```
 
-This evaluates the pipeline against 20 hand-written synthetic notes with ground-truth labels in `data/eval/labels/`. It prints a summary table and writes `backend/evaluation/results.json`, which the Metrics page reads.
+Evaluates the pipeline against 20 hand-labeled synthetic notes in `data/eval/labels/`. Results are written to `backend/evaluation/results.json`, which the Metrics page reads.
 
 Sample output:
 ```
@@ -157,72 +169,46 @@ Sample output:
   Notes evaluated: 20
 ```
 
-Vitals precision is high (exact pattern match). Medication recall is lower because the vocabulary covers ~50 prototype drugs — many eval notes include drugs outside this set. This is expected and documented.
+Vitals precision is high — the regex patterns are tight and unit-preserving. Medication recall is low because the eval set includes drugs outside the prototype vocabulary. This is expected and is the main thing to improve for broader coverage.
+
+The Metrics page also shows reviewer correction rates by category and by field, computed from all validated notes in the database. This tells you where the pipeline is least reliable in practice.
 
 ---
 
 ## Limitations
 
-- **Medication vocabulary is a prototype.** ~50 common outpatient drugs. No RxNorm, no brand/generic resolution, no dose unit conversion. Many real-world medications will not be extracted.
-- **No OCR.** PDF support uses PyMuPDF text layer extraction only. Scanned PDFs are not supported.
-- **No LLM.** All extraction is rule-based. Ambiguous phrasings may fail.
+- **Medication vocabulary is a prototype.** ~50 common outpatient drugs. No RxNorm, no brand/generic normalization, no dose unit conversion. Anything outside this set won't be extracted.
+- **OCR quality depends on image quality.** Tesseract works well on clean scans. Degraded images, handwriting, or unusual fonts will produce garbage text that the extractor can't recover from.
+- **Rule-based coverage has a ceiling.** Unusual phrasings, heavy abbreviations, or note formats far from the training distribution will degrade extraction.
 - **No authentication.** Single-user local tool.
-- **No real PHI.** All notes are synthetic. Do not use with real patient data.
-- **spaCy model: en_core_web_sm.** A general-purpose model. The scispaCy `en_core_sci_sm` model (set `SPACY_MODEL=en_core_sci_sm`) improves clinical text handling if installed, but is not required.
-- **All data is synthetic.** Evaluation metrics reflect performance on deliberately varied synthetic notes, not real clinical data.
+- **No real PHI.** Do not use with real patient data.
+- **spaCy model: `en_core_web_sm`.** A general-purpose model. The scispaCy `en_core_sci_sm` model (set `SPACY_MODEL=en_core_sci_sm` in config) would improve clinical tokenization but isn't required.
 
 ---
 
-## Future Improvements
+## Tests
 
-- Upgrade to `en_core_sci_sm` (scispaCy) for better clinical tokenization
-- Add RxNorm integration for medication normalization
-- Add LLM fallback for ambiguous extractions
-- OCR support for scanned PDFs (Tesseract)
-- FHIR output format
-- Active learning loop: use reviewer corrections to improve extraction over time
-- Multi-user review with authentication
+118 unit and integration tests covering each extractor independently and end-to-end pipeline behavior across four realistic note types (discharge summary, SOAP note, follow-up note, headerless text):
+
+```bash
+source .venv/bin/activate
+pytest backend/tests/ -v
+```
+
+The four full-note fixtures in `test_pipeline.py` act as a regression pack. They cover structured medication sections, prose extraction from A&P, sentence-local dose binding, follow-up disambiguation from HPI narrative, and unit preservation in vitals.
 
 ---
 
-## Screenshots
+## Potential next steps
 
-**Home page**
-```
-[Home page screenshot — paste textarea, drag-drop zone, Extract button]
-```
-
-**Review page**
-```
-[Review page screenshot — left: note with colored span highlights; right: editable fields]
-```
-
-**History page**
-```
-[History page screenshot — table of notes with status badges and correction counts]
-```
-
-**Metrics page**
-```
-[Metrics page screenshot — precision/recall/F1 cards and per-category bar chart]
-```
+- RxNorm integration for drug normalization and vocabulary expansion
+- scispaCy (`en_core_sci_sm`) for better clinical tokenization
+- LLM fallback for fields the rule-based system misses consistently
+- FHIR-structured output
+- Active learning loop: surface low-confidence extractions for review and use corrections to improve the model
 
 ---
 
-## Synthetic Data Disclaimer
+## Synthetic data disclaimer
 
-All clinical notes in this project (`data/dev/`, `data/eval/`, `data/showcase/`) are **entirely synthetic** and were generated programmatically or hand-authored for demonstration purposes. They contain no real patient information, no real provider names, and no real medical records. Any resemblance to real individuals is coincidental.
-
----
-
-## How to Demo in an Interview
-
-**90-second walkthrough:**
-
-- **(0:00)** "This is the Clinical Notes NLP Assistant. The Home page lets you paste a note or upload a .txt or .pdf file. All data is synthetic — you can see the banner."
-- **(0:15)** Click **Load sample note**, then **Extract →**. "The note goes through a Flask API to the NLP pipeline."
-- **(0:25)** "Here's the Review page. The left pane shows the original note text with color-coded highlights — blue for vitals, green for medications, amber for instructions. The right pane shows the structured output."
-- **(0:45)** Click **edit** on a vital field, change the value, click **save**. Then click **Save corrections**.
-- **(0:55)** Navigate to **History**. "You can see the note was marked 'corrected' with the correction count."
-- **(1:05)** Navigate to **Metrics**. "These are the F1 scores against a labeled eval set. Vitals are high-precision — the regex is tight. Medication recall is lower because I'm using a prototype vocabulary of ~50 drugs, which I'm transparent about in the README."
-- **(1:20)** "The pipeline uses medSpaCy for section detection and negation handling — ConText drops negated medication mentions — plus regex patterns for vitals. Completely rule-based, no LLM dependency, deterministic and evaluatable."
+All clinical notes in this project (`data/dev/`, `data/eval/`, `data/showcase/`) are entirely synthetic, generated programmatically or hand-authored for demonstration purposes. They contain no real patient information, no real provider names, and no real medical records. Any resemblance to real individuals is coincidental.

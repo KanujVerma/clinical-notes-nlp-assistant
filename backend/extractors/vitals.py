@@ -1,9 +1,10 @@
 import re
 from typing import Any
 
-# Each entry: (field_name, pattern, is_bp)
-# For BP: groups (1, 2) = systolic/diastolic, group 3 = optional unit (mmHg)
-# For others: group 1 = value, group 2 = optional unit (may be None)
+# Each entry: (field_name, pattern, mode)
+# mode "bp"       — groups (sys, dia, unit?)
+# mode "num_unit" — groups (num, unit?)
+# mode "rr"       — groups (num_abbrev, unit_abbrev?, num_standalone, unit_standalone)
 _PATTERNS = [
     (
         "blood_pressure",
@@ -12,71 +13,87 @@ _PATTERNS = [
             r"(\d{2,3})\s*/\s*(\d{2,3})"
             r"(?:\s*(mmhg))?"
         ),
-        True,
+        "bp",
     ),
     (
         "heart_rate",
         re.compile(
             r"(?i)(?:h\.?r\.?|pulse|heart\s+rate)\s*:?\s*"
             r"(\d{2,3})"
-            r"(?:\s*bpm)?"
+            r"(?:\s*(bpm))?"
         ),
-        False,
+        "num_unit",
     ),
     (
         "temperature",
         re.compile(
             r"(?i)(?:\btemp(?:erature)?|\bT\b)\s*:?\s*"
             r"(\d{2,3}(?:\.\d)?)"
-            r"(?:\s*°?\s*[FC])?"
+            r"(?:\s*°?\s*([FC]))?"
         ),
-        False,
+        "num_unit",
     ),
     (
         "respiratory_rate",
         re.compile(
-            r"(?i)(?:(?:r\.?r\.?|resp(?:iratory)?\s*(?:rate)?|respirations?)\s*:?\s*(\d{1,3})"
-            r"|(\d{1,3})\s+breaths?/min)"
+            r"(?i)(?:"
+            r"(?:r\.?r\.?|resp(?:iratory)?\s*(?:rate)?|respirations?)\s*:?\s*(\d{1,3})(?:\s*(breaths?/min))?"
+            r"|(\d{1,3})\s+(breaths?/min)"
+            r")"
         ),
-        False,
+        "rr",
     ),
     (
         "oxygen_saturation",
         re.compile(
             r"(?i)(?:spo2?|o2\s+sat(?:uration)?|oxygen\s+sat(?:uration)?|sat)\s*:?\s*"
             r"(\d{2,3})"
-            r"\s*%?"
+            r"\s*(%)"
             r"(?:\s*(?:on\s+room\s+air|RA|room\s+air))?"
         ),
-        False,
+        "num_unit",
     ),
     (
         "weight",
         re.compile(
             r"(?i)(?:wt\.?|weight)\s*:?\s*"
             r"(\d{2,4}(?:\.\d)?)"
-            r"(?:\s*(?:lbs?|kg|pounds?|kilograms?))?"
+            r"(?:\s*(lbs?|kg|pounds?|kilograms?))?"
         ),
-        False,
+        "num_unit",
     ),
 ]
 
 
+def _join(num: str, unit: str) -> str:
+    """Join a numeric value and its unit with appropriate spacing."""
+    if not unit:
+        return num
+    # Symbols like % attach directly; alphabetic units get a space
+    sep = "" if unit.startswith("%") else " "
+    return f"{num}{sep}{unit}"
+
+
 def extract_vitals(text: str) -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
-    for name, pattern, is_bp in _PATTERNS:
+    for name, pattern, mode in _PATTERNS:
         m = pattern.search(text)
         if not m:
             continue
-        if is_bp:
+        if mode == "bp":
             unit = m.group(3) or ""
             value = f"{m.group(1)}/{m.group(2)}"
             if unit:
                 value += f" {unit}"
-        else:
-            # First non-None group is the numeric value
-            num = next((g for g in m.groups() if g is not None), "")
-            value = num
+        elif mode == "rr":
+            # groups: (num_abbrev, unit_abbrev?, num_standalone, unit_standalone)
+            num = m.group(1) or m.group(3) or ""
+            unit = m.group(2) or m.group(4) or ""
+            value = _join(num, unit)
+        else:  # num_unit
+            num = m.group(1) or ""
+            unit = m.group(2) or ""
+            value = _join(num, unit)
         results[name] = {
             "value": value,
             "span": [m.start(), m.end()],

@@ -1,5 +1,5 @@
 // frontend/src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import { QueueProvider } from "./context/QueueContext";
 import AppShell from "./components/AppShell";
 import Upload from "./pages/Upload";
@@ -9,22 +9,25 @@ import OcrPreview from "./pages/OcrPreview";
 import History from "./pages/History";
 import Metrics from "./pages/Metrics";
 
-export default function App() {
-  return (
-    <BrowserRouter>
+const router = createBrowserRouter([
+  {
+    element: (
       <QueueProvider>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route path="/" element={<Upload />} />
-            <Route path="/queue" element={<Queue />} />
-            <Route path="/review/:noteId" element={<Review />} />
-            <Route path="/review/:noteId/preview" element={<OcrPreview />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/metrics" element={<Metrics />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
+        <AppShell />
       </QueueProvider>
-    </BrowserRouter>
-  );
+    ),
+    children: [
+      { path: "/", element: <Upload /> },
+      { path: "/queue", element: <Queue /> },
+      { path: "/review/:noteId", element: <Review /> },
+      { path: "/review/:noteId/preview", element: <OcrPreview /> },
+      { path: "/history", element: <History /> },
+      { path: "/metrics", element: <Metrics /> },
+      { path: "*", element: <Navigate to="/" replace /> },
+    ],
+  },
+]);
+
+export default function App() {
+  return <RouterProvider router={router} />;
 }

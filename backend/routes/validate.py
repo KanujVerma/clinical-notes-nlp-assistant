@@ -60,6 +60,7 @@ def validate():
         .where(Validation.id == None)  # noqa: E711
         .where(Note.id != note_id)
         .order_by(Note.created_at.asc())
+        .limit(1)
     ).scalar_one_or_none()
 
     return jsonify({"message": "Validation saved", "correction_count": correction_count, "next_pending_id": next_pending})

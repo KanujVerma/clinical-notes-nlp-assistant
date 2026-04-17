@@ -2,8 +2,8 @@ import re
 from typing import Any
 
 _PATTERNS = [
-    # patient_name — longer aliases first to avoid partial matches
-    ("patient_name",    re.compile(r"(?i)(?:patient\s+name|patient|pt)\s*:\s*(.+)")),
+    # patient_name — longer aliases first; bare "name" is last (most generic)
+    ("patient_name",    re.compile(r"(?i)(?:patient\s+name|pt\s+name|patient|pt|name)\s*:\s*(.+)")),
     # date_of_service
     ("date_of_service", re.compile(r"(?i)(?:date\s+of\s+service|date\s+seen|visit\s+date|dos|date)\s*:\s*(\S+)")),
     # provider_name — longer aliases first
