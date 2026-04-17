@@ -11,7 +11,7 @@ _SECTION_PATTERNS = [
     (r"discharge\s+medications?|home\s+medications?|current\s+medications?|medications?\s*(list)?|meds", "medications"),
     # Assessment/Plan — compound forms before single words
     (r"assessment\s*/\s*plan|a\s*/\s*p|assessment\s+and\s+plan", "assessment_plan"),
-    (r"assessment|impression|diagnoses|problem\s+list", "assessment_plan"),
+    (r"assessment(?!\s*/|\s+and)|impression|diagnoses|problem\s+list", "assessment_plan"),
     # Plan as its own category (sub-classified by instructions.py)
     (r"plan", "plan"),
     # HPI / Hospital Course
@@ -25,7 +25,7 @@ _SECTION_PATTERNS = [
 ]
 
 _COMPILED = [
-    (re.compile(rf"(?i)^[ \t]*{pat}[ \t]*:?[ \t]*$", re.MULTILINE), cat)
+    (re.compile(rf"(?i)^[ \t]*(?:{pat})[ \t]*:?[ \t]*$", re.MULTILINE), cat)
     for pat, cat in _SECTION_PATTERNS
 ]
 

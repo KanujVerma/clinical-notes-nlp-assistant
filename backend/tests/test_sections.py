@@ -134,3 +134,18 @@ def test_follow_up_hyphen_alias():
 def test_problem_list_alias():
     sections = detect_sections("Problem List:\n1. Hypertension")
     assert any(s["category"] == "assessment_plan" for s in sections)
+
+
+def test_impression_in_prose_not_a_section():
+    """'impression' in prose should not create a section."""
+    sections = detect_sections("My clinical impression is that the patient is improving.")
+    assert not any(s["category"] == "assessment_plan" for s in sections)
+
+def test_no_duplicate_assessment_plan_section():
+    """'Assessment and Plan:' should produce exactly one section, not two."""
+    note = "Assessment and Plan:\nHypertension controlled."
+    sections = detect_sections(note)
+    ap_sections = [s for s in sections if s["category"] == "assessment_plan"]
+    assert len(ap_sections) == 1
+    # Section text should not start with "and Plan:"
+    assert not ap_sections[0]["text"].startswith("and")
