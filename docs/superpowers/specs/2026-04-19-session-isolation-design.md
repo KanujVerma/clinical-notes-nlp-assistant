@@ -28,10 +28,13 @@ Add a `session_id` column to the `notes` table. Since `extractions` and `validat
 ## Data Model Change
 
 ```sql
--- Step 1: Add session_id (nullable for backward compat with existing NULL rows)
-ALTER TABLE notes ADD COLUMN session_id VARCHAR;
+-- Step 1: Add session_id (VARCHAR(36) for UUID values; nullable for backward compat with existing NULL rows)
+ALTER TABLE notes ADD COLUMN session_id VARCHAR(36);
 
--- Step 2: Add ON DELETE CASCADE to child tables.
+-- Step 2: Index for fast session-scoped reads (nearly every query filters on this column)
+CREATE INDEX idx_notes_session_id ON notes(session_id);
+
+-- Step 3: Add ON DELETE CASCADE to child tables.
 -- Must drop and re-add the named constraints. Get exact names first:
 --   SELECT conname FROM pg_constraint WHERE conrelid = 'extractions'::regclass AND contype = 'f';
 --   SELECT conname FROM pg_constraint WHERE conrelid = 'validations'::regclass AND contype = 'f';
@@ -44,7 +47,7 @@ ALTER TABLE validations DROP CONSTRAINT validations_note_id_fkey;
 ALTER TABLE validations ADD CONSTRAINT validations_note_id_fkey
   FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE;
 
--- Step 3: Clean existing globally-seeded data
+-- Step 4: Clean existing globally-seeded data
 DELETE FROM validations;
 DELETE FROM extractions;
 DELETE FROM notes;
@@ -85,7 +88,7 @@ Validation happens per-route via `require_session()`. Routes that are exempt (`/
 
 | File | Change |
 |------|--------|
-| `models/note.py` | Add `session_id = Column(String, nullable=True)` |
+| `models/note.py` | Add `session_id = Column(String(36), nullable=True, index=True)` |
 | `app.py` | `before_request`: populate `g.session_id` from header (no validation here) |
 | `utils/session.py` (new) | `require_session()` helper — 400 on missing/empty |
 | `routes/notes.py` | `POST`: `require_session()` guard, set `session_id=g.session_id` on `Note`; `PUT /api/notes/<id>/text`: `require_session()` guard + ownership check before update |
@@ -141,7 +144,7 @@ next_pending = g.db.execute(
 `DELETE /api/reset` — query and capture counts before deleting, then delete notes (cascade removes children):
 
 ```python
-note_ids = [r.id for r in g.db.execute(select(Note.id).where(Note.session_id == sid)).scalars()]
+note_ids = list(g.db.execute(select(Note.id).where(Note.session_id == sid)).scalars())
 deleted_extractions = g.db.query(Extraction).filter(Extraction.note_id.in_(note_ids)).count()
 deleted_validations = g.db.query(Validation).filter(Validation.note_id.in_(note_ids)).count()
 g.db.query(Note).filter(Note.session_id == sid).delete(synchronize_session=False)
@@ -158,7 +161,7 @@ Response shape:
 
 | File | Change |
 |------|--------|
-| `src/api/client.ts` | On module load: read `session_id` from `localStorage`; if absent generate with `crypto.randomUUID()` and persist; inject `X-Session-ID` on every `request()` call and the `uploadFile` fetch |
+| `src/api/client.ts` | On module load: read `clinical_nlp_session_id` from `localStorage`; if absent generate with `crypto.randomUUID()` and persist under that key; inject `X-Session-ID` on every `request()` call and the `uploadFile` fetch |
 
 `crypto.randomUUID()` requires a secure context (HTTPS or `localhost`). Local dev via `vite dev` runs on `localhost` — this is fine. In production on Vercel (HTTPS), this is also fine.
 
