@@ -29,8 +29,9 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.before_request
     def open_session():
-        from flask import g
+        from flask import g, request
         g.db = get_session(engine)
+        g.session_id = request.headers.get("X-Session-ID", "").strip()
 
     @app.teardown_request
     def close_session(exc):
@@ -53,6 +54,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     from routes.metrics import bp as metrics_bp
     from routes.seed import bp as seed_bp
     from routes.queue import bp as queue_bp
+    from routes.reset import bp as reset_bp
 
     app.register_blueprint(extract_bp)
     app.register_blueprint(notes_bp)
@@ -62,6 +64,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(metrics_bp)
     app.register_blueprint(seed_bp)
     app.register_blueprint(queue_bp)
+    app.register_blueprint(reset_bp)
 
     # SPA catch-all (production)
     @app.route("/", defaults={"path": ""})
