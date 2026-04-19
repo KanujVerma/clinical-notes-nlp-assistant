@@ -27,6 +27,8 @@
 | **Create** | `backend/routes/reset.py` | `DELETE /api/reset` — clear session workspace |
 | Modify | `backend/app.py` | Register reset blueprint |
 | Modify | `frontend/src/api/client.ts` | Generate/persist session ID; inject header |
+| Modify | `frontend/src/components/AppShell.tsx` | Add reset workspace button with count confirmation |
+| **Create** | `frontend/e2e/session-isolation.spec.ts` | Playwright isolation smoke test against production |
 | Modify | `backend/tests/test_routes_history.py` | Add SID + session headers + new guard tests |
 | Modify | `backend/tests/test_routes_queue.py` | Add SID + session headers + new guard tests |
 | Modify | `backend/tests/test_routes_validate.py` | Add SID + session headers + new guard tests |
@@ -1605,7 +1607,7 @@ export const api = {
 };
 ```
 
-Note: `options` is spread first, then `headers` is built last so `X-Session-ID` is always present even if a caller passes custom headers in `options.headers`.
+Note: `options` is spread first, then `headers` is built last so `X-Session-ID` is always present even if a caller passes custom headers in `options.headers`. The header is intentionally sent on all routes including `/api/extract` — extract ignores it (it's stateless), but sending it is harmless and keeps the client logic uniform.
 
 - [ ] **Step 2: Verify session ID is generated**
 
@@ -1634,9 +1636,336 @@ git commit -m "feat: generate persistent session ID and inject X-Session-ID head
 
 ---
 
-## Chunk 6: Integration Verification + Deploy
+---
 
-### Task 13: Full test suite + deploy
+## Chunk 6: Frontend Reset UI + Playwright Smoke Test
+
+### Task 13: Add reset button to AppShell sidebar
+
+**Files:**
+- Modify: `frontend/src/components/AppShell.tsx`
+
+The reset button lives at the bottom of the sidebar. On click it calls `api.resetWorkspace()` and shows a `window.alert` confirmation with the delete counts (no new UI component required — keeps it minimal).
+
+- [ ] **Step 1: Update `frontend/src/components/AppShell.tsx`**
+
+Add a "Workspace" section at the bottom of `<nav>`, after the Pending Review section, and wire up the reset action:
+
+```tsx
+// frontend/src/components/AppShell.tsx
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useMatch } from "react-router-dom";
+import { api } from "../api/client";
+import { QueueNote } from "../types";
+import { useQueue } from "../context/QueueContext";
+
+function NavItem({
+  to,
+  label,
+  badge,
+}: {
+  to: string;
+  label: string;
+  badge?: number;
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={to === "/"}
+      className={({ isActive }) =>
+        `flex items-center justify-between px-3 py-1.5 rounded-md text-sm transition-colors ${
+          isActive
+            ? "bg-slate-700 text-slate-100"
+            : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+        }`
+      }
+    >
+      <span>{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500 text-slate-900 min-w-[18px]">
+          {badge}
+        </span>
+      )}
+    </NavLink>
+  );
+}
+
+export default function AppShell() {
+  const reviewMatch = useMatch("/review/:noteId");
+  const activeNoteId = reviewMatch?.params.noteId;
+  const { queueVersion } = useQueue();
+  const [pendingNotes, setPendingNotes] = useState<QueueNote[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    api.getQueue().then((data) => {
+      setPendingCount(data.count);
+      setPendingNotes(data.notes.slice(0, 8));
+    }).catch(() => {});
+  }, [queueVersion]);
+
+  async function handleReset() {
+    if (!window.confirm("Reset your workspace? This deletes all your notes and validations.")) return;
+    setResetting(true);
+    try {
+      const result = await api.resetWorkspace();
+      window.alert(
+        `Workspace cleared — ${result.deleted_notes} note(s), ` +
+        `${result.deleted_extractions} extraction(s), ` +
+        `${result.deleted_validations} validation(s) deleted.`
+      );
+      window.location.href = "/";
+    } catch {
+      window.alert("Reset failed — please try again.");
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  return (
+    <div className="flex h-screen bg-slate-900 overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-[220px] flex-shrink-0 bg-slate-900 border-r border-slate-700 flex flex-col">
+        {/* Logo */}
+        <div className="px-4 py-4 border-b border-slate-700">
+          <span className="text-slate-100 font-semibold text-sm tracking-wide">Clinical NLP</span>
+          <p className="text-slate-500 text-[10px] mt-0.5">Demo mode — synthetic data</p>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+          {/* Pipeline group */}
+          <div>
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              Pipeline
+            </p>
+            <div className="space-y-0.5">
+              <NavItem to="/" label="Upload" />
+              <NavItem to="/queue" label="Queue" badge={pendingCount} />
+            </div>
+          </div>
+
+          {/* Data group */}
+          <div>
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              Data
+            </p>
+            <div className="space-y-0.5">
+              <NavItem to="/history" label="History" />
+              <NavItem to="/metrics" label="Metrics" />
+            </div>
+          </div>
+
+          {/* Pending Review section */}
+          {pendingNotes.length > 0 && (
+            <div>
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                Pending Review
+              </p>
+              <div className="space-y-0.5">
+                {pendingNotes.map((note) => (
+                  <NavLink
+                    key={note.id}
+                    to={`/review/${note.id}`}
+                    className={`block px-3 py-1.5 rounded-md text-xs transition-colors truncate ${
+                      activeNoteId === String(note.id)
+                        ? "bg-cyan-900 text-cyan-300 border border-cyan-700"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    }`}
+                    title={note.filename ?? `Note #${note.id}`}
+                  >
+                    {note.filename ?? `Note #${note.id}`}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          )}
+        </nav>
+
+        {/* Workspace reset — bottom of sidebar */}
+        <div className="px-2 py-3 border-t border-slate-700">
+          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+            Workspace
+          </p>
+          <button
+            onClick={handleReset}
+            disabled={resetting}
+            className="w-full text-left px-3 py-1.5 rounded-md text-xs text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-colors disabled:opacity-50"
+          >
+            {resetting ? "Resetting…" : "Reset workspace"}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-hidden bg-slate-50">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Verify reset button renders**
+
+Start the dev server and open the app. The sidebar should show "Workspace / Reset workspace" at the bottom. Clicking it shows a confirmation dialog; confirming calls the API and shows an alert with counts.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add frontend/src/components/AppShell.tsx
+git commit -m "feat: add reset workspace button to sidebar with delete count confirmation"
+```
+
+---
+
+### Task 14: Playwright session isolation smoke test
+
+**Files:**
+- Create: `frontend/e2e/session-isolation.spec.ts`
+
+This test runs against the **production** URL. Both servers must NOT be required locally — the test hits production directly. The Playwright config's `baseURL` is ignored in favour of the hardcoded URL below.
+
+- [ ] **Step 1: Create `frontend/e2e/session-isolation.spec.ts`**
+
+```typescript
+/**
+ * Session isolation smoke test — production.
+ * Verifies that two independent browser contexts have isolated workspaces.
+ *
+ * Target: https://clinical-nlp.vercel.app
+ * Run: npx playwright test e2e/session-isolation.spec.ts --headed
+ *
+ * Both sessions seed demo data. Isolation is confirmed by comparing
+ * the session IDs stored in localStorage — they must differ.
+ * Each session's history is only populated after seeding in that context.
+ */
+import { test, expect, Browser, BrowserContext, Page } from "@playwright/test";
+
+const PROD = "https://clinical-nlp.vercel.app";
+const SESSION_KEY = "clinical_nlp_session_id";
+
+async function getSessionId(page: Page): Promise<string> {
+  return page.evaluate(
+    (key) => localStorage.getItem(key) ?? "",
+    SESSION_KEY
+  );
+}
+
+async function seedAndWait(page: Page) {
+  page.on("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: /Seed demo data/i }).click();
+  await expect(page.getByText(/Seeded|already exist/i)).toBeVisible({ timeout: 15_000 });
+}
+
+async function getHistoryCount(page: Page): Promise<number> {
+  await page.goto(`${PROD}/history`);
+  const rows = page.locator("table tbody tr");
+  await rows.first().waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
+  return rows.count();
+}
+
+test.describe("Session isolation — production", () => {
+  let browser: Browser;
+  let ctx1: BrowserContext;
+  let ctx2: BrowserContext;
+  let page1: Page;
+  let page2: Page;
+
+  test.beforeAll(async ({ browser: b }) => {
+    browser = b;
+    // ctx1 = normal window; ctx2 = fresh incognito-equivalent context
+    ctx1 = await browser.newContext();
+    ctx2 = await browser.newContext();
+    page1 = await ctx1.newPage();
+    page2 = await ctx2.newPage();
+  });
+
+  test.afterAll(async () => {
+    await ctx1.close();
+    await ctx2.close();
+  });
+
+  test("each context gets a unique session ID", async () => {
+    await page1.goto(PROD);
+    await page2.goto(PROD);
+
+    const sid1 = await getSessionId(page1);
+    const sid2 = await getSessionId(page2);
+
+    expect(sid1).toBeTruthy();
+    expect(sid2).toBeTruthy();
+    expect(sid1).not.toEqual(sid2);
+  });
+
+  test("seeding in one context does not populate the other", async () => {
+    // Seed in context 1
+    await page1.goto(PROD);
+    await seedAndWait(page1);
+
+    // Context 2 should still have empty history
+    const count2 = await getHistoryCount(page2);
+    expect(count2).toBe(0);
+  });
+
+  test("seeding in context 2 gives it its own workspace", async () => {
+    await page2.goto(PROD);
+    await seedAndWait(page2);
+
+    const count2 = await getHistoryCount(page2);
+    expect(count2).toBeGreaterThan(0);
+  });
+
+  test("context 1 history is unaffected by context 2 seeding", async () => {
+    const count1Before = await getHistoryCount(page1);
+    // Seed again in ctx2 — ctx1 count must not change
+    await page2.goto(PROD);
+    await seedAndWait(page2);
+    const count1After = await getHistoryCount(page1);
+    expect(count1After).toEqual(count1Before);
+  });
+
+  test("session ID persists across refresh in context 1", async () => {
+    await page1.goto(PROD);
+    const sidBefore = await getSessionId(page1);
+
+    await page1.reload();
+    const sidAfter = await getSessionId(page1);
+
+    expect(sidAfter).toEqual(sidBefore);
+  });
+
+  test("history persists after refresh in context 1", async () => {
+    const countBefore = await getHistoryCount(page1);
+    await page1.reload();
+    const countAfter = await getHistoryCount(page1);
+    expect(countAfter).toEqual(countBefore);
+  });
+});
+```
+
+- [ ] **Step 2: Run the smoke test against production**
+
+Make sure both backends are deployed first (Task 15). Then run:
+
+```bash
+cd frontend && npx playwright test e2e/session-isolation.spec.ts --headed --project=chromium
+```
+
+Expected: All 6 tests pass. Two windows open in Chrome — each shows its own isolated workspace.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add frontend/e2e/session-isolation.spec.ts
+git commit -m "test: add Playwright session isolation smoke test against production"
+```
+
+---
+
+## Chunk 7: Integration Verification + Deploy
+
+### Task 15: Full test suite + deploy
 
 - [ ] **Step 1: Run full backend test suite**
 
