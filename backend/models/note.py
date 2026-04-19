@@ -9,4 +9,5 @@ class Note(Base):
     raw_text = Column(Text, nullable=False)
     source = Column(String, nullable=False)  # paste|txt|pdf|ocr|demo
     ocr_confidence = Column(Float, nullable=True)
+    session_id = Column(String(36), nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now())
