@@ -5,6 +5,7 @@ from models.note import Note
 from models.extraction import Extraction
 from models.validation import Validation
 from utils.corrections import compute_correction_count
+from utils.session import require_session
 
 
 bp = Blueprint("validate", __name__)
@@ -12,6 +13,7 @@ bp = Blueprint("validate", __name__)
 
 @bp.post("/api/validate")
 def validate():
+    sid = require_session()
     body = request.get_json(silent=True) or {}
     note_id = body.get("note_id")
     validated_json = body.get("validated_json")
@@ -19,18 +21,18 @@ def validate():
     if not note_id or validated_json is None or not status:
         return jsonify({"error": "note_id, validated_json, and status are required", "code": "MISSING_FIELDS"}), 400
 
-    # Verify note exists
-    if not g.db.get(Note, note_id):
+    note = g.db.get(Note, note_id)
+    if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
+    if note.session_id != sid:
+        return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
 
-    # Compute correction_count vs latest extraction
     extraction = g.db.execute(
         select(Extraction).where(Extraction.note_id == note_id)
     ).scalar_one_or_none()
     extracted = json.loads(extraction.extracted_json) if extraction else {}
     correction_count = compute_correction_count(extracted, validated_json)
 
-    # Upsert (one validation row per note)
     existing = g.db.execute(
         select(Validation).where(Validation.note_id == note_id)
     ).scalar_one_or_none()
@@ -52,13 +54,13 @@ def validate():
 
     g.db.commit()
 
-    # Find next pending note: has extraction but no validation, excluding just-validated note
     next_pending = g.db.execute(
         select(Note.id)
         .join(Extraction, Extraction.note_id == Note.id)
         .outerjoin(Validation, Validation.note_id == Note.id)
         .where(Validation.id == None)  # noqa: E711
         .where(Note.id != note_id)
+        .where(Note.session_id == sid)
         .order_by(Note.created_at.asc())
         .limit(1)
     ).scalar_one_or_none()
