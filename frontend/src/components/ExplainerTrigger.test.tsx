@@ -1,5 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import ExplainerTrigger from './ExplainerTrigger';
+import { api } from '../api/client';
+
+vi.mock('../lib/aiStatus', () => ({ useAiAvailable: () => true }));
 
 describe('ExplainerTrigger — medication', () => {
   it('renders info button when medication is NOT in dictionary (hasDictionaryEntry=false)', () => {
@@ -62,22 +65,23 @@ describe('ExplainerTrigger — abbreviation', () => {
   });
 });
 
-describe('ExplainerTrigger — AI forwarding', () => {
-  it('calls onRequestAi with kind and value when AI action is clicked', async () => {
-    const onRequestAi = vi.fn();
+describe('ExplainerTrigger — AI modal flow', () => {
+  it('shows AI modal when AI action is clicked on a hit', async () => {
+    // Mock api.aiExplain to return a pending promise (so we can check loading state)
+    vi.spyOn(api, 'aiExplain').mockReturnValue(new Promise(() => {}));
+
     render(
       <ExplainerTrigger
         value="metformin"
         kind="medication"
-        aiAvailable={true}
-        onRequestAi={onRequestAi}
       />
     );
-    const btn = screen.getByLabelText('Show explanation');
-    fireEvent.click(btn);
-    // Click the "Explain in more detail" link
-    const aiBtn = await screen.findByText(/Explain in more detail/i);
-    fireEvent.click(aiBtn);
-    expect(onRequestAi).toHaveBeenCalledWith('medication', 'Metformin', undefined);
+
+    fireEvent.click(screen.getByLabelText('Show explanation'));
+    // 'metformin' is a known medication → popover appears with "Explain in more detail"
+    fireEvent.click(await screen.findByText(/Explain in more detail/i));
+
+    // Modal should be visible (loading state)
+    expect(await screen.findByText(/Generating explanation/i)).toBeInTheDocument();
   });
 });

@@ -1,17 +1,35 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { lookupMedication, lookupAbbreviations, isAbbreviationDenylisted } from '../lib/explainerLookup';
 import ExplainerPopover from './ExplainerPopover';
+import { useAiAvailable } from '../lib/aiStatus';
+import { api } from '../api/client';
+import type { AiExplanation } from '../lib/aiExplain';
+import AIExplanationModal from './AIExplanationModal';
 
 interface ExplainerTriggerProps {
   value: string;
   kind: 'medication' | 'abbreviation';
-  aiAvailable?: boolean;
-  onRequestAi?: (kind: 'medication' | 'abbreviation', value: string, context?: object) => void;
 }
 
-export default function ExplainerTrigger({ value, kind, aiAvailable, onRequestAi }: ExplainerTriggerProps) {
+export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps) {
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const mountedRef = useRef(true);
+
+  const aiAvailable = useAiAvailable();
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const [aiModal, setAiModal] = useState<{
+    term: string;
+    kind: 'medication' | 'abbreviation';
+    context?: object;
+  } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<AiExplanation | undefined>(undefined);
+  const [aiError, setAiError] = useState<string | undefined>(undefined);
 
   // Run lookup
   const medEntry = kind === 'medication' ? lookupMedication(value) : null;
@@ -35,6 +53,26 @@ export default function ExplainerTrigger({ value, kind, aiAvailable, onRequestAi
         setPopoverPos({ top: rect.bottom + 4, left: rect.left });
       }
     }
+  };
+
+  const handleRequestAi = (kind: 'medication' | 'abbreviation', termValue: string) => {
+    setPopoverPos(null);                  // close popover
+    setAiModal({ term: termValue, kind });
+    setAiLoading(true);
+    setAiExplanation(undefined);
+    setAiError(undefined);
+
+    api.aiExplain({ kind, value: termValue, context: undefined })
+      .then(r => {
+        if (!mountedRef.current) return;
+        setAiLoading(false);
+        setAiExplanation(r.explanation);
+      })
+      .catch(e => {
+        if (!mountedRef.current) return;
+        setAiLoading(false);
+        setAiError(e instanceof Error ? e.message : 'Could not generate explanation.');
+      });
   };
 
   return (
@@ -73,7 +111,21 @@ export default function ExplainerTrigger({ value, kind, aiAvailable, onRequestAi
           hasDictionaryEntry={hasDictionaryEntry}
           kind={kind}
           aiAvailable={aiAvailable}
-          onRequestAi={onRequestAi}
+          onRequestAi={handleRequestAi}
+        />
+      )}
+      {aiModal && (
+        <AIExplanationModal
+          term={aiModal.term}
+          loading={aiLoading}
+          explanation={aiExplanation}
+          error={aiError}
+          onClose={() => {
+            setAiModal(null);
+            setAiLoading(false);
+            setAiExplanation(undefined);
+            setAiError(undefined);
+          }}
         />
       )}
     </span>
