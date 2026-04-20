@@ -100,4 +100,64 @@ export const CLINICAL_ABBREVIATIONS: Record<string, AbbreviationExplanation> = {
     expansion: "Per rectum (rectally)",
     category: "route",
   },
+  oral: {
+    abbreviation: "oral",
+    expansion: "By mouth (orally)",
+    category: "route",
+  },
+  inhaled: {
+    abbreviation: "inhaled",
+    expansion: "By inhalation — breathed into the lungs",
+    category: "route",
+  },
+  inhalation: {
+    abbreviation: "inhalation",
+    expansion: "By inhalation — breathed into the lungs",
+    category: "route",
+  },
+  topical: {
+    abbreviation: "topical",
+    expansion: "Applied directly to the skin or mucosal surface",
+    category: "route",
+  },
+  transdermal: {
+    abbreviation: "transdermal",
+    expansion: "Absorbed through the skin (patch or gel)",
+    category: "route",
+  },
+  intranasal: {
+    abbreviation: "intranasal",
+    expansion: "Administered into the nasal passages",
+    category: "route",
+  },
+  ophthalmic: {
+    abbreviation: "ophthalmic",
+    expansion: "Applied to or around the eye",
+    category: "route",
+  },
+  otic: {
+    abbreviation: "otic",
+    expansion: "Applied into or around the ear canal",
+    category: "route",
+  },
+  rectal: {
+    abbreviation: "rectal",
+    expansion: "Administered via the rectum",
+    category: "route",
+  },
+  subcutaneous: {
+    abbreviation: "subcutaneous",
+    expansion: "Injected under the skin",
+    category: "route",
+  },
+  sublingual: {
+    abbreviation: "sublingual",
+    expansion: "Dissolved under the tongue",
+    category: "route",
+  },
+  subq: {
+    abbreviation: "subq",
+    expansion: "Subcutaneous — injected under the skin",
+    category: "route",
+  },
 };

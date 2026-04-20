@@ -19,6 +19,7 @@ STRICT RULES:
 4. Never speculate beyond the provided inputs. If the input is ambiguous or sparse, set uncertainty and keep fields brief.
 5. Never discuss contraindications, adverse effects, or interactions in detail — one sentence max, only if broadly informational.
 6. Output valid JSON only, matching exactly {"whatItIs": "...", "commonUse": "...", "plainLanguage": "...", "uncertainty": "..."} where uncertainty is optional. No prose before or after.
+7. Never use a category label ("Clinical Terms", "Medical Abbreviation", "Drug Class", "Route of Administration") as the whatItIs value. Explain specifically what the term is or does — e.g., for "inhaled": "Medication delivered directly into the lungs via breathing" not "Clinical Terms".
 
 Field limits: whatItIs ≤ 25 words, commonUse ≤ 20 words, plainLanguage ≤ 40 words, uncertainty ≤ 20 words.
 """
