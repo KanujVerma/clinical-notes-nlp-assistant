@@ -43,16 +43,16 @@ export default function ExplainerPopover({
   return (
     <div
       ref={ref}
-      className="fixed z-50 max-w-[280px] bg-white border border-slate-200 rounded-lg shadow-lg p-3"
+      className="fixed z-50 w-max max-w-[260px] bg-white border border-slate-200 rounded-lg shadow-lg p-2"
       style={{ top, left }}
     >
       {/* Header row: term name + close button */}
-      <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="flex items-start justify-between gap-2 mb-1.5">
         <span className="font-semibold text-sm text-slate-800">{termName}</span>
         <button
           aria-label="Close"
           onClick={onClose}
-          className="text-slate-400 hover:text-slate-600 leading-none shrink-0"
+          className="text-slate-300 hover:text-slate-400 text-xs leading-none shrink-0 mt-px"
         >
           ×
         </button>
@@ -60,7 +60,7 @@ export default function ExplainerPopover({
 
       {/* Medication rows */}
       {medication && (
-        <div className="flex flex-col gap-1 mb-2">
+        <div className="flex flex-col gap-0.5 mb-1.5">
           <div className="flex gap-2 text-xs">
             <span className="text-slate-500 shrink-0">Description</span>
             <span className="text-slate-800">{medication.description}</span>
@@ -78,7 +78,7 @@ export default function ExplainerPopover({
 
       {/* Abbreviation rows */}
       {abbreviations && abbreviations.length > 0 && (
-        <div className="flex flex-col gap-1 mb-2">
+        <div className="flex flex-col gap-0.5 mb-1.5">
           {abbreviations.map((abbrev) => (
             <div key={abbrev.abbreviation} className="flex gap-2 text-xs">
               <span className="text-slate-500 shrink-0">{abbrev.abbreviation}</span>

@@ -31,7 +31,7 @@ export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps)
   };
 
   return (
-    <span className="inline-flex items-center ml-1">
+    <span className="inline-flex items-center ml-0.5">
       <button
         ref={btnRef}
         onClick={handleClick}
