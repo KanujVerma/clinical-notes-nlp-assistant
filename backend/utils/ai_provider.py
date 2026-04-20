@@ -1,5 +1,8 @@
 import json
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS = 256
@@ -77,15 +80,18 @@ def explain(kind: str, value: str, context: dict) -> dict:
     try:
         raw = _call_anthropic(messages)
     except Exception as exc:
+        logger.exception("Anthropic API call failed for kind=%s value=%s", kind, value)
         raise AIError(f"API call failed: {exc}") from exc
 
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as exc:
+        logger.error("JSON parse failed. Raw response: %r", raw)
         raise AIError(f"Invalid model response: could not parse JSON — {exc}") from exc
 
     missing = REQUIRED_KEYS - parsed.keys()
     if missing:
+        logger.error("Schema validation failed. Missing keys: %s. Raw: %r", missing, raw)
         raise AIError(f"Invalid model response: missing required keys {missing}")
 
     return parsed

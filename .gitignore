@@ -16,3 +16,4 @@ frontend/dist/
 .DS_Store
 .claude-flow/
 .superpowers/
+.vercel

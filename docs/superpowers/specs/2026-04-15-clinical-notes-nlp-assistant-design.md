@@ -30,7 +30,7 @@ clinical-notes-nlp-assistant/
 ├── backend/
 │   ├── app.py                    # Flask app factory, CORS, blueprint registration
 │   ├── config.py                 # SPACY_MODEL flag (web_sm | sci_sm), paths, PIPELINE_VERSION
-│   ├── routes/                   # extract, upload, validate, history, metrics, seed
+│   ├── routes/                   # extract, notes, upload, validate, history, metrics, seed
 │   ├── extractors/
 │   │   ├── pipeline.py           # Orchestrator; stamps pipeline_version on outputs
 │   │   ├── preprocess.py         # Whitespace collapse, line rejoining, header normalization
