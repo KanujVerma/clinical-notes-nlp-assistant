@@ -1,15 +1,27 @@
 // frontend/src/api/client.ts
 import { QueueResponse } from "../types";
 
-// In production (Vercel), set VITE_API_BASE_URL to the Render backend URL,
-// e.g. https://your-app.onrender.com
-// In local dev, leave it unset — Vite proxies /api to localhost:5000.
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "") + "/api";
 
+function getSessionId(): string {
+  const KEY = "clinical_nlp_session_id";
+  let sid = localStorage.getItem(KEY);
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem(KEY, sid);
+  }
+  return sid;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const sid = getSessionId();
   const resp = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers as Record<string, string>),
+      "X-Session-ID": sid,
+    },
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ error: resp.statusText }));
@@ -29,22 +41,26 @@ export const api = {
     }),
 
   uploadFile: (file: File) => {
+    const sid = getSessionId();
     const form = new FormData();
     form.append("file", file);
-    return fetch(`${BASE}/upload`, { method: "POST", body: form })
-      .then(async (r) => {
-        if (!r.ok) {
-          const err = await r.json().catch(() => ({ error: r.statusText }));
-          throw new Error(err.error || "Upload failed");
-        }
-        return r.json() as Promise<{
-          note_id: number;
-          extracted_json: any;
-          raw_text: string;
-          ocr_confidence: number | null;
-          source: string;
-        }>;
-      });
+    return fetch(`${BASE}/upload`, {
+      method: "POST",
+      body: form,
+      headers: { "X-Session-ID": sid },
+    }).then(async (r) => {
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: r.statusText }));
+        throw new Error(err.error || "Upload failed");
+      }
+      return r.json() as Promise<{
+        note_id: number;
+        extracted_json: any;
+        raw_text: string;
+        ocr_confidence: number | null;
+        source: string;
+      }>;
+    });
   },
 
   validate: (payload: {
@@ -76,4 +92,10 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ text }),
     }),
+
+  resetWorkspace: () =>
+    request<{ deleted_notes: number; deleted_extractions: number; deleted_validations: number }>(
+      "/reset",
+      { method: "DELETE" }
+    ),
 };
