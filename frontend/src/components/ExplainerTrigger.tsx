@@ -5,9 +5,11 @@ import ExplainerPopover from './ExplainerPopover';
 interface ExplainerTriggerProps {
   value: string;
   kind: 'medication' | 'abbreviation';
+  aiAvailable?: boolean;
+  onRequestAi?: (kind: 'medication' | 'abbreviation', value: string, context?: object) => void;
 }
 
-export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps) {
+export default function ExplainerTrigger({ value, kind, aiAvailable, onRequestAi }: ExplainerTriggerProps) {
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
@@ -69,6 +71,9 @@ export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps)
           abbreviations={abbrevEntries.length > 0 ? abbrevEntries : undefined}
           onClose={() => setPopoverPos(null)}
           hasDictionaryEntry={hasDictionaryEntry}
+          kind={kind}
+          aiAvailable={aiAvailable}
+          onRequestAi={onRequestAi}
         />
       )}
     </span>

@@ -61,3 +61,23 @@ describe('ExplainerTrigger — abbreviation', () => {
     expect(screen.getByText('Twice daily')).toBeInTheDocument();
   });
 });
+
+describe('ExplainerTrigger — AI forwarding', () => {
+  it('calls onRequestAi with kind and value when AI action is clicked', async () => {
+    const onRequestAi = vi.fn();
+    render(
+      <ExplainerTrigger
+        value="metformin"
+        kind="medication"
+        aiAvailable={true}
+        onRequestAi={onRequestAi}
+      />
+    );
+    const btn = screen.getByLabelText('Show explanation');
+    fireEvent.click(btn);
+    // Click the "Explain in more detail" link
+    const aiBtn = await screen.findByText(/Explain in more detail/i);
+    fireEvent.click(aiBtn);
+    expect(onRequestAi).toHaveBeenCalledWith('medication', 'Metformin', undefined);
+  });
+});
