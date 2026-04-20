@@ -1,0 +1,70 @@
+import { useState, useRef } from 'react';
+import { lookupMedication, lookupAbbreviations } from '../lib/explainerLookup';
+import ExplainerPopover from './ExplainerPopover';
+
+interface ExplainerTriggerProps {
+  value: string;
+  kind: 'medication' | 'abbreviation';
+}
+
+export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps) {
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  // Run lookup
+  const medEntry = kind === 'medication' ? lookupMedication(value) : null;
+  const abbrevEntries = kind === 'abbreviation' ? lookupAbbreviations(value) : [];
+
+  // No hit → render nothing
+  if (!medEntry && abbrevEntries.length === 0) return null;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (popoverPos) {
+      setPopoverPos(null); // toggle close
+    } else {
+      const rect = btnRef.current?.getBoundingClientRect();
+      if (rect) {
+        setPopoverPos({ top: rect.bottom + 4, left: rect.left });
+      }
+    }
+  };
+
+  return (
+    <span className="inline-flex items-center ml-1">
+      <button
+        ref={btnRef}
+        onClick={handleClick}
+        aria-label="Show explanation"
+        className="text-slate-400 hover:text-slate-600 cursor-pointer focus:outline-none"
+      >
+        {/* Info icon — inline SVG, 12px, stroke-current, matching project icon style */}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+      </button>
+      {popoverPos && (
+        <ExplainerPopover
+          top={popoverPos.top}
+          left={popoverPos.left}
+          medication={medEntry ?? undefined}
+          abbreviations={abbrevEntries.length > 0 ? abbrevEntries : undefined}
+          onClose={() => setPopoverPos(null)}
+        />
+      )}
+    </span>
+  );
+}
