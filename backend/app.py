@@ -1,4 +1,13 @@
 import os
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+_boot_log = logging.getLogger("boot")
+_boot_log.info("app.py loading")
+
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from config import Config
@@ -6,6 +15,7 @@ from utils.db import get_engine, init_db, get_session
 
 
 def create_app(test_config: dict | None = None) -> Flask:
+    _boot_log.info("create_app() called")
     app = Flask(__name__, static_folder="static", static_url_path="")
 
     # CORS: allow all origins locally; restrict to FRONTEND_URL in production.
@@ -67,6 +77,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(queue_bp)
     app.register_blueprint(reset_bp)
     app.register_blueprint(explain_bp)
+
+    _boot_log.info("blueprints registered")
 
     # SPA catch-all (production)
     @app.route("/", defaults={"path": ""})

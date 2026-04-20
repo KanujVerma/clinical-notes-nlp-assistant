@@ -1,11 +1,11 @@
 from flask import Blueprint, request, jsonify
-from extractors.pipeline import run_pipeline
 
 bp = Blueprint("extract", __name__)
 
 
 @bp.post("/api/extract")
 def extract():
+    from extractors.pipeline import run_pipeline
     body = request.get_json(silent=True) or {}
     text = body.get("text", "").strip()
     if not text:

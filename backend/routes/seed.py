@@ -3,7 +3,6 @@ from flask import Blueprint, jsonify, g
 from sqlalchemy import select
 from models.note import Note
 from models.extraction import Extraction
-from extractors.pipeline import run_pipeline
 from config import Config
 from utils.session import require_session
 
@@ -12,6 +11,7 @@ _SEED_SOURCES = ["dev", "showcase"]  # eval notes are held out
 
 
 def seed_notes(db_session, session_id: str) -> dict:
+    from extractors.pipeline import run_pipeline
     loaded = 0
     skipped = 0
     for source_dir in _SEED_SOURCES:

@@ -7,7 +7,6 @@ import pytesseract
 from flask import Blueprint, g, jsonify, request
 
 from config import Config
-from extractors.pipeline import run_pipeline
 from models.extraction import Extraction
 from models.note import Note
 from utils.pdf import extract_text_from_image, extract_text_from_pdf
@@ -68,6 +67,7 @@ def upload():
         source = "txt"
         ocr_confidence = None
 
+    from extractors.pipeline import run_pipeline
     extracted = run_pipeline(text)
 
     note = Note(filename=f.filename, raw_text=text, source=source, ocr_confidence=ocr_confidence, session_id=sid)
