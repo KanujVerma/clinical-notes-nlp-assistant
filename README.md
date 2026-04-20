@@ -58,7 +58,7 @@ The review UI includes a built-in **contextual explainer** that helps reviewers 
 **How it works:**
 
 - **Dictionary-first:** common medications (~20) and clinical abbreviations (frequencies, routes, qualifiers) resolve instantly from a local dictionary — no network call, no latency.
-- **AI on demand:** for terms not in the dictionary, reviewers can optionally request an AI-generated explanation. This calls a backend endpoint backed by Anthropic Claude Haiku; the result is field-scoped, structured, and informational only.
+- **AI on demand:** for terms not in the dictionary, reviewers can optionally request a field-level AI explanation from the backend. The result is structured and informational only.
 - **Scoped and constrained:** AI explanations cover what the term is, its common clinical use, and a plain-language summary. They do not provide diagnosis, dosing advice, or treatment recommendations. Every AI response carries a disclaimer: *"AI-generated explanation for informational review only — not medical advice."*
 - **Graceful degradation:** if no API key is configured, AI controls hide and the dictionary path continues to work.
 
@@ -84,7 +84,7 @@ Your workspace is isolated to your browser session. Click **Reset workspace** to
 |-------|---------|
 | Frontend | [Vercel](https://vercel.com) — Vite/React, deployed from `frontend/` |
 | Backend | [Render](https://render.com) — Flask + gunicorn |
-| Database | [Supabase](https://supabase.com) — managed Postgres, tables auto-created on first start |
+| Database | [Supabase](https://supabase.com) — managed Postgres |
 
 ---
 
