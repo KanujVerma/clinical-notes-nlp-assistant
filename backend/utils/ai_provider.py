@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,11 @@ def explain(kind: str, value: str, context: dict) -> dict:
     except Exception as exc:
         logger.exception("Anthropic API call failed for kind=%s value=%s", kind, value)
         raise AIError(f"API call failed: {exc}") from exc
+
+    raw = raw.strip()
+    raw = re.sub(r'^```(?:json)?\s*\n?', '', raw)
+    raw = re.sub(r'\n?```\s*$', '', raw)
+    raw = raw.strip()
 
     try:
         parsed = json.loads(raw)
