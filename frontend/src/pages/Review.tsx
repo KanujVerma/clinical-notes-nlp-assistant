@@ -674,6 +674,7 @@ export default function Review() {
                                   onChange={(v, s) => handleFieldChange(nameEntry[0], v, s)}
                                   triggerEdit={editingKey === nameEntry[0]}
                                   onEditTriggered={() => setEditingKey(null)}
+                                  explainerKind="medication"
                                 />
                               </div>
                             )}
@@ -698,6 +699,10 @@ export default function Review() {
                                       onChange={(v, s) => handleFieldChange(k, v, s)}
                                       triggerEdit={editingKey === k}
                                       onEditTriggered={() => setEditingKey(null)}
+                                      explainerKind={
+                                        ['route', 'frequency', 'qualifier'].includes(k.split(".")[2]) ? 'abbreviation'
+                                        : undefined
+                                      }
                                     />
                                   </div>
                                 ))}
