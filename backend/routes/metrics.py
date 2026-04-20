@@ -117,8 +117,8 @@ def metrics():
             {
                 "status": r.status,
                 "count": r.count,
-                "avg_corrections": round(r.avg_corrections or 0, 2),
-                "avg_review_ms": round(r.avg_review_ms or 0),
+                "avg_corrections": float(r.avg_corrections or 0),
+                "avg_review_ms": float(r.avg_review_ms or 0),
             }
             for r in rows
         ],

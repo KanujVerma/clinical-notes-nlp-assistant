@@ -128,7 +128,7 @@ export default function Metrics() {
                   <tr key={row.status} className="border-t border-slate-100">
                     <td className="py-1.5 text-slate-700">{row.status}</td>
                     <td className="py-1.5 text-right text-slate-600">{row.count}</td>
-                    <td className="py-1.5 text-right text-slate-600">{(row.avg_corrections ?? 0).toFixed(1)}</td>
+                    <td className="py-1.5 text-right text-slate-600">{Number(row.avg_corrections ?? 0).toFixed(1)}</td>
                     <td className="py-1.5 text-right text-slate-600">
                       {row.avg_review_ms ? `${Math.round(row.avg_review_ms / 1000)}s` : "—"}
                     </td>
