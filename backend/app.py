@@ -55,6 +55,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     from routes.seed import bp as seed_bp
     from routes.queue import bp as queue_bp
     from routes.reset import bp as reset_bp
+    from routes.explain import bp as explain_bp
 
     app.register_blueprint(extract_bp)
     app.register_blueprint(notes_bp)
@@ -65,6 +66,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(seed_bp)
     app.register_blueprint(queue_bp)
     app.register_blueprint(reset_bp)
+    app.register_blueprint(explain_bp)
 
     # SPA catch-all (production)
     @app.route("/", defaults={"path": ""})
