@@ -1,6 +1,10 @@
-import { useState, useRef } from 'react';
-import { lookupMedication, lookupAbbreviations } from '../lib/explainerLookup';
+import { useState, useRef, useEffect } from 'react';
+import { lookupMedication, lookupAbbreviations, isAbbreviationDenylisted } from '../lib/explainerLookup';
 import ExplainerPopover from './ExplainerPopover';
+import { useAiAvailable } from '../lib/aiStatus';
+import { api } from '../api/client';
+import type { AiExplanation } from '../lib/aiExplain';
+import AIExplanationModal from './AIExplanationModal';
 
 interface ExplainerTriggerProps {
   value: string;
@@ -10,13 +14,35 @@ interface ExplainerTriggerProps {
 export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps) {
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const mountedRef = useRef(false);
+
+  const aiAvailable = useAiAvailable();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const [aiModal, setAiModal] = useState<{
+    term: string;
+    kind: 'medication' | 'abbreviation';
+    context?: object;
+  } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<AiExplanation | undefined>(undefined);
+  const [aiError, setAiError] = useState<string | undefined>(undefined);
 
   // Run lookup
   const medEntry = kind === 'medication' ? lookupMedication(value) : null;
   const abbrevEntries = kind === 'abbreviation' ? lookupAbbreviations(value) : [];
 
-  // No hit → render nothing
-  if (!medEntry && abbrevEntries.length === 0) return null;
+  const hasDictionaryEntry = !!medEntry || abbrevEntries.length > 0;
+  if (!hasDictionaryEntry) {
+    if (kind === 'abbreviation' && isAbbreviationDenylisted(value)) {
+      return null;  // suppress icon for obvious non-shorthand tokens
+    }
+    // medication misses and non-denylisted abbreviation misses: fall through and render icon
+  }
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -30,12 +56,33 @@ export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps)
     }
   };
 
+  const handleRequestAi = (kind: 'medication' | 'abbreviation', termValue: string) => {
+    setPopoverPos(null);                  // close popover
+    setAiModal({ term: termValue, kind });
+    setAiLoading(true);
+    setAiExplanation(undefined);
+    setAiError(undefined);
+
+    api.aiExplain({ kind, value: termValue, context: undefined })
+      .then(r => {
+        if (!mountedRef.current) return;
+        setAiLoading(false);
+        setAiExplanation(r.explanation);
+      })
+      .catch(e => {
+        if (!mountedRef.current) return;
+        setAiLoading(false);
+        setAiError(e instanceof Error ? e.message : 'Could not generate explanation.');
+      });
+  };
+
   return (
     <span className="inline-flex items-center ml-0.5">
       <button
         ref={btnRef}
         onClick={handleClick}
         aria-label="Show explanation"
+        data-testid="info-button"
         className="text-slate-400 hover:text-slate-600 cursor-pointer focus:outline-none"
       >
         {/* Info icon — inline SVG, 12px, stroke-current, matching project icon style */}
@@ -63,6 +110,24 @@ export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps)
           medication={medEntry ?? undefined}
           abbreviations={abbrevEntries.length > 0 ? abbrevEntries : undefined}
           onClose={() => setPopoverPos(null)}
+          hasDictionaryEntry={hasDictionaryEntry}
+          kind={kind}
+          aiAvailable={aiAvailable}
+          onRequestAi={handleRequestAi}
+        />
+      )}
+      {aiModal && (
+        <AIExplanationModal
+          term={aiModal.term}
+          loading={aiLoading}
+          explanation={aiExplanation}
+          error={aiError}
+          onClose={() => {
+            setAiModal(null);
+            setAiLoading(false);
+            setAiExplanation(undefined);
+            setAiError(undefined);
+          }}
         />
       )}
     </span>

@@ -1,4 +1,4 @@
-import { lookupMedication, lookupAbbreviations } from './explainerLookup';
+import { lookupMedication, lookupAbbreviations, isAbbreviationDenylisted } from './explainerLookup';
 
 describe('lookupMedication', () => {
   it('returns entry for an exact lowercase match', () => {
@@ -46,5 +46,39 @@ describe('lookupAbbreviations', () => {
   it('is case-insensitive', () => {
     expect(lookupAbbreviations('bid')).toHaveLength(1);
     expect(lookupAbbreviations('BID')).toHaveLength(1);
+  });
+});
+
+describe('isAbbreviationDenylisted', () => {
+  it('returns true for "daily"', () => {
+    expect(isAbbreviationDenylisted('daily')).toBe(true);
+  });
+
+  it('returns true for "twice daily"', () => {
+    expect(isAbbreviationDenylisted('twice daily')).toBe(true);
+  });
+
+  it('returns true for "2 tablets"', () => {
+    expect(isAbbreviationDenylisted('2 tablets')).toBe(true);
+  });
+
+  it('returns true for "once a day"', () => {
+    expect(isAbbreviationDenylisted('once a day')).toBe(true);
+  });
+
+  it('returns false for "BID"', () => {
+    expect(isAbbreviationDenylisted('BID')).toBe(false);
+  });
+
+  it('returns false for "q6h"', () => {
+    expect(isAbbreviationDenylisted('q6h')).toBe(false);
+  });
+
+  it('returns false for "with meals"', () => {
+    expect(isAbbreviationDenylisted('with meals')).toBe(false);
+  });
+
+  it('returns false for empty string', () => {
+    expect(isAbbreviationDenylisted('')).toBe(false);
   });
 });
