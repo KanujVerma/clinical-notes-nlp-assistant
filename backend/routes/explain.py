@@ -9,6 +9,7 @@ bp = Blueprint("explain", __name__)
 VALID_KINDS = {"medication", "abbreviation"}
 MAX_VALUE_LEN = 80
 MAX_CONTEXT_VALUE_LEN = 40
+MAX_CONTEXT_KEYS = 6
 MODEL_USED = "claude-haiku-4-5-20251001"
 
 
@@ -36,6 +37,8 @@ def explain():
     context = body.get("context", {})
     if not isinstance(context, dict):
         return jsonify({"error": "context must be an object", "code": "INVALID_INPUT"}), 400
+    if len(context) > MAX_CONTEXT_KEYS:
+        return jsonify({"error": f"context must have {MAX_CONTEXT_KEYS} keys or fewer", "code": "INVALID_INPUT"}), 400
     if context:
         for k, v in context.items():
             if not isinstance(v, str):

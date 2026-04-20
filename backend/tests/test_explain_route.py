@@ -145,6 +145,20 @@ def test_context_not_dict_returns_400(client, monkeypatch):
     assert data["code"] == "INVALID_INPUT"
 
 
+def test_context_too_many_keys_returns_400(client, monkeypatch):
+    _patch_rate_limit(monkeypatch)
+    _patch_ai(monkeypatch, explain_result=FAKE_EXPLANATION)
+    too_many = {f"key{i}": "val" for i in range(7)}
+    resp = client.post(
+        "/api/explain",
+        json={"kind": "medication", "value": "metformin", "context": too_many},
+        headers=SESSION_HEADERS,
+    )
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert data["code"] == "INVALID_INPUT"
+
+
 def test_rate_limited_returns_429(client, monkeypatch):
     _patch_rate_limit(monkeypatch, allowed=False, retry_after=60)
     _patch_ai(monkeypatch, explain_result=FAKE_EXPLANATION)
