@@ -4,34 +4,46 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from app import create_app
 
+SID = "test-session-abc"
+
 @pytest.fixture
 def client(tmp_path):
     app = create_app({"TESTING": True, "DATABASE_URL": "sqlite:///" + str(tmp_path / "test.db")})
     with app.test_client() as c:
         yield c
 
+def test_upload_missing_session_returns_400(client):
+    data = {"file": (io.BytesIO(b"BP: 120/80."), "note.txt", "text/plain")}
+    resp = client.post("/api/upload", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 400
+    assert resp.get_json()["code"] == "MISSING_SESSION_ID"
+
 def test_upload_txt_returns_note_id(client):
     content = b"BP: 120/80. HR: 72. Patient takes lisinopril 10 mg PO daily."
     data = {"file": (io.BytesIO(content), "note.txt", "text/plain")}
-    resp = client.post("/api/upload", data=data, content_type="multipart/form-data")
+    resp = client.post("/api/upload", data=data, content_type="multipart/form-data",
+                       headers={"X-Session-ID": SID})
     assert resp.status_code == 201
     assert "note_id" in resp.get_json()
 
 def test_upload_returns_extracted_json(client):
     content = b"BP: 130/85. HR: 68."
     data = {"file": (io.BytesIO(content), "note.txt", "text/plain")}
-    resp = client.post("/api/upload", data=data, content_type="multipart/form-data")
+    resp = client.post("/api/upload", data=data, content_type="multipart/form-data",
+                       headers={"X-Session-ID": SID})
     body = resp.get_json()
     assert "extracted_json" in body
     assert "vitals" in body["extracted_json"]
 
 def test_upload_no_file_returns_400(client):
-    resp = client.post("/api/upload", data={}, content_type="multipart/form-data")
+    resp = client.post("/api/upload", data={}, content_type="multipart/form-data",
+                       headers={"X-Session-ID": SID})
     assert resp.status_code == 400
 
 def test_upload_unsupported_extension_returns_400(client):
     data = {"file": (io.BytesIO(b"hello"), "note.doc", "application/msword")}
-    resp = client.post("/api/upload", data=data, content_type="multipart/form-data")
+    resp = client.post("/api/upload", data=data, content_type="multipart/form-data",
+                       headers={"X-Session-ID": SID})
     assert resp.status_code == 400
     assert resp.get_json()["code"] == "UNSUPPORTED_FILE_TYPE"
 
@@ -45,6 +57,7 @@ class TestUploadOCR:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"fakepng"), "note.png")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         assert resp.status_code == 201
         assert "note_id" in resp.get_json()
@@ -56,6 +69,7 @@ class TestUploadOCR:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"fakejpg"), "note.jpg")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         assert resp.status_code == 201
 
@@ -68,6 +82,7 @@ class TestUploadOCR:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"%PDF"), "scan.pdf")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         assert resp.status_code == 201
         assert resp.get_json()["source"] == "ocr"
@@ -77,6 +92,7 @@ class TestUploadOCR:
             "/api/upload",
             data={"file": (io.BytesIO(b"data"), "note.docx")},
             content_type="multipart/form-data",
+            headers={"X-Session-ID": SID},
         )
         assert resp.status_code == 400
         assert resp.get_json()["code"] == "UNSUPPORTED_FILE_TYPE"
@@ -88,6 +104,7 @@ class TestUploadOCR:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"fakepng"), "note.png")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         assert resp.status_code == 503
         assert resp.get_json()["code"] == "OCR_UNAVAILABLE"
@@ -99,6 +116,7 @@ class TestUploadOCR:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"fakepng"), "note.png")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         assert resp.status_code == 400
         assert resp.get_json()["code"] == "OCR_EMPTY"
@@ -111,6 +129,7 @@ class TestUploadOCR:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"%PDF"), "scan.pdf")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         assert resp.status_code == 503
         assert resp.get_json()["code"] == "OCR_UNAVAILABLE"
@@ -123,6 +142,7 @@ class TestUploadOCR:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"%PDF"), "scan.pdf")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         assert resp.status_code == 400
         assert resp.get_json()["code"] == "OCR_EMPTY"
@@ -134,7 +154,8 @@ class TestUploadResponseShape:
     def test_txt_upload_response_includes_raw_text_and_null_confidence(self, client):
         content = b"BP: 120/80. HR: 72."
         data = {"file": (io.BytesIO(content), "note.txt", "text/plain")}
-        resp = client.post("/api/upload", data=data, content_type="multipart/form-data")
+        resp = client.post("/api/upload", data=data, content_type="multipart/form-data",
+                           headers={"X-Session-ID": SID})
         body = resp.get_json()
         assert resp.status_code == 201
         assert "raw_text" in body
@@ -149,6 +170,7 @@ class TestUploadResponseShape:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"fakepng"), "note.png")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         body = resp.get_json()
         assert resp.status_code == 201
@@ -162,6 +184,7 @@ class TestUploadResponseShape:
                 "/api/upload",
                 data={"file": (io.BytesIO(b"%PDF"), "scan.pdf")},
                 content_type="multipart/form-data",
+                headers={"X-Session-ID": SID},
             )
         body = resp.get_json()
         assert resp.status_code == 201

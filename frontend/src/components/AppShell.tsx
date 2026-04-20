@@ -42,6 +42,7 @@ export default function AppShell() {
   const { queueVersion } = useQueue();
   const [pendingNotes, setPendingNotes] = useState<QueueNote[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
 
   useEffect(() => {
     api.getQueue().then((data) => {
@@ -51,6 +52,24 @@ export default function AppShell() {
       // silently fail — sidebar is non-critical
     });
   }, [queueVersion]);
+
+  async function handleReset() {
+    try {
+      const result = await api.resetWorkspace();
+      const { deleted_notes, deleted_extractions, deleted_validations } = result;
+      setResetMsg(
+        `Cleared ${deleted_notes} note${deleted_notes !== 1 ? "s" : ""}, ` +
+        `${deleted_extractions} extraction${deleted_extractions !== 1 ? "s" : ""}, ` +
+        `${deleted_validations} validation${deleted_validations !== 1 ? "s" : ""}.`
+      );
+      setPendingNotes([]);
+      setPendingCount(0);
+      setTimeout(() => setResetMsg(null), 4000);
+    } catch {
+      setResetMsg("Reset failed.");
+      setTimeout(() => setResetMsg(null), 3000);
+    }
+  }
 
   return (
     <div className="flex h-screen bg-slate-900 overflow-hidden">
@@ -110,6 +129,20 @@ export default function AppShell() {
             </div>
           )}
         </nav>
+
+        {/* Reset workspace */}
+        <div className="px-3 py-3 border-t border-slate-700">
+          {resetMsg ? (
+            <p className="text-[10px] text-slate-400 leading-tight">{resetMsg}</p>
+          ) : (
+            <button
+              onClick={handleReset}
+              className="w-full text-left px-3 py-1.5 rounded-md text-xs text-slate-500 hover:bg-slate-800 hover:text-rose-400 transition-colors"
+            >
+              Reset workspace
+            </button>
+          )}
+        </div>
       </aside>
 
       {/* Main content */}

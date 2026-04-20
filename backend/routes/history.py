@@ -4,18 +4,24 @@ from sqlalchemy import select, desc
 from models.note import Note
 from models.extraction import Extraction
 from models.validation import Validation
+from utils.session import require_session
 
 bp = Blueprint("history", __name__)
 
 
 @bp.get("/api/history")
 def list_history():
+    sid = require_session()
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 20))
     offset = (page - 1) * per_page
 
     notes = g.db.execute(
-        select(Note).order_by(desc(Note.created_at)).limit(per_page).offset(offset)
+        select(Note)
+        .where(Note.session_id == sid)
+        .order_by(desc(Note.created_at))
+        .limit(per_page)
+        .offset(offset)
     ).scalars().all()
 
     result = []
@@ -37,9 +43,12 @@ def list_history():
 
 @bp.get("/api/history/<int:note_id>")
 def get_history_detail(note_id: int):
+    sid = require_session()
     note = g.db.get(Note, note_id)
     if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
+    if note.session_id != sid:
+        return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
 
     extraction = g.db.execute(
         select(Extraction).where(Extraction.note_id == note_id)

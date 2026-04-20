@@ -1,9 +1,11 @@
 import json, os
 from flask import Blueprint, jsonify, g
 from sqlalchemy import select, func
+from models.note import Note
 from models.extraction import Extraction
 from models.validation import Validation
 from config import Config
+from utils.session import require_session
 
 bp = Blueprint("metrics", __name__)
 
@@ -80,7 +82,7 @@ def _compute_correction_rates(validations):
 
 @bp.get("/api/metrics")
 def metrics():
-    # Load eval results (may not exist yet)
+    sid = require_session()
     from flask import current_app
     eval_results_path = current_app.config.get("EVAL_RESULTS_PATH", Config.EVAL_RESULTS_PATH)
     eval_data = None
@@ -88,20 +90,25 @@ def metrics():
         with open(eval_results_path) as f:
             eval_data = json.load(f)
 
-    # DB-based correction stats by status
+    # DB-based correction stats by status — scoped to session via Note join
     rows = g.db.execute(
         select(
             Validation.status,
             func.count().label("count"),
             func.avg(Validation.correction_count).label("avg_corrections"),
             func.avg(Validation.review_duration_ms).label("avg_review_ms"),
-        ).group_by(Validation.status)
+        )
+        .join(Note, Note.id == Validation.note_id)
+        .where(Note.session_id == sid)
+        .group_by(Validation.status)
     ).all()
 
-    # Per-category and per-field correction rates
+    # Per-category and per-field correction rates — scoped to session
     val_rows = g.db.execute(
         select(Extraction.extracted_json, Validation.validated_json)
+        .join(Note, Note.id == Extraction.note_id)
         .join(Validation, Validation.note_id == Extraction.note_id)
+        .where(Note.session_id == sid)
     ).all()
     correction_rates = _compute_correction_rates([(r.extracted_json, r.validated_json) for r in val_rows])
 

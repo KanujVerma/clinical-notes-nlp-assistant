@@ -11,6 +11,7 @@ from extractors.pipeline import run_pipeline
 from models.extraction import Extraction
 from models.note import Note
 from utils.pdf import extract_text_from_image, extract_text_from_pdf
+from utils.session import require_session
 
 bp = Blueprint("upload", __name__)
 
@@ -20,6 +21,7 @@ _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tiff", ".tif"}
 
 @bp.post("/api/upload")
 def upload():
+    sid = require_session()
     if "file" not in request.files:
         return jsonify({"error": "No file provided", "code": "NO_FILE"}), 400
 
@@ -68,7 +70,7 @@ def upload():
 
     extracted = run_pipeline(text)
 
-    note = Note(filename=f.filename, raw_text=text, source=source, ocr_confidence=ocr_confidence)
+    note = Note(filename=f.filename, raw_text=text, source=source, ocr_confidence=ocr_confidence, session_id=sid)
     g.db.add(note)
     g.db.flush()
 

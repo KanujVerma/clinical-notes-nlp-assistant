@@ -9,3 +9,8 @@ def test_init_db_creates_tables(tmp_path):
     assert "notes" in tables
     assert "extractions" in tables
     assert "validations" in tables
+
+def test_note_has_session_id_column(tmp_path):
+    from models.note import Note
+    col_names = [c.key for c in Note.__table__.columns]
+    assert "session_id" in col_names
