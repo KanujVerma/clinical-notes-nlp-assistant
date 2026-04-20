@@ -86,7 +86,7 @@ export default function AIExplanationModal({
             </div>
             {explanation.uncertainty && (
               <div className="flex gap-2 text-xs">
-                <span className="text-slate-500 shrink-0">Note</span>
+                <span className="text-slate-500 shrink-0">Context note</span>
                 <span className="text-slate-800 italic">{explanation.uncertainty}</span>
               </div>
             )}
