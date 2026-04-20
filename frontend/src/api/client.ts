@@ -1,5 +1,6 @@
 // frontend/src/api/client.ts
 import { QueueResponse } from "../types";
+import { AiExplainRequest, AiExplainResponse, AiStatusResponse } from "../lib/aiExplain";
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "") + "/api";
 
@@ -98,4 +99,13 @@ export const api = {
       "/reset",
       { method: "DELETE" }
     ),
+
+  aiExplain: (body: AiExplainRequest) =>
+    request<AiExplainResponse>("/explain", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  getAiStatus: () =>
+    request<AiStatusResponse>("/explain/status"),
 };
