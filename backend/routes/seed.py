@@ -5,12 +5,13 @@ from models.note import Note
 from models.extraction import Extraction
 from extractors.pipeline import run_pipeline
 from config import Config
+from utils.session import require_session
 
 bp = Blueprint("seed", __name__)
 _SEED_SOURCES = ["dev", "showcase"]  # eval notes are held out
 
 
-def seed_notes(db_session) -> dict:
+def seed_notes(db_session, session_id: str) -> dict:
     loaded = 0
     skipped = 0
     for source_dir in _SEED_SOURCES:
@@ -20,9 +21,10 @@ def seed_notes(db_session) -> dict:
         for fname in sorted(os.listdir(notes_dir)):
             if not fname.endswith(".txt"):
                 continue
-            # Idempotent: skip if filename already in DB
+            # Idempotency scoped to this session
             existing = db_session.execute(
-                select(Note).where(Note.filename == fname)
+                select(Note).where(Note.filename == fname,
+                                   Note.session_id == session_id)
             ).scalar_one_or_none()
             if existing:
                 skipped += 1
@@ -31,7 +33,8 @@ def seed_notes(db_session) -> dict:
             with open(fpath, encoding="utf-8") as f:
                 text = f.read()
             extracted = run_pipeline(text)
-            note = Note(filename=fname, raw_text=text, source="demo")
+            note = Note(filename=fname, raw_text=text, source="demo",
+                        session_id=session_id)
             db_session.add(note)
             db_session.flush()
             db_session.add(Extraction(
@@ -46,5 +49,6 @@ def seed_notes(db_session) -> dict:
 
 @bp.post("/api/seed-demo")
 def seed_demo():
-    result = seed_notes(g.db)
+    sid = require_session()
+    result = seed_notes(g.db, sid)
     return jsonify(result)

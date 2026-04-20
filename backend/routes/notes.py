@@ -4,12 +4,14 @@ from models.note import Note
 from models.extraction import Extraction
 from extractors.pipeline import run_pipeline
 from config import Config
+from utils.session import require_session
 
 bp = Blueprint("notes", __name__)
 
 
 @bp.post("/api/notes")
 def create_note():
+    sid = require_session()
     body = request.get_json(silent=True) or {}
     text = body.get("text", "").strip()
     if not text:
@@ -17,7 +19,7 @@ def create_note():
 
     extracted = run_pipeline(text)
 
-    note = Note(raw_text=text, source="paste")
+    note = Note(raw_text=text, source="paste", session_id=sid)
     g.db.add(note)
     g.db.flush()
 
@@ -34,9 +36,12 @@ def create_note():
 
 @bp.put("/api/notes/<int:note_id>/text")
 def update_note_text(note_id: int):
+    sid = require_session()
     note = g.db.get(Note, note_id)
     if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
+    if note.session_id != sid:
+        return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
 
     body = request.get_json(silent=True) or {}
     text = body.get("text", "").strip()
@@ -45,7 +50,6 @@ def update_note_text(note_id: int):
 
     note.raw_text = text
 
-    # Delete existing extraction for this note (if any)
     g.db.query(Extraction).filter_by(note_id=note_id).delete()
 
     # Re-run pipeline and create new extraction
