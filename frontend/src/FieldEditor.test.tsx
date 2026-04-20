@@ -71,3 +71,68 @@ it("shows accepted state with no action buttons", () => {
   expect(screen.queryByRole("button", { name: /accept/i })).not.toBeInTheDocument();
   expect(screen.getByText(/accepted/)).toBeInTheDocument();
 });
+
+describe("ExplainerTrigger integration", () => {
+  it("renders explainer trigger for medication name when in dictionary", () => {
+    render(
+      <FieldEditor
+        label="medication"
+        value="metformin"
+        status="pending"
+        category="med"
+        isActive={true}
+        onActivate={vi.fn()}
+        onChange={vi.fn()}
+        explainerKind="medication"
+      />
+    );
+    expect(screen.getByRole("button", { name: /show explanation/i })).toBeInTheDocument();
+  });
+
+  it("renders no explainer trigger for unknown medication", () => {
+    render(
+      <FieldEditor
+        label="medication"
+        value="unknowndrug"
+        status="pending"
+        category="med"
+        isActive={true}
+        onActivate={vi.fn()}
+        onChange={vi.fn()}
+        explainerKind="medication"
+      />
+    );
+    expect(screen.queryByRole("button", { name: /show explanation/i })).not.toBeInTheDocument();
+  });
+
+  it("renders explainer trigger for frequency field with BID", () => {
+    render(
+      <FieldEditor
+        label="frequency"
+        value="BID"
+        status="pending"
+        category="med"
+        isActive={true}
+        onActivate={vi.fn()}
+        onChange={vi.fn()}
+        explainerKind="abbreviation"
+      />
+    );
+    expect(screen.getByRole("button", { name: /show explanation/i })).toBeInTheDocument();
+  });
+
+  it("renders no explainer trigger when explainerKind is not set", () => {
+    render(
+      <FieldEditor
+        label="medication"
+        value="metformin"
+        status="pending"
+        category="med"
+        isActive={true}
+        onActivate={vi.fn()}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole("button", { name: /show explanation/i })).not.toBeInTheDocument();
+  });
+});

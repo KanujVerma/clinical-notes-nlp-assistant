@@ -1,5 +1,6 @@
 // frontend/src/components/FieldEditor.tsx
 import { useState, useEffect } from "react";
+import ExplainerTrigger from "./ExplainerTrigger";
 
 export type FieldStatus = "accepted" | "corrected" | "removed" | "pending";
 export type FieldCategory = "vitals" | "med" | "instr" | "meta";
@@ -15,6 +16,7 @@ interface Props {
   onChange: (value: string, status: FieldStatus) => void;
   triggerEdit?: boolean;  // when true, auto-open edit mode
   onEditTriggered?: () => void; // called after edit mode opens
+  explainerKind?: 'medication' | 'abbreviation';
 }
 
 // Left border color per category, inactive vs active
@@ -42,7 +44,7 @@ const CAT_LABEL_ACTIVE: Record<FieldCategory, string> = {
 
 export default function FieldEditor({
   label, value, originalValue, status, category, isActive, onActivate, onChange,
-  triggerEdit, onEditTriggered,
+  triggerEdit, onEditTriggered, explainerKind,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -143,8 +145,11 @@ export default function FieldEditor({
           </div>
         ) : (
           !showDiff && (
-            <p className="mt-1 text-sm text-slate-700 cursor-pointer hover:opacity-80" onClick={() => setEditing(true)}
-              data-testid="field-value">{draft}</p>
+            <>
+              <p className="mt-1 text-sm text-slate-700 cursor-pointer hover:opacity-80" onClick={() => setEditing(true)}
+                data-testid="field-value">{draft}</p>
+              {explainerKind && <ExplainerTrigger value={draft} kind={explainerKind} />}
+            </>
           )
         )}
         {/* Click-to-edit when showing diff — value is displayed in the diff row above */}
@@ -203,7 +208,10 @@ export default function FieldEditor({
           <button onClick={() => { setEditing(false); setDraft(value); }} className="text-[10px] px-2 py-1 border border-slate-300 rounded hover:bg-slate-50">cancel</button>
         </div>
       ) : (
-        <p className="mt-1 text-sm text-slate-700" data-testid="field-value">{draft}</p>
+        <>
+          <p className="mt-1 text-sm text-slate-700" data-testid="field-value">{draft}</p>
+          {explainerKind && <ExplainerTrigger value={draft} kind={explainerKind} />}
+        </>
       )}
     </div>
   );
