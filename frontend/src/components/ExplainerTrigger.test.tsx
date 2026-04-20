@@ -2,9 +2,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import ExplainerTrigger from './ExplainerTrigger';
 
 describe('ExplainerTrigger — medication', () => {
-  it('renders null when medication is not in dictionary', () => {
-    const { container } = render(<ExplainerTrigger value="unknowndrug" kind="medication" />);
-    expect(container.firstChild).toBeNull();
+  it('renders info button when medication is NOT in dictionary (hasDictionaryEntry=false)', () => {
+    render(<ExplainerTrigger value="unknowndrug" kind="medication" />);
+    expect(screen.getByRole('button', { name: /show explanation/i })).toBeInTheDocument();
   });
 
   it('renders info button when medication is in dictionary', () => {
@@ -40,8 +40,13 @@ describe('ExplainerTrigger — medication', () => {
 });
 
 describe('ExplainerTrigger — abbreviation', () => {
-  it('renders null when abbreviation is not in dictionary', () => {
-    const { container } = render(<ExplainerTrigger value="unknown" kind="abbreviation" />);
+  it('renders info button when abbreviation is unknown but not denylisted (hasDictionaryEntry=false)', () => {
+    render(<ExplainerTrigger value="with meals" kind="abbreviation" />);
+    expect(screen.getByRole('button', { name: /show explanation/i })).toBeInTheDocument();
+  });
+
+  it('renders null when abbreviation is unknown and denylisted', () => {
+    const { container } = render(<ExplainerTrigger value="twice daily" kind="abbreviation" />);
     expect(container.firstChild).toBeNull();
   });
 

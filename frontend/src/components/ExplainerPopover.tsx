@@ -8,6 +8,10 @@ interface ExplainerPopoverProps {
   medication?: MedicationExplanation;
   abbreviations?: AbbreviationExplanation[];
   onClose: () => void;
+  hasDictionaryEntry?: boolean;
+  kind?: 'medication' | 'abbreviation';
+  aiAvailable?: boolean;
+  onRequestAi?: (kind: 'medication' | 'abbreviation', value: string, context?: object) => void;
 }
 
 export default function ExplainerPopover({
@@ -16,6 +20,10 @@ export default function ExplainerPopover({
   medication,
   abbreviations,
   onClose,
+  hasDictionaryEntry = true,
+  kind,
+  aiAvailable = false,
+  onRequestAi,
 }: ExplainerPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -58,8 +66,15 @@ export default function ExplainerPopover({
         </button>
       </div>
 
+      {/* Miss state: no built-in entry */}
+      {!hasDictionaryEntry && (
+        <p className="text-xs text-slate-500 italic mb-1.5">
+          No built-in explanation available for this term.
+        </p>
+      )}
+
       {/* Medication rows */}
-      {medication && (
+      {hasDictionaryEntry && medication && (
         <div className="flex flex-col gap-0.5 mb-1.5">
           <div className="flex gap-2 text-xs">
             <span className="text-slate-500 shrink-0">Description</span>
@@ -77,7 +92,7 @@ export default function ExplainerPopover({
       )}
 
       {/* Abbreviation rows */}
-      {abbreviations && abbreviations.length > 0 && (
+      {hasDictionaryEntry && abbreviations && abbreviations.length > 0 && (
         <div className="flex flex-col gap-0.5 mb-1.5">
           {abbreviations.map((abbrev) => (
             <div key={abbrev.abbreviation} className="flex gap-2 text-xs">
@@ -85,6 +100,30 @@ export default function ExplainerPopover({
               <span className="text-slate-800">{abbrev.expansion}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Footer AI action row */}
+      {kind && aiAvailable && onRequestAi && (
+        <div className="mt-1.5 pt-1.5 border-t border-slate-100">
+          {/* Medication hit: secondary action */}
+          {kind === 'medication' && hasDictionaryEntry && (
+            <button
+              onClick={() => { onRequestAi(kind, termName ?? '', undefined); onClose(); }}
+              className="text-[11px] text-slate-500 hover:text-slate-700 underline"
+            >
+              Explain in more detail →
+            </button>
+          )}
+          {/* Any miss (either kind): primary action */}
+          {!hasDictionaryEntry && (
+            <button
+              onClick={() => { onRequestAi(kind, termName ?? '', undefined); onClose(); }}
+              className="text-[11px] bg-slate-700 text-white rounded px-2 py-0.5 hover:bg-slate-600"
+            >
+              Generate AI explanation
+            </button>
+          )}
         </div>
       )}
 

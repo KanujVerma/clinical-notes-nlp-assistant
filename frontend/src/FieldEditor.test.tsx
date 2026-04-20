@@ -89,7 +89,7 @@ describe("ExplainerTrigger integration", () => {
     expect(screen.getByRole("button", { name: /show explanation/i })).toBeInTheDocument();
   });
 
-  it("renders no explainer trigger for unknown medication", () => {
+  it("renders explainer trigger for unknown medication (AI fallback, hasDictionaryEntry=false)", () => {
     render(
       <FieldEditor
         label="medication"
@@ -102,7 +102,7 @@ describe("ExplainerTrigger integration", () => {
         explainerKind="medication"
       />
     );
-    expect(screen.queryByRole("button", { name: /show explanation/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /show explanation/i })).toBeInTheDocument();
   });
 
   it("renders explainer trigger for frequency field with BID", () => {

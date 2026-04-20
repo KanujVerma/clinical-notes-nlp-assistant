@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { lookupMedication, lookupAbbreviations } from '../lib/explainerLookup';
+import { lookupMedication, lookupAbbreviations, isAbbreviationDenylisted } from '../lib/explainerLookup';
 import ExplainerPopover from './ExplainerPopover';
 
 interface ExplainerTriggerProps {
@@ -15,8 +15,13 @@ export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps)
   const medEntry = kind === 'medication' ? lookupMedication(value) : null;
   const abbrevEntries = kind === 'abbreviation' ? lookupAbbreviations(value) : [];
 
-  // No hit → render nothing
-  if (!medEntry && abbrevEntries.length === 0) return null;
+  const hasDictionaryEntry = !!medEntry || abbrevEntries.length > 0;
+  if (!hasDictionaryEntry) {
+    if (kind === 'abbreviation' && isAbbreviationDenylisted(value)) {
+      return null;  // suppress icon for obvious non-shorthand tokens
+    }
+    // medication misses and non-denylisted abbreviation misses: fall through and render icon
+  }
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -63,6 +68,7 @@ export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps)
           medication={medEntry ?? undefined}
           abbreviations={abbrevEntries.length > 0 ? abbrevEntries : undefined}
           onClose={() => setPopoverPos(null)}
+          hasDictionaryEntry={hasDictionaryEntry}
         />
       )}
     </span>
