@@ -41,6 +41,9 @@ export default function AIExplanationModal({
     >
       <div
         ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        data-testid="modal"
         className="bg-white border border-slate-200 rounded-lg shadow-lg p-4 max-w-md w-[92vw]"
         onMouseDown={e => e.stopPropagation()}
       >

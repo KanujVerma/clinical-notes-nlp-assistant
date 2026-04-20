@@ -14,11 +14,12 @@ interface ExplainerTriggerProps {
 export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps) {
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const mountedRef = useRef(true);
+  const mountedRef = useRef(false);
 
   const aiAvailable = useAiAvailable();
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
@@ -81,6 +82,7 @@ export default function ExplainerTrigger({ value, kind }: ExplainerTriggerProps)
         ref={btnRef}
         onClick={handleClick}
         aria-label="Show explanation"
+        data-testid="info-button"
         className="text-slate-400 hover:text-slate-600 cursor-pointer focus:outline-none"
       >
         {/* Info icon — inline SVG, 12px, stroke-current, matching project icon style */}

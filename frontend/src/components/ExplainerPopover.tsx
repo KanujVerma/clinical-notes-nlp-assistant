@@ -51,6 +51,7 @@ export default function ExplainerPopover({
   return (
     <div
       ref={ref}
+      data-testid="popover"
       className="fixed z-50 w-max max-w-[260px] bg-white border border-slate-200 rounded-lg shadow-lg p-2"
       style={{ top, left }}
     >

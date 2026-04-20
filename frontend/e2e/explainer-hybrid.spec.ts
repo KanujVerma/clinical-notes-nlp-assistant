@@ -1,79 +1,112 @@
 /**
  * Hybrid explainer e2e tests — AI status and explanation modal.
- * Intercepts network calls to avoid requiring a running backend.
+ * Fully self-contained: mocks queue, note detail, AI status, and AI explain.
  */
 import { test, expect, Page } from "@playwright/test";
 
 const BASE = "http://localhost:5173";
+const NOTE_ID = 1;
 
-// ── helpers ────────────────────────────────────────────────────────────────
+// ── shared mock data ────────────────────────────────────────────────────────
 
-async function waitForReviewPage(page: Page) {
-  await expect(page).toHaveURL(/\/review\/\d+/, { timeout: 15_000 });
+const MOCK_QUEUE = {
+  notes: [
+    { id: NOTE_ID, filename: "dev_001.txt", source: "demo", created_at: "2026-04-20T00:00:00" },
+  ],
+  count: 1,
+};
+
+const MOCK_NOTE_DETAIL = {
+  id: NOTE_ID,
+  filename: "dev_001.txt",
+  raw_text: "Patient is on metformin 500 mg PO BID for type 2 diabetes.",
+  source: "demo",
+  created_at: "2026-04-20T00:00:00",
+  pipeline_version: "1.0",
+  extracted_json: {
+    pipeline_version: "1.0",
+    vitals: {},
+    instructions: {},
+    metadata: {},
+    medications: [
+      {
+        name: "metformin",
+        dose: "500 mg",
+        route: "PO",
+        frequency: "BID",
+        duration: "",
+        qualifier: "",
+        span: [14, 22],
+        source: "medspacy",
+        confidence: 0.95,
+      },
+    ],
+  },
+  validation: null,
+};
+
+// ── helpers ─────────────────────────────────────────────────────────────────
+
+async function setupBaseMocks(page: Page) {
+  // Note: Playwright routes are evaluated last-registered-first. Register
+  // specific routes AFTER the explain routes (which callers register before
+  // calling this helper), so they win over any catch-all.
+  await page.route("**/api/queue*", (route) =>
+    route.fulfill({ json: MOCK_QUEUE })
+  );
+  await page.route(`**/api/history/${NOTE_ID}`, (route) =>
+    route.fulfill({ json: MOCK_NOTE_DETAIL })
+  );
+}
+
+async function navigateToReviewPage(page: Page) {
+  // Navigate directly to the review URL — avoids needing a queue API call.
+  await page.goto(`${BASE}/review/${NOTE_ID}`);
   await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({
     timeout: 10_000,
   });
 }
 
-// ── tests ──────────────────────────────────────────────────────────────────
+// ── tests ───────────────────────────────────────────────────────────────────
 
 test("dictionary popover works when AI unavailable", async ({ page }) => {
-  // Intercept the AI status call to return unavailable
-  await page.route("**/api/explain/status", (route) => {
-    route.fulfill({ json: { available: false } });
-  });
+  // AI unavailable
+  await page.route("**/api/explain/status", (route) =>
+    route.fulfill({ json: { available: false } })
+  );
+  await setupBaseMocks(page);
+  await navigateToReviewPage(page);
 
-  // Navigate to app and seed demo data
-  await page.goto(BASE);
+  // Find info buttons rendered by ExplainerTrigger
+  const infoButtons = page.locator('[data-testid="info-button"]');
+  const count = await infoButtons.count();
+  expect(count).toBeGreaterThan(0);
 
-  // Accept any confirm dialogs
-  page.on("dialog", (d) => d.accept());
+  await infoButtons.first().click();
+  await page.waitForTimeout(300);
 
-  // Seed demo data
-  await page.getByRole("button", { name: /Seed demo data/i }).click();
-  await expect(page.getByText(/Seeded|already exist/i)).toBeVisible({
-    timeout: 8_000,
-  });
+  // Popover should appear
+  const popover = page.locator('[data-testid="popover"]');
+  await expect(popover).toBeVisible({ timeout: 5_000 });
 
-  // Navigate to queue and pick first note
-  await page.goto(`${BASE}/queue`);
-  const firstRow = page.locator("table tbody tr").first();
-  await expect(firstRow).toBeVisible({ timeout: 5_000 });
-  await firstRow.click();
+  // No AI buttons when AI is unavailable
+  const aiButtons = page.locator(
+    'button:has-text("Explain in more detail"), button:has-text("Generate AI explanation")'
+  );
+  await expect(aiButtons).toHaveCount(0);
 
-  await waitForReviewPage(page);
-
-  // Find a medication field and click its info icon
-  // The review page should have field cards with medication data
-  // Look for info/help icons that trigger the dictionary popover
-  const infoButtons = page.locator('[data-testid="info-button"], button[aria-label*="info"], button[title*="info"]');
-  const infoButtonCount = await infoButtons.count();
-
-  if (infoButtonCount > 0) {
-    await infoButtons.first().click();
-    await page.waitForTimeout(300);
-
-    // Expect popover to appear with medication content
-    const popover = page.locator('[role="tooltip"], .popover, [data-testid="popover"]');
-    await expect(popover).toBeVisible({ timeout: 5_000 });
-
-    // Expect NO "Explain in more detail" or "Generate AI explanation" buttons
-    // when AI is unavailable
-    const explainButtons = page.locator(
-      'button:has-text("Explain in more detail"), button:has-text("Generate AI explanation")'
-    );
-    await expect(explainButtons).toHaveCount(0);
-  }
+  // Disclaimer is present
+  await expect(page.getByText(/Informational only/i)).toBeVisible();
 });
 
 test("AI explanation modal shows when requested", async ({ page }) => {
-  // Intercept AI status → available: true
-  await page.route("**/api/explain/status", (route) => {
-    route.fulfill({ json: { available: true } });
-  });
+  // AI available
+  await page.route("**/api/explain/status", (route) =>
+    route.fulfill({ json: { available: true } })
+  );
 
-  // Intercept AI explain → canned response
-  await page.route("**/api/explain", (route) => {
+  // Canned AI explain response
+  await page.route("**/api/explain", (route) =>
     route.fulfill({
       json: {
         explanation: {
@@ -84,71 +117,53 @@ test("AI explanation modal shows when requested", async ({ page }) => {
         },
         modelUsed: "claude-haiku-4-5-20251001",
       },
-    });
-  });
+    })
+  );
 
-  // Navigate and seed
-  await page.goto(BASE);
+  await setupBaseMocks(page);
+  await navigateToReviewPage(page);
 
-  // Accept any confirm dialogs
-  page.on("dialog", (d) => d.accept());
+  // Find an info button
+  const infoButtons = page.locator('[data-testid="info-button"]');
+  const count = await infoButtons.count();
+  expect(count).toBeGreaterThan(0);
 
-  // Seed demo data
-  await page.getByRole("button", { name: /Seed demo data/i }).click();
-  await expect(page.getByText(/Seeded|already exist/i)).toBeVisible({
-    timeout: 8_000,
-  });
+  await infoButtons.first().click();
+  await page.waitForTimeout(300);
 
-  // Navigate to queue and pick first note
-  await page.goto(`${BASE}/queue`);
-  const firstRow = page.locator("table tbody tr").first();
-  await expect(firstRow).toBeVisible({ timeout: 5_000 });
-  await firstRow.click();
+  // Popover should appear
+  const popover = page.locator('[data-testid="popover"]');
+  await expect(popover).toBeVisible({ timeout: 5_000 });
 
-  await waitForReviewPage(page);
+  // AI action button should be present (metformin is a dictionary hit → "Explain in more detail")
+  const aiButton = page.locator(
+    'button:has-text("Explain in more detail"), button:has-text("Generate AI explanation")'
+  );
+  const buttonCount = await aiButton.count();
+  expect(buttonCount).toBeGreaterThan(0);
 
-  // Find an info icon and click it
-  const infoButtons = page.locator('[data-testid="info-button"], button[aria-label*="info"], button[title*="info"]');
-  const infoButtonCount = await infoButtons.count();
+  // Click AI action and wait for the mocked /api/explain response
+  const explainResponsePromise = page.waitForResponse(
+    (resp) => resp.url().includes('/api/explain') && !resp.url().includes('/status') && resp.request().method() === 'POST'
+  );
+  await aiButton.first().click();
+  await explainResponsePromise;
+  await page.waitForTimeout(300);
 
-  if (infoButtonCount > 0) {
-    await infoButtons.first().click();
-    await page.waitForTimeout(300);
+  // Modal should appear
+  const modal = page.locator('[data-testid="modal"]');
+  await expect(modal).toBeVisible({ timeout: 5_000 });
 
-    // Popover should appear
-    const popover = page.locator('[role="tooltip"], .popover, [data-testid="popover"]');
-    await expect(popover).toBeVisible({ timeout: 5_000 });
+  // Mocked explanation content is visible
+  await expect(page.getByText(/biguanide|antidiabetic/i)).toBeVisible({ timeout: 5_000 });
 
-    // Click "Explain in more detail" button
-    const explainButton = page.locator(
-      'button:has-text("Explain in more detail"), button:has-text("Generate AI explanation")'
-    );
-    const buttonCount = await explainButton.count();
+  // Disclaimer is visible
+  await expect(
+    page.getByText(/AI-generated explanation.*informational review/i)
+  ).toBeVisible({ timeout: 5_000 });
 
-    if (buttonCount > 0) {
-      await explainButton.first().click();
-      await page.waitForTimeout(500);
-
-      // Expect modal to appear with explanation content
-      const modal = page.locator('[role="dialog"], .modal, [data-testid="modal"]');
-      await expect(modal).toBeVisible({ timeout: 5_000 });
-
-      // Expect "What it is" content from the mocked response
-      await expect(
-        page.getByText(/biguanide|antidiabetic/i)
-      ).toBeVisible();
-
-      // Expect disclaimer text
-      await expect(
-        page.getByText(/AI-generated explanation|informational review/i)
-      ).toBeVisible({ timeout: 5_000 });
-
-      // Close modal with Escape
-      await page.keyboard.press("Escape");
-      await page.waitForTimeout(300);
-
-      // Modal should be closed
-      await expect(modal).not.toBeVisible();
-    }
-  }
+  // Escape closes the modal
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  await expect(modal).not.toBeVisible();
 });
