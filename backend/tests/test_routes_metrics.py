@@ -17,6 +17,18 @@ def client(tmp_path):
         yield c
 
 
+def _explicit_accepts(extracted):
+    result = {}
+    for category in ("vitals", "instructions", "metadata"):
+        for key, value in (extracted.get(category) or {}).items():
+            if value is not None:
+                result[f"{category}.{key}"] = {"decision": "accept"}
+    for idx, med in enumerate(extracted.get("medications") or []):
+        med_id = med.get("id") or med.get("source_occurrence_id") or f"med_{idx}"
+        result[f"med.{med_id}"] = {"decision": "accept"}
+    return result
+
+
 def test_metrics_missing_session_returns_400(client):
     resp = client.get("/api/metrics")
     assert resp.status_code == 400
@@ -54,7 +66,10 @@ def test_metrics_correction_rates_after_validation(client):
         "source_hash": source["sha256"],
         "expected_lock_version": 0,
         "event_kind": "review_completed",
-        "item_decisions": {"vitals.blood_pressure": {"decision": "edit", "value": "130/85"}},
+        "item_decisions": {
+            **_explicit_accepts(note_data["extracted_json"]),
+            "vitals.blood_pressure": {"decision": "edit", "value": "130/85"},
+        },
         "category_acknowledgments": {
             "metadata": True, "vitals": True, "medications": True, "instructions": True,
         },
@@ -87,7 +102,10 @@ def test_metrics_correction_rate_zero_when_no_corrections(client):
         "source_hash": source["sha256"],
         "expected_lock_version": 0,
         "event_kind": "review_completed",
-        "item_decisions": {"vitals.blood_pressure": {"decision": "accept"}},
+        "item_decisions": {
+            **_explicit_accepts(note_data["extracted_json"]),
+            "vitals.blood_pressure": {"decision": "accept"},
+        },
         "category_acknowledgments": {
             "metadata": True, "vitals": True, "medications": True, "instructions": True,
         },
@@ -116,7 +134,10 @@ def test_metrics_isolates_by_session(client):
         "source_hash": source["sha256"],
         "expected_lock_version": 0,
         "event_kind": "review_completed",
-        "item_decisions": {"vitals.blood_pressure": {"decision": "edit", "value": "130/85"}},
+        "item_decisions": {
+            **_explicit_accepts(note_data["extracted_json"]),
+            "vitals.blood_pressure": {"decision": "edit", "value": "130/85"},
+        },
         "category_acknowledgments": {
             "metadata": True, "vitals": True, "medications": True, "instructions": True,
         },
