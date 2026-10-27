@@ -51,6 +51,152 @@ def _get_decision_val(d: Any) -> Any:
     return None
 
 
+def _validate_decision_coverage(extracted_data: Dict[str, Any], decisions: Dict[str, Any], completing: bool) -> None:
+    """Reject undocumented decisions and enforce explicit review of all present fields.
+
+    Medication occurrence identities are immutable within their bound
+    extraction. Parent-level 'accept' may explicitly accept the whole record;
+    an edit/remove/add on a child must be separately specified.
+    """
+    allowed = set()
+    required = []
+
+    def scalar(category: str, aliases: tuple[str, ...]) -> None:
+        items = extracted_data.get(category) or {}
+        if not isinstance(items, dict):
+            raise InvalidReviewPayloadError(f"Invalid {category} extraction structure")
+        for name, value in items.items():
+            if value is None:
+                continue
+            keys = [f"{p}.{name}" for p in aliases]
+            allowed.update(keys)
+            # Do not accept bare ambiguous field-name aliases from the client.
+            required.append((f"{category}.{name}", keys, []))
+
+    scalar("vitals", ("vitals",))
+    scalar("instructions", ("instructions", "instr"))
+    scalar("metadata", ("metadata", "meta"))
+
+    meds = extracted_data.get("medications") or []
+    if not isinstance(meds, list):
+        raise InvalidReviewPayloadError("Invalid medication extraction structure")
+
+    seen_med_ids = set()
+    for idx, med in enumerate(meds):
+        if not isinstance(med, dict):
+            raise InvalidReviewPayloadError("Invalid medication occurrence")
+        med_id = med.get("id") or med.get("source_occurrence_id") or f"med_{idx}"
+        if med_id in seen_med_ids:
+            raise InvalidReviewPayloadError("Duplicate medication occurrence identifier")
+        seen_med_ids.add(med_id)
+        parents = (str(med_id), f"med.{med_id}", f"medications.{med_id}",
+                   f"med.{idx}", f"medications.{idx}")
+        allowed.update(parents)
+        parent_obj = next((decisions[p] for p in parents if p in decisions), None)
+        nested = parent_obj.get("attribute_decisions") if isinstance(parent_obj, dict) else None
+        if nested is not None:
+            if not isinstance(nested, dict) or set(nested) - {
+                "name", "dose", "route", "frequency", "duration", "qualifier",
+                "prn", "action", "status", "temporal_status"
+            }:
+                raise InvalidReviewPayloadError("Unknown medication child attribute")
+            for val in nested.values():
+                if _get_decision_str(val) not in ("accept", "edit", "remove", "pending"):
+                    raise InvalidReviewPayloadError("Invalid medication child decision")
+        for attr, val in med.items():
+            if attr not in ("name", "dose", "route", "frequency", "duration",
+                            "qualifier", "prn", "action", "status", "temporal_status"):
+                continue
+            if val is None or val == "":
+                continue
+            keys = [
+                f"{med_id}.{attr}", f"med.{med_id}.{attr}",
+                f"medications.{med_id}.{attr}", f"med.{idx}.{attr}",
+                f"medications.{idx}.{attr}",
+            ]
+            allowed.update(keys)
+            if completing:
+                child = next((decisions[k] for k in keys if k in decisions), None)
+                if child is None and isinstance(nested, dict):
+                    child = nested.get(attr)
+                parent_action = _get_decision_str(parent_obj) if parent_obj is not None else None
+                if child is None and parent_action not in ("accept", "remove"):
+                    raise IncompleteReviewError(f"Missing explicit decision for medication {med_id}.{attr}")
+                if child is not None and _get_decision_str(child) == "pending":
+                    raise IncompleteReviewError(f"Pending decision for medication {med_id}.{attr}")
+        if completing and not any(p in decisions for p in parents):
+            # A child-level decision for each present attr is sufficient.
+            if not any(k.startswith(f"med.{med_id}.") or k.startswith(f"medications.{med_id}.")
+                       or k.startswith(f"med.{idx}.") for k in decisions):
+                raise IncompleteReviewError(f"Medication {med_id} has no review decision")
+
+    for name, keys, _ in required:
+        selected = next((decisions[key] for key in keys if key in decisions), None)
+        if completing and (selected is None or _get_decision_str(selected) == "pending"):
+            raise IncompleteReviewError(f"Missing or pending field decision: {name}")
+
+    for key, decision in decisions.items():
+        action = _get_decision_str(decision)
+        if key in allowed:
+            if action == "add":
+                raise InvalidReviewPayloadError(f"Cannot add over an existing extraction field: {key}")
+            if action not in ("accept", "edit", "remove", "pending"):
+                raise InvalidReviewPayloadError(f"Invalid action for {key}")
+        elif action != "add":
+            raise InvalidReviewPayloadError(f"Unknown extraction field/decision key: {key}")
+        elif not (key.startswith(("med.", "vitals.", "instr.", "instructions.",
+                                  "meta.", "metadata."))):
+            raise InvalidReviewPayloadError(f"Unknown addition category: {key}")
+
+
+def _validate_client_snapshot(snapshot: Dict[str, Any], derived: Dict[str, Any]) -> None:
+    """Prevent silent discrepancies, including same-name altered-dose claims."""
+    if not isinstance(snapshot, dict):
+        raise InvalidReviewPayloadError("Reviewed snapshot must be an object")
+    for category in ("vitals", "instructions", "metadata"):
+        supplied = snapshot.get(category) or {}
+        expected = derived.get(category) or {}
+        if not isinstance(supplied, dict) or set(supplied) != set(expected):
+            raise InvalidReviewPayloadError(f"Client {category} snapshot differs from server decisions")
+        for key in expected:
+            left, right = supplied[key], expected[key]
+            left_value = left.get("value") if isinstance(left, dict) else left
+            right_value = right.get("value") if isinstance(right, dict) else right
+            if left_value != right_value:
+                raise InvalidReviewPayloadError(f"Unbacked reviewed value: {category}.{key}")
+
+    supplied = snapshot.get("medications") or []
+    expected = derived.get("medications") or []
+    if not isinstance(supplied, list) or len(supplied) != len(expected):
+        raise InvalidReviewPayloadError("Client medication instances differ from reviewed decisions")
+
+    keys = ("name", "dose", "route", "frequency", "duration", "qualifier",
+            "prn", "action", "status", "temporal_status")
+    def identity(item: Dict[str, Any], index: int) -> str:
+        return str(item.get("id") or item.get("source_occurrence_id") or f"med_{index}")
+
+    known = {}
+    for idx, item in enumerate(expected):
+        if not isinstance(item, dict):
+            raise InvalidReviewPayloadError("Invalid server medication")
+        item_id = identity(item, idx)
+        if item_id in known:
+            raise InvalidReviewPayloadError("Duplicate medication identity in reviewed result")
+        known[item_id] = item
+    seen = set()
+    for idx, item in enumerate(supplied):
+        if not isinstance(item, dict):
+            raise InvalidReviewPayloadError("Invalid client medication")
+        item_id = identity(item, idx)
+        if item_id not in known or item_id in seen:
+            raise InvalidReviewPayloadError("Client medication identity is unbacked")
+        seen.add(item_id)
+        counterpart = known[item_id]
+        for key in keys:
+            if item.get(key) != counterpart.get(key):
+                raise InvalidReviewPayloadError(f"Client medication {item_id}.{key} conflicts with decisions")
+
+
 def derive_reviewed_snapshot(
     extracted_data: Dict[str, Any],
     item_decisions: Dict[str, Any],
@@ -59,6 +205,8 @@ def derive_reviewed_snapshot(
     raw_text: str = "",
     client_snapshot: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Dict[str, Any], bool]:
+    decisions = item_decisions or {}
+    _validate_decision_coverage(extracted_data, decisions, is_completing)
     has_corrections = False
     valid_actions = {"accept", "edit", "remove", "add", "pending"}
 
@@ -274,33 +422,6 @@ def derive_reviewed_snapshot(
                 f_name = k.replace("metadata.", "").replace("meta.", "")
                 reviewed_metadata[f_name] = {"value": val, "source": "reviewer_added"}
 
-    # 7. Validate Client Snapshot against Derived Snapshot (Reject Invented Additions)
-    if client_snapshot and isinstance(client_snapshot, dict):
-        client_meds = client_snapshot.get("medications") or []
-        for c_med in client_meds:
-            c_name = str(c_med.get("name", "")).strip().lower()
-            c_id = c_med.get("id") or c_med.get("source_occurrence_id")
-            matched = False
-            for r_med in reviewed_meds:
-                r_name = str(r_med.get("name", "")).strip().lower()
-                r_id = r_med.get("id") or r_med.get("source_occurrence_id")
-                if (c_id and r_id and c_id == r_id) or (c_name and r_name and c_name == r_name):
-                    matched = True
-                    break
-            if not matched:
-                raise InvalidReviewPayloadError(
-                    f"Client snapshot contains unbacked or invented medication '{c_med.get('name')}' without matching decision."
-                )
-
-        for cat_name, r_dict in (("vitals", reviewed_vitals), ("instructions", reviewed_instructions), ("metadata", reviewed_metadata)):
-            c_dict = client_snapshot.get(cat_name) or {}
-            if isinstance(c_dict, dict):
-                for f_name, c_val in c_dict.items():
-                    if f_name not in r_dict:
-                        raise InvalidReviewPayloadError(
-                            f"Client snapshot contains unbacked field '{cat_name}.{f_name}' without matching decision."
-                        )
-
     derived_snapshot = {
         "pipeline_version": extracted_data.get("pipeline_version", "2.0.0"),
         "vitals": reviewed_vitals,
@@ -308,6 +429,8 @@ def derive_reviewed_snapshot(
         "instructions": reviewed_instructions,
         "metadata": reviewed_metadata,
     }
+    if client_snapshot is not None:
+        _validate_client_snapshot(client_snapshot, derived_snapshot)
     return derived_snapshot, has_corrections
 
 
