@@ -18,6 +18,7 @@ from models import Job, Note, NoteRevision, Extraction, SourceAsset
 from extractors.pipeline import run_pipeline
 from validation.checker import check_extraction
 from evaluation.strict_evaluator import evaluate_corpus_strictly
+from evaluation.dataset import load_curated_corpus
 
 
 WORKER_ID = f"worker_{uuid.uuid4().hex[:8]}"
@@ -151,21 +152,13 @@ def process_single_job(job: Job, session: Session) -> bool:
             # synthetic evaluation data. Job JSON cannot select filesystem
             # paths or send private source data into benchmark artifacts.
             from pathlib import Path
-            n_dir = Path(__file__).parent.parent / "data" / "eval" / "notes"
-            l_dir = Path(__file__).parent.parent / "data" / "eval" / "labels"
+            data_dir = Path(__file__).parent.parent / "data" / "eval"
             output_dir = str(Path(__file__).parent.parent / "artifacts" / "evaluation")
-
-            pairs = []
-            for n_path in sorted(n_dir.glob("*.txt")):
-                l_path = l_dir / (n_path.stem + ".json")
-                if l_path.exists():
-                    with open(n_path) as f:
-                        txt = f.read()
-                    with open(l_path) as f:
-                        lbl = json.load(f)
-                    pairs.append((n_path.stem, txt, lbl))
-
-            bundle = evaluate_corpus_strictly(pairs, run_pipeline, output_dir=output_dir)
+            pairs, dataset_manifest = load_curated_corpus(data_dir)
+            bundle = evaluate_corpus_strictly(
+                pairs, run_pipeline, output_dir=output_dir,
+                dataset_manifest=dataset_manifest,
+            )
             job.result_json = json.dumps({"run_id": bundle["run_id"], "overall": bundle["summary"]["overall"]})
             job.status = "succeeded"
 
