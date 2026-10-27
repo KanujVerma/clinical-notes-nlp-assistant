@@ -1,301 +1,149 @@
 # Clinical Notes NLP Assistant
 
-A full-stack web app that extracts structured data from clinical notes, presents it in a keyboard-driven reviewer UI, and tracks live correction rates and review activity.
+A **full-stack, synthetic clinical-note extraction and human-review prototype** built with React, TypeScript, Flask, SQLAlchemy, spaCy/medSpaCy, and deterministic rules. It extracts structured fields, lets a reviewer inspect and correct them against the source, and records reviewer activity.
 
-> **Live demo:** [clinical-nlp.vercel.app](https://clinical-nlp.vercel.app/)
+> **Synthetic engineering demo — not for clinical use.** Do not submit real patient information. This is not clinically validated, does not verify patient identity, and is not an EHR or prescribing tool. Session-based workspace separation is not authentication.
 
-> **All data is entirely synthetic.** No real patient information is used anywhere in this project. Handwritten notes are not supported.
+**Hosted demo:** [clinical-nlp.vercel.app](https://clinical-nlp.vercel.app/) (availability and deployment version are not guaranteed by this README). For reproducible behavior, run the checked-out revision locally.
 
----
+## Product walkthrough
 
-## Screenshots
+1. Paste a synthetic note, load the built-in sample, seed demo notes, or upload TXT, PDF, or a typed image. OCR uses Tesseract for scanned/printed inputs.
+2. The deterministic extractor identifies metadata, vitals, medication mentions and instructions, retaining source-linked field information where available.
+3. Review each extracted field, accept/edit/remove it, and save. The keyboard-oriented interface supports repeated inspection and correction.
+4. Browse the queue and review history. The Metrics view summarizes reviewer corrections and activity within the current browser workspace.
+5. Optionally inspect a local-dictionary explanation of a medication or abbreviation. An external AI terminology explanation is a separate, on-demand feature when configured; it is **not** the extraction engine.
 
-**Upload**
+| Upload | Review | Metrics |
+|:---:|:---:|:---:|
+| ![Upload page](docs/screenshots/upload.png) | ![Review page](docs/screenshots/review.png) | ![Metrics page](docs/screenshots/metrics.png) |
 
-![Upload page](docs/screenshots/upload.png)
+Other interface views: [Queue](docs/screenshots/queue.png), [History](docs/screenshots/history.png), and [Terminology explainer](docs/screenshots/explainer.png). Screenshots may describe the recorded UI state rather than the currently deployed build.
 
-**Queue**
+## How it works
 
-![Queue page](docs/screenshots/queue.png)
+```text
+Synthetic text / TXT / PDF / typed image
+         |
+         v
+Flask upload/paste API
+  |-- PyMuPDF text extraction / Tesseract OCR fallback
+  |-- text normalization + custom regex section detection
+  |-- deterministic vitals, medication, instruction, metadata extraction
+  |      (regex and spaCy/medSpaCy matching/context rules)
+         |
+         v
+SQLAlchemy persistence (SQLite local; configurable PostgreSQL)
+         |
+         v
+React + TypeScript reviewer UI
+Upload --> Queue --> Review --> History --> Metrics
 
-**Review**
-
-![Review page](docs/screenshots/review.png)
-
-**Contextual explainer**
-
-![Explainer popover](docs/screenshots/explainer.png)
-
-**History**
-
-![History page](docs/screenshots/history.png)
-
-**Metrics**
-
-![Metrics page](docs/screenshots/metrics.png)
-
----
-
-## What it does
-
-A clinical note comes in as pasted text, a `.txt` file, a text-based PDF, a scanned printed document, or an image-based typed document. The pipeline breaks it into sections and extracts:
-
-- **Vitals** — BP, HR, temperature, RR, SpO2, weight, with units preserved
-- **Medications** — name, dose, route, frequency, duration, PRN qualifier
-- **Instructions** — discharge instructions, follow-up plan, return precautions
-- **Metadata** — patient name, date of service, provider
-
-The extracted fields are presented in a reviewer UI where each one can be accepted, edited, or removed. Corrections persist to the hosted database and surface as live product metrics — correction rates by category and field, review counts, and average review time.
-
-Each browser session gets its own **isolated workspace** — no login required. The workspace resets cleanly via the "Reset workspace" button in the sidebar.
-
----
-
-## Contextual explainer
-
-The review UI includes a built-in **contextual explainer** that helps reviewers understand unfamiliar terms without leaving the page. Clicking the info icon on any medication or abbreviation field opens an explanation inline.
-
-**How it works:**
-
-- **Dictionary-first:** common medications (~20) and clinical abbreviations (frequencies, routes, qualifiers) resolve instantly from a local dictionary — no network call, no latency.
-- **AI on demand:** for terms not in the dictionary, reviewers can optionally request a field-level AI explanation from the backend. The result is structured and informational only.
-- **Scoped and constrained:** AI explanations cover what the term is, its common clinical use, and a plain-language summary. They do not provide diagnosis, dosing advice, or treatment recommendations. Every AI response carries a disclaimer: *"AI-generated explanation for informational review only — not medical advice."*
-- **Graceful degradation:** if no API key is configured, AI controls hide and the dictionary path continues to work.
-
----
-
-## Demo flow
-
-1. Open the [live app](https://clinical-nlp.vercel.app/) and click **Seed demo data** to load synthetic notes into your session
-2. Open the Queue — notes pending review are listed there
-3. Click a note to open it in the Review page
-4. Accept, edit, or remove extracted fields using keyboard shortcuts or mouse
-5. Click the info icon (ⓘ) on any medication or abbreviation to open the contextual explainer
-6. Save — the UI auto-advances to the next pending note
-7. Check the Metrics page to see live correction rates and review activity
-
-Your workspace is isolated to your browser session. Click **Reset workspace** to start fresh.
-
----
-
-## Deployment
-
-| Layer | Service |
-|-------|---------|
-| Frontend | [Vercel](https://vercel.com) — Vite/React, deployed from `frontend/` |
-| Backend | [Render](https://render.com) — Flask + gunicorn |
-| Database | [Supabase](https://supabase.com) — managed Postgres |
-
----
-
-## Tech stack
-
-| Layer | Technologies |
-|-------|-------------|
-| Backend | Flask, SQLAlchemy, Postgres (prod) / SQLite (local) |
-| Frontend | React, TypeScript, Vite, Tailwind CSS |
-| NLP | medSpaCy, spaCy, regex, Tesseract OCR |
-| AI explainer | Anthropic Claude Haiku (field-level, on-demand only) |
-
----
-
-## Architecture
-
-```
-[Input]
-  paste text / .txt / .pdf (text layer) / .pdf (OCR) / image (.png, .jpg, .tiff)
-        │
-        ▼
-[Flask API — Render (prod) / localhost:5000 (dev)]
-        │
-        ├── NLP Pipeline (rule-based, no external calls)
-        │     section detection → vitals → medications → instructions → metadata
-        │
-        └── /api/explain (on-demand, requires ANTHROPIC_API_KEY)
-              field-level term explanation via Claude Haiku
-        │
-        ▼
-[Postgres via SQLAlchemy (prod) / SQLite (dev)]
-  notes → extractions → validations
-        ▲
-        │
-[React UI — Vercel (prod) / localhost:5173 (dev)]
-  Upload → Queue → Review → History → Metrics
+Optional, separate path:
+dictionary explanation --> configured field-level AI explanation
 ```
 
-The extraction pipeline is entirely rule-based and deterministic — section detection uses medSpaCy's Sectionizer plus header regex, vitals use unit-preserving regex, and the medication extractor combines structured line parsing, prose extraction from Plan/A&P sections, and a medSpaCy TargetMatcher with ConText for negation. The AI explainer is a separate, optional path triggered only by reviewer interaction on a single field.
+The core NLP pipeline is **rule-based**, not an LLM note extractor. It uses a custom regex section detector, rather than spaCy's Sectionizer. The optional AI explainer is not required to process or review notes and is disabled when no API key is set.
 
----
+### Engineering tradeoffs
 
-## Local setup
+- **Inspectability over black-box output:** structured fields can be compared with the original synthetic source, but a matching span alone does not prove a correct medication interpretation.
+- **Human review is explicit:** a correction represents a user's action. A low correction rate does **not** establish high extraction accuracy; unnoticed omissions and reviewer error remain possible.
+- **Bounded prototype scope:** the demo deliberately avoids real patient workflows, EHR integration, treatment recommendation, and claims of regulatory or privacy compliance.
 
-Requires Python 3.11, Node 18+, and Tesseract (for OCR on images/scanned PDFs).
+## Run locally
+
+Prerequisites: Python 3.11, a compatible Node.js version (Node 20 is a practical default), and Tesseract + Poppler for scanned PDFs/images.
 
 ```bash
-# macOS
+# macOS OCR dependencies
 brew install tesseract poppler
 
-# Ubuntu / Debian
-sudo apt-get install -y tesseract-ocr poppler-utils
-```
-
-```bash
-git clone https://github.com/KanujVerma/clinical-notes-nlp-assistant
+git clone https://github.com/KanujVerma/clinical-notes-nlp-assistant.git
 cd clinical-notes-nlp-assistant
 
-# Python environment
 python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
-# Frontend
 cd frontend
-npm install
+npm ci
 cd ..
 ```
 
-**Environment variables (optional):**
-
-The app runs fully without any API keys. To enable the AI explainer locally, set:
+Open two terminals from the repository root:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-```
-
----
-
-## Running locally
-
-**Terminal 1 — backend:**
-```bash
+# Terminal 1 — Flask
 source .venv/bin/activate
 cd backend
 python app.py
-# Flask on http://localhost:5000
+# http://localhost:5000
 ```
 
-**Terminal 2 — frontend:**
 ```bash
+# Terminal 2 — Vite
 cd frontend
 npm run dev
-# Vite on http://localhost:5173
+# http://localhost:5173
 ```
 
-Open `http://localhost:5173`. Click **Seed demo data** in the UI to load the synthetic notes. Local dev uses SQLite — no database setup required.
+Open <http://localhost:5173>. Vite proxies `/api` to the local Flask backend. Without `DATABASE_URL`, the backend uses a local SQLite database. Seed synthetic notes with the **Seed demo data** button or use **Load sample note**. No API keys are needed.
 
----
+**Optional AI explainer:** Set `ANTHROPIC_API_KEY` only if deliberately testing that external feature. Keep it unset for offline extraction/review testing. Never send actual patient data to this demo or to the optional provider.
 
-## Docker
+**Docker Compose (development):** `docker compose up --build` starts the backend on port **5000** and the Vite frontend on port **5173**. The Compose configuration is a two-service development environment; it does not serve the whole application solely at port 5000.
 
-```bash
-docker compose up
-# App at http://localhost:5000
-```
-
----
-
-## Review workflow
-
-The reviewer UI is keyboard-driven. Select or focus a field card, then:
+## Review controls
 
 | Key | Action |
-|-----|--------|
-| `A` | Accept |
+|---|---|
+| `A` | Accept focused field |
 | `E` | Edit |
 | `R` | Remove |
-| `Tab` / `Shift+Tab` | Cycle through fields |
+| `Tab` / `Shift+Tab` | Navigate fields |
 | `Esc` | Deactivate |
 | `⌘S` / `Ctrl+S` | Save |
 
-A progress bar in the top bar tracks how many fields have been reviewed. After saving, the app auto-advances to the next pending note. Navigating away with unsaved changes triggers a confirmation prompt.
+The reviewer can inspect medications, vitals, instructions, and metadata. Medication mentions without sufficient structured directions require human interpretation rather than assuming they are active treatment instructions.
 
-Medication cards group dose, route, frequency, and duration under the drug name with a visual indent. Medications captured from prose with no sig information get a **mention only** label — the reviewer decides whether to keep or remove them.
+## Verification
 
-Re-opening a previously reviewed note reconstructs the prior field statuses from the diff of extracted vs. validated data, shows a banner, and carries the review timer forward.
-
----
-
-## Metrics
-
-The Metrics page shows **live signals computed from reviewer activity in the current session**:
-
-- Correction rate by category (vitals, medications, instructions, metadata)
-- Correction rate by field (top 10 most-corrected fields)
-- Review counts and average review time by status
-
-These update as notes are reviewed and saved.
-
-### Offline evaluation benchmark (development only)
-
-A separate offline script measures parser F1 against a hand-labeled synthetic evaluation set of 20 notes (`data/eval/labels/`). This is a development tool and is not surfaced in the deployed app.
+From the repository root:
 
 ```bash
 source .venv/bin/activate
-python scripts/run_evaluation.py
-```
+python -m pytest backend/tests/ -q
 
-Sample output:
-```
-============================================================
-  Clinical NLP Evaluation — pipeline v0.1.0
-============================================================
-  Category              Precision     Recall         F1
-  vitals                    0.892      0.627      0.736
-  medications               0.488      0.467      0.477
-  instructions              0.821      0.469      0.597
-  metadata                  0.775      0.633      0.697
-  OVERALL                   0.768      0.571      0.655
-============================================================
-  Notes evaluated: 20
-```
-
----
-
-## Limitations
-
-- **Medication extraction is a prototype.** Structured medication lines with dose/sig usually parse correctly. Prose-only mentions depend more on the curated vocabulary and sentence-level action patterns. No RxNorm, no brand/generic normalization, no dose unit conversion.
-- **Handwritten notes are not supported.** OCR works for clean printed and typed scans. Handwriting degrades Tesseract significantly and is out of scope.
-- **OCR quality depends on scan quality.** Poor contrast, unusual fonts, or heavy artifacts may produce text the extractor can't recover from.
-- **The AI explainer is scoped and informational only.** It explains what a term is — it does not diagnose, recommend treatment, or advise on dosing. It is not a medical chatbot.
-- **Dictionary coverage is partial.** Common medications and standard abbreviations are covered. Less common terms fall back to AI on demand, which may produce generic results for ambiguous inputs.
-- **AI explanations are not persisted.** Each AI call is ephemeral and scoped to the field shown. Rate-limited to 20 requests per session per hour.
-- **No authentication.** The live demo is open — do not upload real patient data.
-- **No real PHI.** All demo data is synthetic. Do not use with real patient information.
-
----
-
-## Potential next steps
-
-- RxNorm integration for drug normalization and broader vocabulary coverage
-- scispaCy (`en_core_sci_sm`) for better clinical tokenization
-- FHIR-structured output
-- Active learning: surface low-confidence extractions and use reviewer corrections to extend the rules over time
-- Broader dictionary coverage to reduce AI fallback surface area
-
----
-
-## Development
-
-**Backend tests** (277 unit + integration tests, includes a four-note regression pack):
-```bash
-source .venv/bin/activate
-pytest backend/tests/ -v
-```
-
-**Frontend unit tests:**
-```bash
 cd frontend
 npm test
-```
-
-**End-to-end smoke tests** (Playwright, requires both servers running):
-```bash
-cd frontend
+npm run lint
+npm run build
+# Requires both servers running and a local Chromium setup:
 npx playwright test
 ```
 
----
+Tests must be rerun for the exact checked-out commit and environment. This README does not use a historical test count as proof that current checks passed.
 
-## Synthetic data disclaimer
+### Offline evaluation: what the scores mean
 
-All clinical notes in this project (`data/dev/`, `data/eval/`, `data/showcase/`) are entirely synthetic, generated programmatically or hand-authored for demonstration purposes. They contain no real patient information, no real provider names, and no real medical records. Any resemblance to real individuals is coincidental.
+The legacy `data/eval/` corpus contains 20 synthetic labeled development notes. `python scripts/run_evaluation.py` writes `backend/evaluation/results.json`. The committed April 17, 2026 result recorded overall F1 **0.6549** under pipeline `0.1.0`, but **that is a historical development result, not a verified current score or clinical accuracy claim**.
+
+The original comparator has important limitations: medication matching uses name/dose without strict route/frequency scoring, duplicate-name instances can collapse, vital normalization strips some units without conversion, and instruction substring matching can accept contradictory extra text. Do not compare the legacy result directly with a stricter evaluator or present it as a reliable whole-record medication metric. Review correction rates on the Metrics page are a separate type of measurement.
+
+## Known limitations and next engineering priorities
+
+- **Review provenance:** this `main` revision stores mutable, note-linked validation records. It does not yet enforce immutable source/extraction/review version binding or optimistic concurrency. A review may become stale after source edits. Do not describe it as tamper-proof or audit-grade.
+- **Extraction:** ambiguous medication actions, duplicated occurrences, temporal context, decimal doses, incomplete instructions, and mixed-format sources can be misread or missed.
+- **OCR:** the current PDF path chooses OCR fallback using a document-level text threshold, so scanned pages mixed with text pages may not be fully acquired; handwriting is unsupported.
+- **Measurement:** the legacy benchmark is a synthetic development diagnostic with permissive comparison rules, not independent, clinically adjudicated validation.
+- **Privacy and identity:** no clinical-grade authentication, authorization, identity verification, or real-PHI controls are provided. Browser workspace UUIDs are demo scoping only.
+- **Optional AI:** explanations can be incomplete or wrong and do not validate extracted facts.
+
+A separate validation/reliability workstream proposes immutable review events, stricter evaluation, independent consistency checks, page-level acquisition, and actionable issue drilldowns. **Those additions are not part of the `main` revision described here until its code and tests are integrated and verified.** Do not claim them on a portfolio or demo without checking the branch and evidence.
+
+## Project scope and contributions
+
+This repository is an engineering exercise in structured extraction, reviewer UX, deterministic testing, and learning from counterexamples using **synthetic data only**. The original application and any later AI-assisted reliability enhancements should remain distinguishable through commit history and dated implementation evidence. Automated code review is not a substitute for human or clinical review.
+
+See `backend/extractors/`, `backend/evaluation/`, `backend/tests/`, `frontend/src/pages/`, and `frontend/e2e/` for the implementation and test entry points.

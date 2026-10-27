@@ -8,7 +8,7 @@
  */
 import { test, expect, Browser } from "@playwright/test";
 
-const PROD = process.env.PLAYWRIGHT_BASE_URL ?? "https://clinical-nlp.vercel.app";
+const PROD = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5173";
 
 const SAMPLE_NOTE = `Patient: Test Patient
 Date of Service: 2025-01-15

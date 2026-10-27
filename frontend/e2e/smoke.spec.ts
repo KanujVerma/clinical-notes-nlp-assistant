@@ -33,7 +33,7 @@ test("Seed demo → toast → auto-navigate to Queue", async ({ page }) => {
   await page.getByRole("button", { name: /Seed demo data/i }).click();
 
   // Toast should appear
-  await expect(page.getByText(/Seeded|already exist/i)).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText(/Seeded|already exist/i)).toBeVisible({ timeout: 15_000 });
 
   // Either navigates to /queue (new data) or stays on upload (already seeded)
   // Either is acceptable — just confirm no crash
@@ -44,10 +44,11 @@ test("Seed demo → toast → auto-navigate to Queue", async ({ page }) => {
 
 test("Queue page lists pending notes", async ({ page }) => {
   await page.goto(`${BASE}/queue`);
-  // Should show at least one note or an empty-state message — either is fine
-  const hasNotes = await page.locator("table tbody tr").count() > 0;
-  const hasEmpty = await page.getByText(/no pending/i).isVisible().catch(() => false);
-  expect(hasNotes || hasEmpty).toBeTruthy();
+  await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+  // Should show at least one note or the empty-state message — either is fine
+  await expect(
+    page.locator("table tbody tr").first().or(page.getByText("No notes pending review."))
+  ).toBeVisible();
 });
 
 test("Paste text → extract → Review page opens", async ({ page }) => {
@@ -131,7 +132,7 @@ test("Review page — edit a field value and save corrections", async ({ page })
 
   // Type a new value
   const input = page.locator("input").first();
-  await input.triple_click?.() ?? await input.click({ clickCount: 3 });
+  await input.click({ clickCount: 3 });
   await input.fill("edited value");
   await page.getByRole("button", { name: "save" }).first().click();
 

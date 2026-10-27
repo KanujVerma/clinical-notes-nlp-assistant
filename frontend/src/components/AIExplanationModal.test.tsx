@@ -36,12 +36,12 @@ describe('AIExplanationModal', () => {
   it('shows optional uncertainty row when present', () => {
     render(<AIExplanationModal {...baseProps} explanation={explanationWithUncertainty} />);
     expect(screen.getByText('May interact with contrast dye')).toBeInTheDocument();
-    expect(screen.getByText('Note')).toBeInTheDocument();
+    expect(screen.getByText('Context note')).toBeInTheDocument();
   });
 
   it('does not show uncertainty row when absent', () => {
     render(<AIExplanationModal {...baseProps} explanation={explanation} />);
-    expect(screen.queryByText('Note')).not.toBeInTheDocument();
+    expect(screen.queryByText('Context note')).not.toBeInTheDocument();
   });
 
   it('shows error message when error is set', () => {

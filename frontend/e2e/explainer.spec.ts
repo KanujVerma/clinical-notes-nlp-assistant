@@ -49,7 +49,7 @@ Return to clinic in 2 weeks.`;
   await infoIcon.click();
 
   // Assert popover shows medication name and disclaimer
-  await expect(page.getByText("Metformin")).toBeVisible();
+  await expect(page.locator('[data-testid="popover"]').getByText("Metformin")).toBeVisible();
   await expect(page.getByText(/Informational only — not medical advice\./i)).toBeVisible();
 
   // Press Escape to close popover
@@ -57,5 +57,5 @@ Return to clinic in 2 weeks.`;
   await page.waitForTimeout(200);
 
   // Assert popover is closed
-  await expect(page.getByText("Metformin")).not.toBeVisible();
+  await expect(page.locator('[data-testid="popover"]')).not.toBeVisible();
 });
