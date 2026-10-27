@@ -20,13 +20,21 @@ def _create_note(client, text="BP: 120/80. HR: 72.", sid=SID):
 
 
 def _validate_note(client, note_id, sid=SID):
+    note_info = client.get(f"/api/notes/{note_id}", headers={"X-Session-ID": sid}).json
+    source = client.get(f"/api/notes/{note_id}/source", headers={"X-Session-ID": sid}).json
     resp = client.post(
-        "/api/validate",
+        f"/api/extractions/{note_info['current_extraction_id']}/reviews",
         json={
             "note_id": note_id,
-            "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
-            "status": "accepted",
-            "review_duration_ms": 100,
+            "source_revision_id": note_info["current_source_revision_id"],
+            "extraction_id": note_info["current_extraction_id"],
+            "source_hash": source["sha256"],
+            "expected_lock_version": note_info["lock_version"],
+            "event_kind": "review_completed",
+            "item_decisions": {},
+            "category_acknowledgments": {
+                "metadata": True, "vitals": True, "medications": True, "instructions": True,
+            },
         },
         headers={"X-Session-ID": sid},
     )

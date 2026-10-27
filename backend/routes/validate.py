@@ -6,12 +6,14 @@ routed to the authoritative append-only review service.
 """
 from flask import Blueprint, request, jsonify
 from routes.reviews import submit_review
+from utils.session import require_session
 
 bp = Blueprint("validate", __name__)
 
 
 @bp.post("/api/validate")
 def validate():
+    sid = require_session()
     body = request.get_json(silent=True)
     required = {
         "note_id",

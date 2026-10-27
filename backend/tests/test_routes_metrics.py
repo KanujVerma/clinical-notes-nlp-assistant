@@ -41,18 +41,25 @@ def test_metrics_correction_rates_shape_when_empty(client):
 
 def test_metrics_correction_rates_after_validation(client):
     note_resp = client.post("/api/notes", json={"text": "BP: 120/80. HR: 72."}, headers={"X-Session-ID": SID})
-    note_id = note_resp.get_json()["note_id"]
+    note_data = note_resp.get_json()
+    note_id = note_data["note_id"]
+    rev_id = note_data["revision_id"]
+    ext_id = note_data["extraction_id"]
+    source = client.get(f"/api/notes/{note_id}/source", headers={"X-Session-ID": SID}).json
 
-    client.post("/api/validate", json={
+    res = client.post(f"/api/extractions/{ext_id}/reviews", json={
         "note_id": note_id,
-        "validated_json": {
-            "vitals": {"blood_pressure": {"value": "130/85"}},
-            "medications": [],
-            "instructions": {},
-            "metadata": {},
+        "source_revision_id": rev_id,
+        "extraction_id": ext_id,
+        "source_hash": source["sha256"],
+        "expected_lock_version": 0,
+        "event_kind": "review_completed",
+        "item_decisions": {"vitals.blood_pressure": {"decision": "edit", "value": "130/85"}},
+        "category_acknowledgments": {
+            "metadata": True, "vitals": True, "medications": True, "instructions": True,
         },
-        "status": "corrected",
     }, headers={"X-Session-ID": SID})
+    assert res.status_code == 201
 
     resp = client.get("/api/metrics", headers={"X-Session-ID": SID})
     rates = resp.get_json()["db_stats"]["correction_rates"]
@@ -67,16 +74,25 @@ def test_metrics_correction_rates_after_validation(client):
 
 def test_metrics_correction_rate_zero_when_no_corrections(client):
     note_resp = client.post("/api/notes", json={"text": "BP: 120/80."}, headers={"X-Session-ID": SID})
-    note_id = note_resp.get_json()["note_id"]
+    note_data = note_resp.get_json()
+    note_id = note_data["note_id"]
+    rev_id = note_data["revision_id"]
+    ext_id = note_data["extraction_id"]
+    source = client.get(f"/api/notes/{note_id}/source", headers={"X-Session-ID": SID}).json
 
-    history = client.get(f"/api/history/{note_id}", headers={"X-Session-ID": SID}).get_json()
-    extracted = history["extracted_json"]
-
-    client.post("/api/validate", json={
+    res = client.post(f"/api/extractions/{ext_id}/reviews", json={
         "note_id": note_id,
-        "validated_json": extracted,
-        "status": "accepted",
+        "source_revision_id": rev_id,
+        "extraction_id": ext_id,
+        "source_hash": source["sha256"],
+        "expected_lock_version": 0,
+        "event_kind": "review_completed",
+        "item_decisions": {"vitals.blood_pressure": {"decision": "accept"}},
+        "category_acknowledgments": {
+            "metadata": True, "vitals": True, "medications": True, "instructions": True,
+        },
     }, headers={"X-Session-ID": SID})
+    assert res.status_code == 201
 
     resp = client.get("/api/metrics", headers={"X-Session-ID": SID})
     rates = resp.get_json()["db_stats"]["correction_rates"]
@@ -87,11 +103,23 @@ def test_metrics_correction_rate_zero_when_no_corrections(client):
 def test_metrics_isolates_by_session(client):
     # SID2 creates and validates a note with corrections; SID should see no validations
     note_resp = client.post("/api/notes", json={"text": "BP: 120/80."}, headers={"X-Session-ID": SID2})
-    note_id = note_resp.get_json()["note_id"]
-    client.post("/api/validate", json={
+    note_data = note_resp.get_json()
+    note_id = note_data["note_id"]
+    rev_id = note_data["revision_id"]
+    ext_id = note_data["extraction_id"]
+    source = client.get(f"/api/notes/{note_id}/source", headers={"X-Session-ID": SID2}).json
+
+    client.post(f"/api/extractions/{ext_id}/reviews", json={
         "note_id": note_id,
-        "validated_json": {"vitals": {"blood_pressure": {"value": "130/85"}}, "medications": [], "instructions": {}, "metadata": {}},
-        "status": "corrected",
+        "source_revision_id": rev_id,
+        "extraction_id": ext_id,
+        "source_hash": source["sha256"],
+        "expected_lock_version": 0,
+        "event_kind": "review_completed",
+        "item_decisions": {"vitals.blood_pressure": {"decision": "edit", "value": "130/85"}},
+        "category_acknowledgments": {
+            "metadata": True, "vitals": True, "medications": True, "instructions": True,
+        },
     }, headers={"X-Session-ID": SID2})
 
     resp = client.get("/api/metrics", headers={"X-Session-ID": SID})

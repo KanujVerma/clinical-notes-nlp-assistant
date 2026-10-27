@@ -19,12 +19,12 @@ def _create_note(client, sid=SID, text="BP: 120/80."):
 
 
 def _validate_note(client, note_id, sid=SID):
-    client.post("/api/validate", json={
-        "note_id": note_id,
-        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
-        "status": "accepted",
-        "review_duration_ms": 100,
-    }, headers={"X-Session-ID": sid})
+    from models import Validation
+    from utils.db import get_session
+    with get_session(client.application.config["ENGINE"]) as s:
+        v = Validation(note_id=note_id, status="accepted", validated_json="{}")
+        s.add(v)
+        s.commit()
 
 
 def test_reset_missing_session_returns_400(client):

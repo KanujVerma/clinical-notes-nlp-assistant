@@ -9,6 +9,7 @@ from services.review_service import (
     IdempotencyConflictError,
     IncompleteReviewError,
     BlockedReviewError,
+    InvalidReviewPayloadError,
 )
 from utils.session import require_session
 
@@ -52,6 +53,8 @@ def submit_review(ext_id: str):
         return jsonify({"error": str(e), "code": "INCOMPLETE_REVIEW"}), 422
     except BlockedReviewError as e:
         return jsonify({"error": str(e), "code": "BLOCKED_REVIEW"}), 422
+    except InvalidReviewPayloadError as e:
+        return jsonify({"error": str(e), "code": "INVALID_REVIEW_PAYLOAD"}), 422
     except ValueError as e:
         return jsonify({"error": str(e), "code": "INVALID_MUTATION"}), 400
 

@@ -3,11 +3,15 @@ from pydantic import BaseModel, Field
 
 
 class ItemDecision(BaseModel):
-    decision: str  # accept | edit | remove | add
+    decision: str  # accept | edit | remove | add | pending
     value: Optional[Any] = None
     attribute_decisions: Optional[Dict[str, Dict[str, Any]]] = None  # for medication child attributes
     evidence: Optional[Dict[str, Any]] = None
     reason: Optional[str] = None
+    category: Optional[str] = None
+    entity_id: Optional[str] = None
+    attribute: Optional[str] = None
+    no_direct_span_reason: Optional[str] = None
 
 
 class IssueDisposition(BaseModel):

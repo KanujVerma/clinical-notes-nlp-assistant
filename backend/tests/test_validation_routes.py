@@ -43,7 +43,8 @@ def test_note_lifecycle_revisions_and_review_export(client):
     # 1. Create workspace
     ws_res = client.post("/api/workspaces")
     ws_id = ws_res.json["workspace_id"]
-    headers = {"X-Workspace-ID": ws_id}
+    token = ws_res.json["token"]
+    headers = {"X-Workspace-ID": ws_id, "X-Workspace-Token": token}
 
     # 2. Create note
     raw_note = "Patient was prescribed Lisinopril 10 mg daily for hypertension."
@@ -124,7 +125,12 @@ def test_note_lifecycle_revisions_and_review_export(client):
     edit_res = client.post(
         f"/api/notes/{note_id}/revisions",
         headers=headers,
-        json={"raw_text": edited_note, "reason": "transcription_fix"},
+        json={
+            "raw_text": edited_note,
+            "reason": "transcription_fix",
+            "expected_source_revision_id": rev_id,
+            "expected_lock_version": 1,
+        },
     )
     assert edit_res.status_code == 201
     assert edit_res.json["revision_number"] == 2

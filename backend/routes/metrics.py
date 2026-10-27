@@ -46,8 +46,14 @@ def _compute_correction_rates(pairs):
                         by_category[cat]["corrected"] += 1
 
         # medications
-        ext_meds = {m.get("name", "").lower().strip(): m for m in (extracted.get("medications") or [])}
-        val_meds = {m.get("name", "").lower().strip(): m for m in (validated.get("medications") or [])}
+        ext_meds_list = extracted.get("medications") or []
+        val_meds_list = validated.get("medications") or []
+
+        def get_occ_id(m, idx):
+            return m.get("source_occurrence_id") or m.get("occurrence_id") or m.get("id") or f"occ_{m.get('name')}_{idx}"
+
+        ext_meds = {get_occ_id(m, i): m for i, m in enumerate(ext_meds_list)}
+        val_meds = {get_occ_id(m, i): m for i, m in enumerate(val_meds_list)}
         all_med_keys = set(ext_meds) | set(val_meds)
         for k in all_med_keys:
             by_category["medications"]["reviewed"] += 1
@@ -56,7 +62,7 @@ def _compute_correction_rates(pairs):
             else:
                 e, v = ext_meds[k], val_meds[k]
                 for field in ("name", "dose", "route", "frequency"):
-                    if e.get(field, "").strip() != v.get(field, "").strip():
+                    if str(e.get(field, "")).strip().lower() != str(v.get(field, "")).strip().lower():
                         by_category["medications"]["corrected"] += 1
                         break
 
@@ -66,7 +72,8 @@ def _compute_correction_rates(pairs):
         return {
             "reviewed": reviewed,
             "corrected": corrected,
-            "rate": round(corrected / reviewed, 4) if reviewed else 0.0,
+            "rate": round(corrected / reviewed, 4) if reviewed > 0 else 0.0,
+            "rate_display": f"{round(corrected / reviewed * 100, 1)}%" if reviewed > 0 else "N/A",
         }
 
     return {
@@ -85,16 +92,33 @@ def metrics():
         with open(eval_results_path) as f:
             eval_data = json.load(f)
 
-    # 1. Query ReviewEvent stats if present
-    rev_events = (
-        g.db.query(ReviewEvent)
-        .join(Note, Note.id == ReviewEvent.note_id)
-        .filter(or_(Note.workspace_id == sid, Note.session_id == sid))
+    # 1. Query only Authoritative Current Completions
+    # Note must belong to workspace, have an active review_head_event_id, and
+    # the event must be review_completed bound to current revision and extraction.
+    notes_with_head = (
+        g.db.query(Note)
+        .filter(
+            or_(Note.workspace_id == sid, Note.session_id == sid),
+            Note.review_head_event_id.isnot(None),
+        )
         .all()
     )
-    reviewed_note_ids = {ev.note_id for ev in rev_events}
 
-    # 2. Legacy validation fallback/support (excluding notes that have ReviewEvents)
+    current_completed_events = []
+    reviewed_note_ids = set()
+    for n in notes_with_head:
+        ev = g.db.query(ReviewEvent).filter(ReviewEvent.id == n.review_head_event_id).first()
+        if (
+            ev
+            and ev.event_kind == "review_completed"
+            and ev.source_revision_id == n.current_source_revision_id
+            and ev.extraction_id == n.current_extraction_id
+            and ev.derived_outcome in ("reviewed_unchanged", "reviewed_corrected")
+        ):
+            current_completed_events.append(ev)
+            reviewed_note_ids.add(n.id)
+
+    # 2. Legacy validation fallback/support (excluding notes that have current ReviewEvents)
     legacy_query = (
         select(
             Validation.status,
@@ -109,7 +133,7 @@ def metrics():
         legacy_query = legacy_query.where(Note.id.not_in(reviewed_note_ids))
     legacy_rows = g.db.execute(legacy_query.group_by(Validation.status)).all()
 
-    # Collect pairs for correction rate (excluding notes with ReviewEvents)
+    # Collect pairs for correction rate
     val_query = (
         select(Extraction.extracted_json, Validation.validated_json)
         .join(Note, Note.id == Extraction.note_id)
@@ -122,9 +146,11 @@ def metrics():
 
     pairs = [(r.extracted_json, r.validated_json) for r in val_rows]
 
-    # Also include ReviewEvent pairs
-    for ev in rev_events:
+    # Include authoritative current ReviewEvent pairs
+    for ev in current_completed_events:
         ext = g.db.query(Extraction).filter(Extraction.public_id == ev.extraction_id).first()
+        if not ext and ev.extraction_id.isdigit():
+            ext = g.db.query(Extraction).filter(Extraction.id == int(ev.extraction_id)).first()
         if ext:
             pairs.append((ext.extracted_json, ev.reviewed_snapshot_json))
 
@@ -141,7 +167,7 @@ def metrics():
 
     durations_by_outcome = {}
     corrections_by_outcome = {}
-    for ev in rev_events:
+    for ev in current_completed_events:
         s = ev.derived_outcome
         if s not in status_counts:
             status_counts[s] = {"status": s, "count": 0, "avg_corrections": 0.0, "avg_review_ms": 0.0}

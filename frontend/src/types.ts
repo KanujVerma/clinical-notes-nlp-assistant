@@ -8,6 +8,8 @@ export interface FieldValue {
 }
 
 export interface Medication {
+  id?: string;
+  source_occurrence_id?: string;
   name: string;
   dose: string;
   route: string;
@@ -65,6 +67,12 @@ export interface NoteDetail {
   created_at: string;
   extracted_json: ExtractionResult | null;
   pipeline_version: string | null;
+  review_head?: {
+    event_id: string;
+    derived_outcome: string;
+    event_kind: string;
+    reviewed_snapshot: ExtractionResult;
+  } | null;
   validation: {
     status: string;
     validated_json: ExtractionResult;

@@ -31,54 +31,7 @@ def init_db(engine) -> None:
     # 1. Create all missing tables
     Base.metadata.create_all(engine)
 
-    # 2. Add any missing columns to existing tables for backwards compatibility
-    with engine.connect() as conn:
-        inspector = inspect(conn)
-        tables = inspector.get_table_names()
-
-        if "notes" in tables:
-            note_cols = {c["name"] for c in inspector.get_columns("notes")}
-            missing_note_cols = [
-                ("ocr_confidence", "REAL"),
-                ("workspace_id", "VARCHAR(36)"),
-                ("current_source_revision_id", "VARCHAR(36)"),
-                ("current_extraction_id", "VARCHAR(36)"),
-                ("review_head_event_id", "VARCHAR(36)"),
-                ("lock_version", "INTEGER DEFAULT 0"),
-                ("status", "VARCHAR(32) DEFAULT 'needs_review'"),
-                ("updated_at", "TIMESTAMP"),
-            ]
-            for col_name, col_type in missing_note_cols:
-                if col_name not in note_cols:
-                    try:
-                        conn.execute(text(f"ALTER TABLE notes ADD COLUMN {col_name} {col_type}"))
-                        conn.commit()
-                    except (OperationalError, ProgrammingError, Exception):
-                        pass
-
-        if "extractions" in tables:
-            ext_cols = {c["name"] for c in inspector.get_columns("extractions")}
-            missing_ext_cols = [
-                ("public_id", "VARCHAR(36)"),
-                ("workspace_id", "VARCHAR(36)"),
-                ("source_revision_id", "VARCHAR(36)"),
-                ("source_text_hash", "VARCHAR(64)"),
-                ("rules_hash", "VARCHAR(64)"),
-                ("vocabulary_hash", "VARCHAR(64)"),
-                ("schema_version", "VARCHAR(32) DEFAULT '2.0.0'"),
-                ("status", "VARCHAR(32) DEFAULT 'completed'"),
-                ("check_policy_version", "VARCHAR(32) DEFAULT '1.0.0'"),
-                ("error_metadata_json", "TEXT"),
-            ]
-            for col_name, col_type in missing_ext_cols:
-                if col_name not in ext_cols:
-                    try:
-                        conn.execute(text(f"ALTER TABLE extractions ADD COLUMN {col_name} {col_type}"))
-                        conn.commit()
-                    except (OperationalError, ProgrammingError, Exception):
-                        pass
-
-    # 3. Baseline migration for legacy notes: synthesize NoteRevision for notes without current_source_revision_id
+    # 2. Baseline migration for legacy notes: synthesize NoteRevision for notes without current_source_revision_id
     with get_session(engine) as session:
         legacy_notes = session.query(Note).filter(Note.current_source_revision_id.is_(None)).all()
         for note in legacy_notes:

@@ -23,6 +23,12 @@ def append_revision(note_id: int):
     if len(new_text.encode("utf-8")) > 2 * 1024 * 1024:
         return jsonify({"error": "Text size exceeds local limit", "code": "TEXT_TOO_LARGE"}), 413
 
+    note = g.db.query(Note).filter(Note.id == note_id).first()
+    if not note:
+        return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
+    if note.workspace_id != sid and note.session_id != sid:
+        return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
+
     # A source edit must be explicitly based on the revision and lock state the
     # reviewer opened; a missing optimistic-concurrency token is not a wildcard.
     expected_revision = body.get("expected_source_revision_id")
@@ -32,13 +38,6 @@ def append_revision(note_id: int):
             "error": "expected_source_revision_id and expected_lock_version are required",
             "code": "REVISION_BINDING_REQUIRED",
         }), 422
-
-    note = g.db.query(Note).filter(
-        Note.id == note_id,
-        (Note.workspace_id == sid) | (Note.session_id == sid),
-    ).first()
-    if not note:
-        return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
 
     if (
         note.current_source_revision_id != expected_revision

@@ -78,14 +78,11 @@ function AddFieldRow({
   function handleAdd() {
     if (category === "med") {
       if (!medName.trim()) return;
-      const medIndices = existingKeys
-        .filter((k) => k.startsWith("med.") && /^med\.\d+\.name$/.test(k))
-        .map((k) => parseInt(k.split(".")[1]));
-      const nextIdx = medIndices.length > 0 ? Math.max(...medIndices) + 1 : 0;
-      onAdd(`med.${nextIdx}.name`, medName.trim());
-      if (medDose.trim()) onAdd(`med.${nextIdx}.dose`, medDose.trim());
-      if (medRoute.trim()) onAdd(`med.${nextIdx}.route`, medRoute.trim());
-      if (medFreq.trim()) onAdd(`med.${nextIdx}.frequency`, medFreq.trim());
+      const addMedId = `med_add_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      onAdd(`med.${addMedId}.name`, medName.trim());
+      if (medDose.trim()) onAdd(`med.${addMedId}.dose`, medDose.trim());
+      if (medRoute.trim()) onAdd(`med.${addMedId}.route`, medRoute.trim());
+      if (medFreq.trim()) onAdd(`med.${addMedId}.frequency`, medFreq.trim());
       setMedName(""); setMedDose(""); setMedRoute(""); setMedFreq("");
     } else {
       if (!value.trim()) return;
@@ -170,13 +167,14 @@ function flattenExtracted(
     }
   });
   extracted.medications.forEach((med, i) => {
+    const medId = med.id || med.source_occurrence_id || `med_${i}`;
     const entries: [string, string][] = [
-      [`med.${i}.name`, med.name],
-      ...(med.dose ? [[`med.${i}.dose`, med.dose] as [string, string]] : []),
-      ...(med.route ? [[`med.${i}.route`, med.route] as [string, string]] : []),
-      ...(med.frequency ? [[`med.${i}.frequency`, med.frequency] as [string, string]] : []),
-      ...(med.duration ? [[`med.${i}.duration`, med.duration] as [string, string]] : []),
-      ...(med.qualifier ? [[`med.${i}.qualifier`, med.qualifier] as [string, string]] : []),
+      [`med.${medId}.name`, med.name],
+      ...(med.dose ? [[`med.${medId}.dose`, med.dose] as [string, string]] : []),
+      ...(med.route ? [[`med.${medId}.route`, med.route] as [string, string]] : []),
+      ...(med.frequency ? [[`med.${medId}.frequency`, med.frequency] as [string, string]] : []),
+      ...(med.duration ? [[`med.${medId}.duration`, med.duration] as [string, string]] : []),
+      ...(med.qualifier ? [[`med.${medId}.qualifier`, med.qualifier] as [string, string]] : []),
     ];
     entries.forEach(([key, val]) => {
       m[key] = { value: val, originalValue: val, status: overrides?.[key]?.status ?? "pending" };
@@ -230,11 +228,11 @@ export default function Review() {
   const [lockVersion, setLockVersion] = useState<number>(0);
   const [reviewEventId, setReviewEventId] = useState<string | null>(null);
   const [openBlockersCount, setOpenBlockersCount] = useState<number>(0);
-  const [categoryAck] = useState<Record<string, boolean>>({
-    metadata: true,
-    vitals: true,
-    medications: true,
-    instructions: true,
+  const [categoryAck, setCategoryAck] = useState<Record<string, boolean>>({
+    metadata: false,
+    vitals: false,
+    medications: false,
+    instructions: false,
   });
 
   const deactivateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -313,44 +311,47 @@ export default function Review() {
         }
 
         // G: Re-review awareness
-        if (d.validation && d.extracted_json) {
+        const valSnapshot = d.review_head?.reviewed_snapshot || d.validation?.validated_json;
+        if (valSnapshot && d.extracted_json) {
           setReReviewBanner(true);
           // Offset timer by previous review duration
-          if (d.validation.review_duration_ms) {
+          if (d.validation?.review_duration_ms) {
             startTime.current = Date.now() - d.validation.review_duration_ms;
           }
           // Reconstruct per-field statuses
           const ext = d.extracted_json;
-          const val = d.validation.validated_json;
+          const val = valSnapshot;
           const overrides: Record<string, { value: string; status: FieldStatus }> = {};
 
           // Build a flat map of validated fields
           const valFlat: Record<string, string> = {};
-          Object.entries(val.vitals ?? {}).forEach(([k, v]) => { if (v) valFlat[`vitals.${k}`] = (v as { value: string }).value; });
-          (val.medications ?? []).forEach((med: { name: string; dose?: string; route?: string; frequency?: string; duration?: string; qualifier?: string }, i: number) => {
-            valFlat[`med.${i}.name`] = med.name;
-            if (med.dose) valFlat[`med.${i}.dose`] = med.dose;
-            if (med.route) valFlat[`med.${i}.route`] = med.route;
-            if (med.frequency) valFlat[`med.${i}.frequency`] = med.frequency;
-            if (med.duration) valFlat[`med.${i}.duration`] = med.duration;
-            if (med.qualifier) valFlat[`med.${i}.qualifier`] = med.qualifier;
+          Object.entries(val.vitals ?? {}).forEach(([k, v]) => { if (v) valFlat[`vitals.${k}`] = (v as any).value ?? v; });
+          (val.medications ?? []).forEach((med: any, i: number) => {
+            const medId = med.id || med.source_occurrence_id || `med_${i}`;
+            valFlat[`med.${medId}.name`] = med.name;
+            if (med.dose) valFlat[`med.${medId}.dose`] = med.dose;
+            if (med.route) valFlat[`med.${medId}.route`] = med.route;
+            if (med.frequency) valFlat[`med.${medId}.frequency`] = med.frequency;
+            if (med.duration) valFlat[`med.${medId}.duration`] = med.duration;
+            if (med.qualifier) valFlat[`med.${medId}.qualifier`] = med.qualifier;
           });
-          Object.entries(val.instructions ?? {}).forEach(([k, v]) => { if (v) valFlat[`instr.${k}`] = (v as { value: string }).value; });
-          Object.entries(val.metadata ?? {}).forEach(([k, v]) => { if (v) valFlat[`meta.${k}`] = (v as { value: string }).value; });
+          Object.entries(val.instructions ?? {}).forEach(([k, v]) => { if (v) valFlat[`instr.${k}`] = (v as any).value ?? v; });
+          Object.entries(val.metadata ?? {}).forEach(([k, v]) => { if (v) valFlat[`meta.${k}`] = (v as any).value ?? v; });
 
           // Build flat map of extracted fields
           const extFlat: Record<string, string> = {};
-          Object.entries(ext.vitals ?? {}).forEach(([k, v]) => { if (v) extFlat[`vitals.${k}`] = (v as { value: string }).value; });
-          (ext.medications ?? []).forEach((med: { name: string; dose?: string; route?: string; frequency?: string; duration?: string; qualifier?: string }, i: number) => {
-            extFlat[`med.${i}.name`] = med.name;
-            if (med.dose) extFlat[`med.${i}.dose`] = med.dose;
-            if (med.route) extFlat[`med.${i}.route`] = med.route;
-            if (med.frequency) extFlat[`med.${i}.frequency`] = med.frequency;
-            if (med.duration) extFlat[`med.${i}.duration`] = med.duration;
-            if (med.qualifier) extFlat[`med.${i}.qualifier`] = med.qualifier;
+          Object.entries(ext.vitals ?? {}).forEach(([k, v]) => { if (v) extFlat[`vitals.${k}`] = (v as any).value ?? v; });
+          (ext.medications ?? []).forEach((med: any, i: number) => {
+            const medId = med.id || med.source_occurrence_id || `med_${i}`;
+            extFlat[`med.${medId}.name`] = med.name;
+            if (med.dose) extFlat[`med.${medId}.dose`] = med.dose;
+            if (med.route) extFlat[`med.${medId}.route`] = med.route;
+            if (med.frequency) extFlat[`med.${medId}.frequency`] = med.frequency;
+            if (med.duration) extFlat[`med.${medId}.duration`] = med.duration;
+            if (med.qualifier) extFlat[`med.${medId}.qualifier`] = med.qualifier;
           });
-          Object.entries(ext.instructions ?? {}).forEach(([k, v]) => { if (v) extFlat[`instr.${k}`] = (v as { value: string }).value; });
-          Object.entries(ext.metadata ?? {}).forEach(([k, v]) => { if (v) extFlat[`meta.${k}`] = (v as { value: string }).value; });
+          Object.entries(ext.instructions ?? {}).forEach(([k, v]) => { if (v) extFlat[`instr.${k}`] = (v as any).value ?? v; });
+          Object.entries(ext.metadata ?? {}).forEach(([k, v]) => { if (v) extFlat[`meta.${k}`] = (v as any).value ?? v; });
 
           // Diff extracted vs validated
           Object.keys(extFlat).forEach((key) => {
@@ -430,61 +431,116 @@ export default function Review() {
     setFields((prev) => ({ ...prev, [key]: { value, originalValue: "", status: "corrected" } }));
   }
 
-  const handleSave = useCallback(async (overallStatus: "accepted" | "corrected") => {
+  const handleSave = useCallback(async (_overallStatus: "accepted" | "corrected", fieldsOverride?: FieldMap) => {
     if (!noteIdState || !extracted) return;
     setSaving(true); setError(null);
     try {
-      const validated = JSON.parse(JSON.stringify(extracted));
-      const removedMedIndices = new Set<number>();
-      Object.entries(fields).forEach(([key, { status }]) => {
+      const effectiveFields = fieldsOverride || fields;
+      const validated: ExtractionResult = JSON.parse(JSON.stringify(extracted));
+      const medMap: Record<string, any> = {};
+      (validated.medications || []).forEach((m: any, idx: number) => {
+        const mid = m.id || m.source_occurrence_id || `med_${idx}`;
+        m.id = mid;
+        m.source_occurrence_id = mid;
+        medMap[mid] = { ...m };
+      });
+
+      // Find medications whose name was removed (meaning the medication itself is removed)
+      const removedMedIds = new Set<string>();
+      Object.entries(effectiveFields).forEach(([key, { status }]) => {
         if (key.startsWith("med.") && status === "removed") {
-          removedMedIndices.add(parseInt(key.split(".")[1]));
+          const parts = key.split(".");
+          if (parts[2] === "name" || parts.length === 2) {
+            removedMedIds.add(parts[1]);
+          }
         }
       });
-      Object.entries(fields).forEach(([key, { value, status }]) => {
+
+      // Handle additions for new medications
+      Object.entries(effectiveFields).forEach(([key, { status }]) => {
+        if (key.startsWith("med.") && (status === "accepted" || status === "corrected")) {
+          const parts = key.split(".");
+          const mid = parts[1];
+          if (!medMap[mid] && !removedMedIds.has(mid)) {
+            medMap[mid] = { id: mid, source_occurrence_id: mid, name: "" };
+          }
+        }
+      });
+
+      // Apply field updates
+      Object.entries(effectiveFields).forEach(([key, { value, status }]) => {
         const [section, ...rest] = key.split(".");
         if (status === "removed") {
-          if (section === "vitals") delete validated.vitals[rest[0]];
-          else if (section === "instr") delete validated.instructions[rest[0]];
-          else if (section === "meta") delete validated.metadata[rest[0]];
+          if (section === "vitals") delete (validated.vitals as any)[rest[0]];
+          else if (section === "instr") delete (validated.instructions as any)[rest[0]];
+          else if (section === "meta") delete (validated.metadata as any)[rest[0]];
+          else if (section === "med") {
+            const mid = rest[0];
+            const attr = rest[1];
+            if (attr && attr !== "name" && medMap[mid]) {
+              // Child attribute removal removes only that attribute, not the medication!
+              delete medMap[mid][attr];
+            }
+          }
         } else {
-          if (section === "vitals" && validated.vitals[rest[0]]) {
-            validated.vitals[rest[0]].value = value;
-          } else if (section === "instr" && validated.instructions[rest[0]]) {
-            validated.instructions[rest[0]].value = value;
-          } else if (section === "meta" && validated.metadata[rest[0]]) {
-            validated.metadata[rest[0]].value = value;
+          if (section === "vitals") {
+            if (!(validated.vitals as any)[rest[0]]) (validated.vitals as any)[rest[0]] = { value };
+            else (validated.vitals as any)[rest[0]].value = value;
+          } else if (section === "instr") {
+            if (!(validated.instructions as any)[rest[0]]) (validated.instructions as any)[rest[0]] = { value };
+            else (validated.instructions as any)[rest[0]].value = value;
+          } else if (section === "meta") {
+            if (!(validated.metadata as any)[rest[0]]) (validated.metadata as any)[rest[0]] = { value };
+            else (validated.metadata as any)[rest[0]].value = value;
           } else if (section === "med") {
-            const idx = parseInt(rest[0]);
-            const field = rest[1] as string;
-            if (!removedMedIndices.has(idx) && validated.medications[idx]) {
-              (validated.medications[idx] as Record<string, string>)[field] = value;
+            const mid = rest[0];
+            const attr = rest[1];
+            if (!removedMedIds.has(mid) && medMap[mid]) {
+              medMap[mid][attr] = value;
             }
           }
         }
       });
-      validated.medications = validated.medications.filter(
-        (_: unknown, i: number) => !removedMedIndices.has(i)
-      );
+      validated.medications = Object.values(medMap).filter((m: any) => !removedMedIds.has(m.id));
 
       const itemDecisions: Record<string, any> = {};
-      Object.entries(fields).forEach(([k, f]) => {
-        let dec = "accept";
-        if (f.status === "corrected") dec = "edit";
-        else if (f.status === "removed") dec = "remove";
-        else if (f.status === "accepted" || f.status === "pending") dec = "accept";
-        itemDecisions[k] = {
-          decision: dec,
-          value: f.value,
-        };
+      const pendingFields: string[] = [];
+      Object.entries(effectiveFields).forEach(([k, f]) => {
+        if (f.status === "pending") {
+          pendingFields.push(k);
+        } else {
+          let dec = "accept";
+          if (f.status === "corrected") {
+            dec = f.originalValue === "" ? "add" : "edit";
+          } else if (f.status === "removed") {
+            dec = "remove";
+          } else if (f.status === "accepted") {
+            dec = "accept";
+          }
+          itemDecisions[k] = {
+            decision: dec,
+            value: f.value,
+            reason: dec === "add" ? "Reviewer clinical entry" : undefined,
+          };
+        }
       });
+
+      if (pendingFields.length > 0) {
+        throw new Error(
+          `Please resolve all pending fields before completing review. (${pendingFields.length} pending: ${pendingFields.slice(0, 3).join(", ")}${pendingFields.length > 3 ? "..." : ""})`
+        );
+      }
+
+      // Rule A15: Check all 4 category completeness acknowledgments
+      const missingAcks = (["metadata", "vitals", "medications", "instructions"] as const).filter(
+        (cat) => !categoryAck[cat]
+      );
+      if (missingAcks.length > 0) {
+        throw new Error(`Completeness must be acknowledged for all categories: ${missingAcks.join(", ")}`);
+      }
 
       if (!currentExtractionId || !currentRevisionId || !currentSourceHash) {
         throw new Error("Source/extraction binding has not loaded. Retry when note details are available.");
-      }
-      if (overallStatus === "corrected" &&
-          Object.values(fields).some((field) => field.status === "pending")) {
-        throw new Error("Resolve pending fields before completing a corrected review.");
       }
 
       // A review must have exactly ONE authoritative write. Never follow an
@@ -764,11 +820,11 @@ export default function Review() {
               const prefix = CATEGORY_PREFIX[cat];
               const catFields = Object.entries(fields).filter(([k]) => k.startsWith(prefix));
 
-              // Medications: group fields by drug index into visual containers
+              // Medications: group fields by drug ID into visual containers
               if (cat === "med") {
-                const drugIndices = Array.from(
-                  new Set(catFields.map(([k]) => parseInt(k.split(".")[1])))
-                ).sort((a, b) => a - b);
+                const drugIds = Array.from(
+                  new Set(catFields.map(([k]) => k.split(".")[1]))
+                );
 
                 return (
                   <section key={cat}>
@@ -776,14 +832,13 @@ export default function Review() {
                       {CATEGORY_DISPLAY[cat]}
                     </h3>
                     <div className="space-y-2">
-                      {drugIndices.map((idx) => {
-                        const drugFields = catFields.filter(([k]) => parseInt(k.split(".")[1]) === idx);
+                      {drugIds.map((medId) => {
+                        const drugFields = catFields.filter(([k]) => k.split(".")[1] === medId);
                         const nameEntry = drugFields.find(([k]) => k.endsWith(".name"));
                         const otherFields = drugFields.filter(([k]) => !k.endsWith(".name"));
-                        // Mention-only: extracted med with no sig fields at all
-                        const isMentionOnly = otherFields.length === 0 && extracted?.medications[idx] !== undefined;
+                        const isMentionOnly = otherFields.length === 0;
                         return (
-                          <div key={idx} className={`rounded-lg border overflow-hidden bg-white ${isMentionOnly ? "border-slate-200" : "border-green-100"}`}>
+                          <div key={medId} className={`rounded-lg border overflow-hidden bg-white ${isMentionOnly ? "border-slate-200" : "border-green-100"}`}>
                             {/* Name row */}
                             {nameEntry && (
                               <div
@@ -895,6 +950,26 @@ export default function Review() {
             })}
           </div>
 
+          {/* Category Completeness Acknowledgments Bar */}
+          <div className="border-t border-slate-200 px-4 py-2 bg-slate-100 flex items-center justify-between flex-shrink-0 text-xs">
+            <span className="font-semibold text-slate-700">Category Completeness:</span>
+            <div className="flex items-center gap-4">
+              {(["metadata", "vitals", "medications", "instructions"] as const).map((cat) => (
+                <label key={cat} className="flex items-center gap-1.5 cursor-pointer text-slate-700 select-none">
+                  <input
+                    type="checkbox"
+                    id={`ack-${cat}`}
+                    data-testid={`ack-${cat}`}
+                    checked={!!categoryAck[cat]}
+                    onChange={(e) => setCategoryAck((prev) => ({ ...prev, [cat]: e.target.checked }))}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className="capitalize">{cat}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           {/* Footer */}
           <div className="border-t border-slate-200 px-4 py-2.5 bg-white flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-1.5 text-[11px] bg-slate-50 border border-slate-100 rounded-md px-3 py-1">
@@ -947,7 +1022,14 @@ export default function Review() {
                     </button>
                   )}
                   <button
-                    onClick={() => handleSave("accepted")}
+                    onClick={() => {
+                      const next: FieldMap = {};
+                      Object.entries(fields).forEach(([k, f]) => {
+                        next[k] = f.status === "pending" ? { ...f, status: "accepted" } : f;
+                      });
+                      setFields(next);
+                      handleSave("accepted", next);
+                    }}
                     disabled={saving || saved}
                     className="px-4 py-1.5 border border-green-200 text-green-700 bg-green-50 rounded-md text-sm font-medium hover:bg-green-100 disabled:opacity-50"
                   >

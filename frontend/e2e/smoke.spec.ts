@@ -125,6 +125,12 @@ test("Review page — edit a field value and save corrections", async ({ page })
   await page.getByRole("button", { name: /Extract & Review/i }).click();
   await waitForReviewPage(page);
 
+  // Acknowledge all 4 categories
+  await page.locator('[data-testid="ack-metadata"]').check();
+  await page.locator('[data-testid="ack-vitals"]').check();
+  await page.locator('[data-testid="ack-medications"]').check();
+  await page.locator('[data-testid="ack-instructions"]').check();
+
   // Click Edit on first field
   const firstValue = page.locator('[data-testid="field-value"]').first();
   await firstValue.hover();
@@ -136,14 +142,12 @@ test("Review page — edit a field value and save corrections", async ({ page })
   await input.fill("edited value");
   await page.getByRole("button", { name: "save" }).first().click();
 
-  // Save corrections button should be enabled
-  const saveBtn = page.getByRole("button", { name: /Save corrections/i });
-  await expect(saveBtn).toBeEnabled();
-  await saveBtn.click();
+  // Accept all remaining pending fields (which preserves the corrected field and saves)
+  await page.getByRole("button", { name: /Accept all/i }).click();
 
   // Flash message or auto-advance
   await expect(
-    page.getByText(/Saved|loading next/i).or(page.getByText(/All notes reviewed/i))
+    page.getByText(/Saved|loading next|Review saved/i).or(page.getByText(/All notes reviewed/i))
   ).toBeVisible({ timeout: 6_000 });
 });
 
@@ -188,6 +192,12 @@ test("Re-review — previously reviewed note shows banner", async ({ page }) => 
   await page.getByRole("button", { name: /Load sample note/i }).click();
   await page.getByRole("button", { name: /Extract & Review/i }).click();
   await waitForReviewPage(page);
+
+  // Acknowledge all 4 categories
+  await page.locator('[data-testid="ack-metadata"]').check();
+  await page.locator('[data-testid="ack-vitals"]').check();
+  await page.locator('[data-testid="ack-medications"]').check();
+  await page.locator('[data-testid="ack-instructions"]').check();
 
   // Accept all
   await page.getByRole("button", { name: /Accept all/i }).click();

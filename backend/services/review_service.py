@@ -28,6 +28,261 @@ class BlockedReviewError(Exception):
     pass
 
 
+class InvalidReviewPayloadError(Exception):
+    """Raised when client review payload contains invalid actions, malformed values, unsupported evidence, or invented items."""
+    pass
+
+
+def _get_decision_str(d: Any) -> str:
+    if isinstance(d, dict):
+        return str(d.get("decision", "accept")).strip().lower()
+    if hasattr(d, "decision"):
+        return str(getattr(d, "decision", "accept")).strip().lower()
+    if isinstance(d, str):
+        return d.strip().lower()
+    return "accept"
+
+
+def _get_decision_val(d: Any) -> Any:
+    if isinstance(d, dict):
+        return d.get("value")
+    if hasattr(d, "value"):
+        return getattr(d, "value")
+    return None
+
+
+def derive_reviewed_snapshot(
+    extracted_data: Dict[str, Any],
+    item_decisions: Dict[str, Any],
+    category_acknowledgments: Dict[str, bool],
+    is_completing: bool,
+    raw_text: str = "",
+    client_snapshot: Optional[Dict[str, Any]] = None,
+) -> Tuple[Dict[str, Any], bool]:
+    has_corrections = False
+    valid_actions = {"accept", "edit", "remove", "add", "pending"}
+
+    # 1. Validate decision actions
+    for k, d in (item_decisions or {}).items():
+        act = _get_decision_str(d)
+        if act not in valid_actions:
+            raise InvalidReviewPayloadError(f"Invalid decision action '{act}' for item '{k}'.")
+        if is_completing and act == "pending":
+            raise IncompleteReviewError(f"Item '{k}' has an uncompleted 'pending' decision.")
+
+    # 2. Vitals
+    reviewed_vitals: Dict[str, Any] = {}
+    ext_vitals = extracted_data.get("vitals") or {}
+    for field, field_data in ext_vitals.items():
+        d = (
+            (item_decisions or {}).get(f"vitals.{field}")
+            or (item_decisions or {}).get(field)
+        )
+        if d:
+            act = _get_decision_str(d)
+            if act == "remove":
+                has_corrections = True
+            elif act == "edit":
+                has_corrections = True
+                val = _get_decision_val(d)
+                entry = dict(field_data) if isinstance(field_data, dict) else {"value": field_data}
+                entry["value"] = val
+                entry["reviewed"] = True
+                entry["source"] = "reviewer_edit"
+                reviewed_vitals[field] = entry
+            elif act == "accept":
+                reviewed_vitals[field] = field_data
+            elif act == "pending":
+                if is_completing:
+                    raise IncompleteReviewError(f"Field 'vitals.{field}' is pending.")
+                reviewed_vitals[field] = field_data
+        else:
+            reviewed_vitals[field] = field_data
+
+    # 3. Instructions
+    reviewed_instructions: Dict[str, Any] = {}
+    ext_instructions = extracted_data.get("instructions") or {}
+    for field, field_data in ext_instructions.items():
+        d = (
+            (item_decisions or {}).get(f"instructions.{field}")
+            or (item_decisions or {}).get(f"instr.{field}")
+            or (item_decisions or {}).get(field)
+        )
+        if d:
+            act = _get_decision_str(d)
+            if act == "remove":
+                has_corrections = True
+            elif act == "edit":
+                has_corrections = True
+                val = _get_decision_val(d)
+                entry = dict(field_data) if isinstance(field_data, dict) else {"value": field_data}
+                entry["value"] = val
+                entry["reviewed"] = True
+                entry["source"] = "reviewer_edit"
+                reviewed_instructions[field] = entry
+            elif act == "accept":
+                reviewed_instructions[field] = field_data
+            elif act == "pending":
+                if is_completing:
+                    raise IncompleteReviewError(f"Field 'instructions.{field}' is pending.")
+                reviewed_instructions[field] = field_data
+        else:
+            reviewed_instructions[field] = field_data
+
+    # 4. Metadata
+    reviewed_metadata: Dict[str, Any] = {}
+    ext_metadata = extracted_data.get("metadata") or {}
+    for field, field_data in ext_metadata.items():
+        d = (
+            (item_decisions or {}).get(f"metadata.{field}")
+            or (item_decisions or {}).get(f"meta.{field}")
+            or (item_decisions or {}).get(field)
+        )
+        if d:
+            act = _get_decision_str(d)
+            if act == "remove":
+                has_corrections = True
+            elif act == "edit":
+                has_corrections = True
+                val = _get_decision_val(d)
+                entry = dict(field_data) if isinstance(field_data, dict) else {"value": field_data}
+                entry["value"] = val
+                entry["reviewed"] = True
+                entry["source"] = "reviewer_edit"
+                reviewed_metadata[field] = entry
+            elif act == "accept":
+                reviewed_metadata[field] = field_data
+            elif act == "pending":
+                if is_completing:
+                    raise IncompleteReviewError(f"Field 'metadata.{field}' is pending.")
+                reviewed_metadata[field] = field_data
+        else:
+            reviewed_metadata[field] = field_data
+
+    # 5. Medications
+    reviewed_meds: list = []
+    ext_meds = extracted_data.get("medications") or []
+    for idx, med in enumerate(ext_meds):
+        med_id = med.get("id") or med.get("source_occurrence_id") or f"med_{idx}"
+        med_dec = (item_decisions or {}).get(med_id) or (item_decisions or {}).get(f"med.{idx}")
+        is_med_removed = False
+        if med_dec:
+            act = _get_decision_str(med_dec)
+            if act == "remove":
+                is_med_removed = True
+                has_corrections = True
+            elif act == "edit":
+                has_corrections = True
+            elif act == "pending" and is_completing:
+                raise IncompleteReviewError(f"Medication '{med_id}' is pending.")
+
+        if not is_med_removed:
+            med_copy = dict(med)
+            med_copy["id"] = med_id
+            med_copy["source_occurrence_id"] = med_id
+
+            attr_decs = {}
+            if med_dec and isinstance(med_dec, dict) and med_dec.get("attribute_decisions"):
+                attr_decs = med_dec["attribute_decisions"]
+            elif med_dec and getattr(med_dec, "attribute_decisions", None):
+                attr_decs = getattr(med_dec, "attribute_decisions")
+
+            for attr in ("dose", "route", "frequency", "duration", "qualifier", "action", "status", "name"):
+                a_dec = attr_decs.get(attr)
+                if not a_dec:
+                    a_dec = (
+                        (item_decisions or {}).get(f"{med_id}.{attr}")
+                        or (item_decisions or {}).get(f"med.{idx}.{attr}")
+                    )
+                if a_dec:
+                    a_act = _get_decision_str(a_dec)
+                    if a_act == "remove":
+                        med_copy.pop(attr, None)
+                        has_corrections = True
+                    elif a_act == "edit":
+                        med_copy[attr] = _get_decision_val(a_dec)
+                        has_corrections = True
+                    elif a_act == "pending" and is_completing:
+                        raise IncompleteReviewError(f"Attribute '{med_id}.{attr}' is pending.")
+
+            reviewed_meds.append(med_copy)
+
+    # 6. Additions in item_decisions
+    for k, d in (item_decisions or {}).items():
+        act = _get_decision_str(d)
+        if act == "add":
+            has_corrections = True
+            evidence = d.get("evidence") if isinstance(d, dict) else getattr(d, "evidence", None)
+            reason = (d.get("reason") if isinstance(d, dict) else getattr(d, "reason", None)) or (
+                d.get("no_direct_span_reason") if isinstance(d, dict) else getattr(d, "no_direct_span_reason", None)
+            )
+            has_ev = False
+            if evidence and isinstance(evidence, dict):
+                if evidence.get("raw_quote") or evidence.get("span") or (
+                    evidence.get("start") is not None and evidence.get("end") is not None
+                ):
+                    has_ev = True
+            has_rs = bool(reason and str(reason).strip())
+            if not (has_ev or has_rs):
+                raise InvalidReviewPayloadError(
+                    f"Added item '{k}' must carry source evidence or a reviewer-entered no-direct-span reason."
+                )
+
+            val = _get_decision_val(d)
+            cat = d.get("category") if isinstance(d, dict) else getattr(d, "category", None)
+            if k.startswith("med.") or cat == "medications" or (isinstance(val, dict) and "name" in val):
+                m_obj = dict(val) if isinstance(val, dict) else {"name": str(val)}
+                m_id = k if k.startswith("med_") else f"med_add_{len(reviewed_meds)}"
+                m_obj["id"] = m_id
+                m_obj["source_occurrence_id"] = m_id
+                reviewed_meds.append(m_obj)
+            elif k.startswith("vitals.") or cat == "vitals":
+                f_name = k.replace("vitals.", "")
+                reviewed_vitals[f_name] = {"value": val, "source": "reviewer_added"}
+            elif k.startswith("instr.") or k.startswith("instructions.") or cat == "instructions":
+                f_name = k.replace("instructions.", "").replace("instr.", "")
+                reviewed_instructions[f_name] = {"value": val, "source": "reviewer_added"}
+            elif k.startswith("meta.") or k.startswith("metadata.") or cat == "metadata":
+                f_name = k.replace("metadata.", "").replace("meta.", "")
+                reviewed_metadata[f_name] = {"value": val, "source": "reviewer_added"}
+
+    # 7. Validate Client Snapshot against Derived Snapshot (Reject Invented Additions)
+    if client_snapshot and isinstance(client_snapshot, dict):
+        client_meds = client_snapshot.get("medications") or []
+        for c_med in client_meds:
+            c_name = str(c_med.get("name", "")).strip().lower()
+            c_id = c_med.get("id") or c_med.get("source_occurrence_id")
+            matched = False
+            for r_med in reviewed_meds:
+                r_name = str(r_med.get("name", "")).strip().lower()
+                r_id = r_med.get("id") or r_med.get("source_occurrence_id")
+                if (c_id and r_id and c_id == r_id) or (c_name and r_name and c_name == r_name):
+                    matched = True
+                    break
+            if not matched:
+                raise InvalidReviewPayloadError(
+                    f"Client snapshot contains unbacked or invented medication '{c_med.get('name')}' without matching decision."
+                )
+
+        for cat_name, r_dict in (("vitals", reviewed_vitals), ("instructions", reviewed_instructions), ("metadata", reviewed_metadata)):
+            c_dict = client_snapshot.get(cat_name) or {}
+            if isinstance(c_dict, dict):
+                for f_name, c_val in c_dict.items():
+                    if f_name not in r_dict:
+                        raise InvalidReviewPayloadError(
+                            f"Client snapshot contains unbacked field '{cat_name}.{f_name}' without matching decision."
+                        )
+
+    derived_snapshot = {
+        "pipeline_version": extracted_data.get("pipeline_version", "2.0.0"),
+        "vitals": reviewed_vitals,
+        "medications": reviewed_meds,
+        "instructions": reviewed_instructions,
+        "metadata": reviewed_metadata,
+    }
+    return derived_snapshot, has_corrections
+
+
 def canonical_hash(data: Dict[str, Any]) -> str:
     """Computes SHA-256 hash of a dictionary with sorted keys."""
     serialized = json.dumps(data, sort_keys=True, default=str)
@@ -175,23 +430,16 @@ def process_review_mutation(
                 "Cannot complete a review with an unresolved critical source/evidence issue."
             )
 
-    # 6. Server-derived outcome
-    # Check decisions: if any edit, remove, or add exists -> reviewed_corrected; else reviewed_unchanged
-    has_corrections = False
-    for item_id, decision_info in req.item_decisions.items():
-        if isinstance(decision_info, dict):
-            dec = decision_info.get("decision", "accept")
-            attr_decisions = decision_info.get("attribute_decisions") or {}
-            if dec in ("edit", "remove", "add"):
-                has_corrections = True
-                break
-            for attr_name, attr_dec in attr_decisions.items():
-                if attr_dec.get("decision") in ("edit", "remove", "add"):
-                    has_corrections = True
-                    break
-        elif isinstance(decision_info, str) and decision_info in ("edit", "remove", "add"):
-            has_corrections = True
-            break
+    # 6. Reconstruct authoritative reviewed snapshot from bound extraction + validated decisions
+    extracted_data = json.loads(ext.extracted_json or "{}")
+    derived_snapshot, has_corrections = derive_reviewed_snapshot(
+        extracted_data=extracted_data,
+        item_decisions=req.item_decisions,
+        category_acknowledgments=req.category_acknowledgments,
+        is_completing=is_completing,
+        raw_text=rev.raw_text,
+        client_snapshot=req.reviewed_snapshot,
+    )
 
     if req.event_kind == "draft_saved":
         derived_outcome = "draft"
@@ -203,7 +451,7 @@ def process_review_mutation(
         derived_outcome = "reviewed_corrected" if has_corrections else "reviewed_unchanged"
         new_note_status = derived_outcome
 
-    # 7. Create ReviewEvent
+    # 7. Create ReviewEvent (storing authoritative server-derived snapshot)
     review_event = ReviewEvent(
         workspace_id=workspace_id,
         note_id=note.id,
@@ -212,7 +460,7 @@ def process_review_mutation(
         source_hash=rev.sha256,
         parent_event_id=req.expected_head_event_id,
         event_kind=req.event_kind,
-        reviewed_snapshot_json=json.dumps(req.reviewed_snapshot or {}),
+        reviewed_snapshot_json=json.dumps(derived_snapshot),
         item_decisions_json=json.dumps(req.item_decisions or {}),
         category_acknowledgments_json=json.dumps(req.category_acknowledgments or {}),
         issue_dispositions_json=json.dumps({k: v.model_dump() for k, v in req.issue_dispositions.items()} if req.issue_dispositions else {}),
