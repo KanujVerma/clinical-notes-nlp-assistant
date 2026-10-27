@@ -273,6 +273,19 @@ export default function Review() {
       setExtracted(state.extracted_json);
       setNoteIdState(state.note_id ?? null);
       setSource(state.source ?? "");
+      if (noteId) {
+        const nid = Number(noteId);
+        Promise.all([api.getNoteState(nid), api.getNoteSource(nid)])
+          .then(([st, src]) => {
+            setCurrentRevisionId(st.current_source_revision_id ?? null);
+            setCurrentExtractionId(st.current_extraction_id ?? null);
+            setLockVersion(st.lock_version ?? 0);
+            setReviewEventId(st.review_head?.event_id ?? null);
+            setCurrentRevisionNumber(src.revision_number ?? 1);
+            setCurrentSourceHash(src.sha256 ?? null);
+          })
+          .catch(() => setError("Cannot verify current source/extraction binding."));
+      }
     } else if (noteId) {
       const nid = Number(noteId);
       api.getNoteState(nid).then((st) => {
@@ -466,46 +479,47 @@ export default function Review() {
         };
       });
 
-      if (currentExtractionId && currentRevisionId && currentSourceHash) {
-        try {
-          const revRes = await api.submitReview(currentExtractionId, {
-            schema_version: "2.0.0",
-            note_id: noteIdState,
-            source_revision_id: currentRevisionId,
-            extraction_id: currentExtractionId,
-            source_hash: currentSourceHash,
-            expected_lock_version: lockVersion,
-            expected_head_event_id: reviewEventId || undefined,
-            event_kind: "review_completed",
-            item_decisions: itemDecisions,
-            category_acknowledgments: categoryAck,
-            reviewed_snapshot: validated,
-            review_duration_ms: Date.now() - startTime.current,
-          });
-          if (revRes?.event_id) {
-            setReviewEventId(revRes.event_id);
-            setLockVersion((v) => v + 1);
-          }
-        } catch (e: any) {
-          setError(e.message || "Review rejected");
-          return;
-        }
+      if (!currentExtractionId || !currentRevisionId || !currentSourceHash) {
+        throw new Error("Source/extraction binding has not loaded. Retry when note details are available.");
+      }
+      if (overallStatus === "corrected" &&
+          Object.values(fields).some((field) => field.status === "pending")) {
+        throw new Error("Resolve pending fields before completing a corrected review.");
       }
 
-      const result = await api.validate({
+      // A review must have exactly ONE authoritative write. Never follow an
+      // immutable ReviewEvent with the old mutable /api/validate API.
+      const revRes = await api.submitReview(currentExtractionId, {
+        schema_version: "2.0.0",
         note_id: noteIdState,
-        validated_json: validated,
-        status: overallStatus,
+        source_revision_id: currentRevisionId,
+        extraction_id: currentExtractionId,
+        source_hash: currentSourceHash,
+        expected_lock_version: lockVersion,
+        expected_head_event_id: reviewEventId ?? null,
+        event_kind: "review_completed",
+        item_decisions: itemDecisions,
+        category_acknowledgments: categoryAck,
+        reviewed_snapshot: validated,
         review_duration_ms: Date.now() - startTime.current,
+        idempotency_key: crypto.randomUUID(),
       });
+
+      if (!revRes?.event_id) {
+        throw new Error("The server did not confirm a review event.");
+      }
+      setReviewEventId(revRes.event_id);
+      setLockVersion((v) => v + 1);
+      const pendingQueue = await api.getQueue().catch(() => null);
+      const nextPendingId = pendingQueue?.notes?.find((n) => n.id !== noteIdState)?.id ?? null;
       setSaved(true);
       bumpQueue();
 
       // F: Save & Next
-      if (result.next_pending_id !== null) {
+      if (nextPendingId !== null) {
         setSaveFlash("Saved — loading next note…");
         setTimeout(() => {
-          navigate(`/review/${result.next_pending_id}`, { state: { _loadedFrom: "saveNext" } });
+          navigate(`/review/${nextPendingId}`, { state: { _loadedFrom: "saveNext" } });
         }, 800);
       } else {
         setSaveFlash(null);
