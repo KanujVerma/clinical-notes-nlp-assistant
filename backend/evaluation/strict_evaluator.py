@@ -334,7 +334,7 @@ def compare_strict_instructions(
             # No token-overlap threshold may approve a prediction with
             # extra commands or silently contradictory appended content.
             # Only a documented transparent whitespace normalization applies.
-            exact_text = re.sub(r"\\s+", " ", p_txt) == re.sub(r"\\s+", " ", l_txt)
+            exact_text = re.sub(r"\s+", " ", p_txt) == re.sub(r"\s+", " ", l_txt)
             if p_cat == l_cat and nums_match and polarity_match and exact_text:
                 matched_l.add(l_idx)
                 tp += 1
