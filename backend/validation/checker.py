@@ -47,6 +47,34 @@ def check_extraction(
             check_policy_version=policy_version,
         ))
 
+    # Bind the extraction record to the *same* exact source revision and
+    # hash. Matching only a text quote is not sufficient source provenance.
+    revision_id = getattr(source_revision, "id", None)
+    if revision_id is None and isinstance(source_revision, dict):
+        revision_id = source_revision.get("id")
+    extraction_revision_id = getattr(extraction, "source_revision_id", None)
+    if extraction_revision_id is None and isinstance(extraction, dict):
+        extraction_revision_id = extraction.get("source_revision_id")
+    extraction_hash = getattr(extraction, "source_text_hash", None)
+    if extraction_hash is None and isinstance(extraction, dict):
+        extraction_hash = extraction.get("source_text_hash")
+    if revision_id and extraction_revision_id and revision_id != extraction_revision_id:
+        issues.append(ValidationIssue(
+            issue_code="SOURCE_BINDING_MISMATCH",
+            severity="critical_blocker",
+            category="pipeline_anomaly",
+            safe_explanation="Extraction references a different source revision",
+            check_policy_version=policy_version,
+        ))
+    if extraction_hash and extraction_hash != actual_hash:
+        issues.append(ValidationIssue(
+            issue_code="SOURCE_BINDING_MISMATCH",
+            severity="critical_blocker",
+            category="pipeline_anomaly",
+            safe_explanation="Extraction source hash does not match the acquired text",
+            check_policy_version=policy_version,
+        ))
+
     # 2. Parse extraction data
     extracted_data = getattr(extraction, "extracted_json", None)
     if extracted_data is None and isinstance(extraction, dict):
@@ -137,7 +165,8 @@ def check_extraction(
             return
 
         # Check bounds (Rule A08)
-        if not (0 <= start < end <= len(raw_text)):
+        if not (type(start) is int and type(end) is int
+                and 0 <= start < end <= len(raw_text)):
             issues.append(ValidationIssue(
                 issue_code="A08_EVIDENCE_OUT_OF_BOUNDS",
                 severity="critical_blocker",
@@ -153,9 +182,10 @@ def check_extraction(
         # Check quote match if explicit quote claimed
         if raw_quote is not None:
             actual_slice = raw_text[start:end]
-            clean_actual = re.sub(r'\s+', '', actual_slice).lower()
-            clean_quote = re.sub(r'\s+', '', str(raw_quote)).lower()
-            if clean_actual != clean_quote and clean_quote not in clean_actual and clean_actual not in clean_quote:
+            # TextEvidence.raw_quote is an exact source substring. Neither
+            # whitespace-normalized matching nor substring containment proves
+            # this invariant (especially for decimal medication doses).
+            if actual_slice != raw_quote:
                 issues.append(ValidationIssue(
                     issue_code="A08_EVIDENCE_QUOTE_MISMATCH",
                     severity="critical_blocker",
