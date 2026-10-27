@@ -78,7 +78,7 @@ function AddFieldRow({
   function handleAdd() {
     if (category === "med") {
       if (!medName.trim()) return;
-      const addMedId = `med_add_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const addMedId = `med_add_${crypto.randomUUID()}`;
       onAdd(`med.${addMedId}.name`, medName.trim());
       if (medDose.trim()) onAdd(`med.${addMedId}.dose`, medDose.trim());
       if (medRoute.trim()) onAdd(`med.${addMedId}.route`, medRoute.trim());
@@ -258,6 +258,9 @@ export default function Review() {
     setFields({});
     setActiveKey(null);
     setEditingKey(null);
+    setCategoryAck({
+      metadata: false, vitals: false, medications: false, instructions: false,
+    });
     startTime.current = Date.now();
   }, [noteId]);
 
@@ -386,6 +389,13 @@ export default function Review() {
               m[key].originalValue = "";
             }
           });
+          // Historical review additions are not present in the original
+          // extraction, so flattenExtracted alone would silently lose them.
+          for (const [key, value] of Object.entries(valFlat)) {
+            if (!(key in extFlat)) {
+              m[key] = { value, originalValue: "", status: "corrected" };
+            }
+          }
           setFields(m);
           // reReviewBanner is set to true above; the flatten useEffect guards on it,
           // so setExtracted won't overwrite these statuses.
@@ -421,10 +431,24 @@ export default function Review() {
   }, []);
 
   const handleFieldChange = useCallback((key: string, value: string, status: FieldStatus) => {
-    setFields((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], value, status },
-    }));
+    setFields((prev) => {
+      const previous = prev[key];
+      if (status === "removed" && previous?.originalValue === "") {
+        // Removing a not-yet-saved addition is an undo, not a removal of an
+        // existing extracted field. Avoid submitting an invalid unknown ID.
+        const next = { ...prev };
+        if (key.startsWith("med.") && key.endsWith(".name")) {
+          const prefix = `med.${key.split(".")[1]}.`;
+          Object.keys(next).forEach((candidate) => {
+            if (candidate.startsWith(prefix)) delete next[candidate];
+          });
+        } else {
+          delete next[key];
+        }
+        return next;
+      }
+      return { ...prev, [key]: { ...previous, value, status } };
+    });
   }, []);
 
   function handleAddField(key: string, value: string) {
@@ -1061,6 +1085,9 @@ export default function Review() {
             setCurrentRevisionNumber((n) => n + 1);
             setReReviewBanner(false);
             setSaved(false);
+            setCategoryAck({
+              metadata: false, vitals: false, medications: false, instructions: false,
+            });
             api.getNoteState(noteIdState).then((st) => {
               setRawText(st.raw_text);
               setExtracted(st.extracted_json);
