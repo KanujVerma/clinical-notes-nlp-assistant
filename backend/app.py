@@ -62,12 +62,28 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.route("/api/health/ready")
     def health_ready():
         try:
-            from sqlalchemy import text
+            from sqlalchemy import text, inspect
+            required = {"notes", "extractions", "note_revisions", "review_events", "workspaces"}
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
+                available = set(inspect(conn).get_table_names())
+                if not required.issubset(available):
+                    return jsonify({
+                        "status": "not_ready", "code": "SCHEMA_NOT_READY",
+                    }), 503
+                if Config.APP_MODE == "hosted_demo":
+                    # Do not promote a public backend that only ran create_all
+                    # and never applied the audited versioned migration.
+                    if "alembic_version" not in available:
+                        return jsonify({
+                            "status": "not_ready", "code": "MIGRATION_NOT_APPLIED",
+                        }), 503
             return jsonify({"status": "ready", "database": "connected"}), 200
-        except Exception as e:
-            return jsonify({"status": "not_ready", "error": str(e)}), 503
+        except Exception:
+            # Database drivers may include sensitive connection details in
+            # exception messages. Keep readiness errors source-free.
+            _boot_log.exception("Readiness probe failed")
+            return jsonify({"status": "not_ready", "code": "DATABASE_UNAVAILABLE"}), 503
 
     # Blueprints
     from routes.extract import bp as extract_bp
