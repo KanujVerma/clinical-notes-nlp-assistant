@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import uuid
 from datetime import datetime, timezone
 from flask import g, jsonify, make_response, abort, request
@@ -49,7 +50,10 @@ def require_session() -> str:
                 403,
             ))
         # Check expiration
-        if ws.expires_at and ws.expires_at.replace(tzinfo=timezone.utc if ws.expires_at.tzinfo is None else None) < datetime.now(timezone.utc):
+        expiry = ws.expires_at
+        if expiry is not None and expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry is not None and expiry <= datetime.now(timezone.utc):
             ws.state = "expired"
             g.db.commit()
             abort(make_response(
@@ -66,7 +70,10 @@ def require_session() -> str:
                 ))
             t_hash = hash_token(token)
             legacy_uuid5 = uuid.uuid5(uuid.NAMESPACE_DNS, token).hex
-            if t_hash != ws.capability_token_hash and legacy_uuid5 != ws.capability_token_hash:
+            if not (
+                hmac.compare_digest(t_hash, ws.capability_token_hash)
+                or hmac.compare_digest(legacy_uuid5, ws.capability_token_hash)
+            ):
                 abort(make_response(
                     jsonify({"error": "Invalid capability token", "code": "INVALID_TOKEN"}),
                     403,
