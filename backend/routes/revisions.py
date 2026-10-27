@@ -2,7 +2,7 @@ import json
 import hashlib
 import os
 from flask import Blueprint, g, jsonify, request, send_file
-from models import Note, NoteRevision, Extraction, OperationalIssue, SourceAsset, Validation
+from models import Note, NoteRevision, Extraction, OperationalIssue, SourceAsset
 from utils.session import require_session
 from extractors.pipeline import run_pipeline
 from validation.checker import check_extraction
@@ -15,9 +15,21 @@ bp = Blueprint("revisions", __name__)
 def append_revision(note_id: int):
     sid = require_session()
     body = request.get_json(silent=True) or {}
-    new_text = body.get("raw_text") or body.get("text")
-    if not new_text or not str(new_text).strip():
-        return jsonify({"error": "raw_text is required", "code": "EMPTY_TEXT"}), 400
+    new_text = body.get("raw_text") if "raw_text" in body else body.get("text")
+    if not isinstance(new_text, str) or not new_text.strip():
+        return jsonify({"error": "Nonempty text is required", "code": "EMPTY_TEXT"}), 422
+    if len(new_text.encode("utf-8")) > 2 * 1024 * 1024:
+        return jsonify({"error": "Text size exceeds local limit", "code": "TEXT_TOO_LARGE"}), 413
+
+    # A source edit must be explicitly based on the revision and lock state the
+    # reviewer opened; a missing optimistic-concurrency token is not a wildcard.
+    expected_revision = body.get("expected_source_revision_id")
+    expected_lock_version = body.get("expected_lock_version")
+    if not isinstance(expected_revision, str) or type(expected_lock_version) is not int:
+        return jsonify({
+            "error": "expected_source_revision_id and expected_lock_version are required",
+            "code": "REVISION_BINDING_REQUIRED",
+        }), 422
 
     note = g.db.query(Note).filter(
         Note.id == note_id,
@@ -26,12 +38,12 @@ def append_revision(note_id: int):
     if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
 
-    expected_lock_version = body.get("expected_lock_version")
-    if expected_lock_version is None:
-        expected_lock_version = body.get("lock_version")
-    if expected_lock_version is not None and expected_lock_version != note.lock_version:
+    if (
+        note.current_source_revision_id != expected_revision
+        or note.lock_version != expected_lock_version
+    ):
         return jsonify({
-            "error": f"Note modified concurrently (expected lock version {expected_lock_version}, found {note.lock_version})",
+            "error": "Source revision changed; refresh before editing",
             "code": "STALE_REVISION_BASE",
         }), 409
 
@@ -91,18 +103,38 @@ def append_revision(note_id: int):
         )
         g.db.add(op_issue)
 
-    # Invalidate current completed review (Rule A16: Source changes invalidate completion immediately)
-    note.raw_text = new_text
-    note.current_source_revision_id = new_rev.id
-    note.current_extraction_id = ext.public_id
-    note.review_head_event_id = None
-    note.lock_version += 1
-    note.status = "needs_review"
+    # Atomically advance the head only if it still matches the caller's exact
+    # source and lock; a competing writer rolls back this entire new revision,
+    # extraction and its issues instead of silently winning the last write.
+    from sqlalchemy import update
+    result = g.db.execute(
+        update(Note)
+        .where(
+            Note.id == note.id,
+            Note.workspace_id == sid,
+            Note.current_source_revision_id == expected_revision,
+            Note.lock_version == expected_lock_version,
+        )
+        .values(
+            raw_text=new_text,
+            current_source_revision_id=new_rev.id,
+            current_extraction_id=ext.public_id,
+            review_head_event_id=None,
+            lock_version=Note.lock_version + 1,
+            status="needs_review",
+        )
+    )
+    if result.rowcount != 1:
+        g.db.rollback()
+        return jsonify({
+            "error": "Source changed concurrently; refresh and compare",
+            "code": "STALE_REVISION_BASE",
+        }), 409
 
-    # Invalidate any legacy validation records so legacy views return to needs_review
-    g.db.query(Validation).filter(Validation.note_id == note.id).delete()
-
+    # Historical Validation rows are deliberately retained as unverified
+    # history, not deleted to simplify queue queries.
     g.db.commit()
+    updated_lock_version = expected_lock_version + 1
 
     return jsonify({
         "note_id": note.id,
@@ -110,7 +142,7 @@ def append_revision(note_id: int):
         "revision_number": new_rev.revision_number,
         "extraction_id": ext.public_id,
         "status": note.status,
-        "lock_version": note.lock_version,
+        "lock_version": updated_lock_version,
         "issues_count": len(issues),
     }), 201
 
