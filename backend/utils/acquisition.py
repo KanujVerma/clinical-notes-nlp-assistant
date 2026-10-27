@@ -41,7 +41,13 @@ def acquire_document(
     Acquires binary source asset, stores it in content-addressed storage,
     runs pagewise text extraction and OCR fallback, and builds geometry.
     """
-    # 1. Content-addressed storage
+    # Bound file/page/image work before rasterization or OCR. Unsupported
+    # multi-frame formats must fail explicitly rather than losing pages.
+    max_bytes = 10 * 1024 * 1024
+    max_pages = 20
+    max_pixels = 20_000_000
+    if not file_bytes or len(file_bytes) > max_bytes:
+        raise ValueError("Document is empty or exceeds the 10 MiB size limit")
     sha256 = hashlib.sha256(file_bytes).hexdigest()
     storage_dir = os.path.join(storage_root, sha256[:2])
     os.makedirs(storage_dir, exist_ok=True)
@@ -74,6 +80,9 @@ def acquire_document(
     if ext == ".pdf" or mime_type == "application/pdf":
         doc = fitz.open(stream=file_bytes, filetype="pdf")
         asset.page_count = len(doc)
+        if not (1 <= asset.page_count <= max_pages):
+            doc.close()
+            raise ValueError("PDF page count exceeds the supported limit")
 
         for page_idx, page in enumerate(doc):
             rect = page.rect
@@ -95,6 +104,12 @@ def acquire_document(
             else:
                 # OCR fallback for this page
                 method = "tesseract_ocr"
+                # PyMuPDF page.rect uses points; estimate raster pixels before
+                # allocating the pixmap at 200 DPI.
+                est_pixels = (width * 200.0 / 72.0) * (height * 200.0 / 72.0)
+                if est_pixels > max_pixels:
+                    doc.close()
+                    raise ValueError("PDF page exceeds decoded pixel limit")
                 pix = page.get_pixmap(dpi=200)
                 img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 preproc = _preprocess_image_for_ocr(img)
@@ -151,6 +166,10 @@ def acquire_document(
         try:
             with Image.open(tmp_path) as img:
                 width, height = img.size
+                if width * height > max_pixels:
+                    raise ValueError("Image exceeds decoded pixel limit")
+                if getattr(img, "n_frames", 1) != 1:
+                    raise ValueError("Multi-frame image requires explicit framewise acquisition")
                 preproc = _preprocess_image_for_ocr(img)
                 tess_data = pytesseract.image_to_data(
                     preproc,
