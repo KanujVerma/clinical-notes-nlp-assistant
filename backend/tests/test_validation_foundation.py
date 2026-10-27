@@ -214,7 +214,7 @@ def test_review_service_atomic_write_and_derived_outcome_corrected(db_session):
         expected_lock_version=0,
         expected_head_event_id=None,
         event_kind="review_completed",
-        item_decisions={"m2": {"decision": "edit", "value": "Lisinopril 20mg"}},
+        item_decisions={"m2.name": {"decision": "edit", "value": "Lisinopril 20mg"}},
         category_acknowledgments={
             "metadata": True,
             "vitals": True,
