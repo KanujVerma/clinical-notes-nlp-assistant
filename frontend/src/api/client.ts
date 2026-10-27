@@ -14,14 +14,78 @@ export function getSessionId(): string {
   return sid;
 }
 
+// Hosted workspaces use server-issued capabilities. A browser-chosen UUID is
+// only supported by the local legacy migration path, never by hosted mode.
+const WORKSPACE_KEY = "clinical_nlp_workspace_capability_v1";
+type WorkspaceCapability = { id: string; token: string; expiresAt: number };
+let workspaceHeadersPromise: Promise<Record<string, string>> | null = null;
+
+async function resolveWorkspaceHeaders(): Promise<Record<string, string>> {
+  const raw = localStorage.getItem(WORKSPACE_KEY);
+  if (raw) {
+    try {
+      const existing = JSON.parse(raw) as WorkspaceCapability;
+      if (existing.id && existing.token && existing.expiresAt > Date.now() + 15_000) {
+        return {
+          "X-Workspace-ID": existing.id,
+          "X-Workspace-Token": existing.token,
+        };
+      }
+    } catch {
+      // Corrupt local capability: request a new isolated synthetic workspace.
+    }
+    localStorage.removeItem(WORKSPACE_KEY);
+  }
+
+  // Query capabilities directly to avoid recursion through request<T>.
+  const response = await fetch(`${BASE}/capabilities`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Cannot determine the server workspace mode");
+  const capabilities = await response.json() as { mode?: string };
+  if (capabilities.mode !== "hosted_demo") {
+    const sid = getSessionId();
+    return { "X-Session-ID": sid, "X-Workspace-ID": sid };
+  }
+
+  const created = await fetch(`${BASE}/workspaces`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!created.ok) throw new Error("Unable to initialize a synthetic demo workspace");
+  const workspace = await created.json() as {
+    workspace_id: string;
+    token: string;
+    expires_at: string;
+  };
+  if (!workspace.workspace_id || !workspace.token || !Number.isFinite(Date.parse(workspace.expires_at))) {
+    throw new Error("The server returned an invalid workspace capability");
+  }
+  const record: WorkspaceCapability = {
+    id: workspace.workspace_id,
+    token: workspace.token,
+    expiresAt: Date.parse(workspace.expires_at),
+  };
+  localStorage.setItem(WORKSPACE_KEY, JSON.stringify(record));
+  return { "X-Workspace-ID": record.id, "X-Workspace-Token": record.token };
+}
+
+async function getWorkspaceHeaders(): Promise<Record<string, string>> {
+  if (!workspaceHeadersPromise) {
+    workspaceHeadersPromise = resolveWorkspaceHeaders().catch((error: unknown) => {
+      workspaceHeadersPromise = null;
+      throw error;
+    });
+  }
+  return workspaceHeadersPromise;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const sid = getSessionId();
+  const authHeaders = await getWorkspaceHeaders();
   const resp = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "X-Session-ID": sid,
-      "X-Workspace-ID": sid,
+      ...authHeaders,
       ...(options?.headers as Record<string, string>),
     },
   });
@@ -42,14 +106,14 @@ export const api = {
       body: JSON.stringify({ text }),
     }),
 
-  uploadFile: (file: File) => {
-    const sid = getSessionId();
+  uploadFile: async (file: File) => {
+    const authHeaders = await getWorkspaceHeaders();
     const form = new FormData();
     form.append("file", file);
     return fetch(`${BASE}/upload`, {
       method: "POST",
       body: form,
-      headers: { "X-Session-ID": sid, "X-Workspace-ID": sid },
+      headers: authHeaders,
     }).then(async (r) => {
       if (!r.ok) {
         const err = await r.json().catch(() => ({ error: r.statusText }));
@@ -177,11 +241,9 @@ export const api = {
     `${BASE}/review-events/${eventId}/export`,
 
   downloadExport: async (eventId: string, filename?: string) => {
+    const authHeaders = await getWorkspaceHeaders();
     const res = await fetch(`${BASE}/review-events/${eventId}/export`, {
-      headers: {
-        "X-Session-ID": getSessionId(),
-        "X-Workspace-ID": getSessionId(),
-      },
+      headers: authHeaders,
     });
     if (!res.ok) {
       throw new Error(`Export download failed: ${res.statusText}`);
