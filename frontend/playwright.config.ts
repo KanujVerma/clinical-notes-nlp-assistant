@@ -8,7 +8,7 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:5173",
     browserName: "chromium",
-    headless: false,
+    headless: process.env.CI === "true",
     viewport: { width: 1440, height: 900 },
     screenshot: "only-on-failure",
     video: "off",
