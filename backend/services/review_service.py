@@ -1,7 +1,7 @@
 import json
 import hashlib
 from typing import Dict, Any, Optional, Tuple
-from sqlalchemy import update, and_
+from sqlalchemy import update, and_, or_
 from sqlalchemy.orm import Session
 from models import Note, NoteRevision, Extraction, ReviewEvent, OperationalIssue, IssueEvent
 from schemas.review import ReviewMutationRequest
@@ -162,7 +162,8 @@ def process_review_mutation(
             .filter(
                 OperationalIssue.note_id == note.id,
                 OperationalIssue.source_revision_id == rev.id,
-                OperationalIssue.extraction_id == ext.public_id,
+                or_(OperationalIssue.extraction_id == ext.public_id,
+                    OperationalIssue.extraction_id.is_(None)),
                 OperationalIssue.workspace_id == workspace_id,
                 OperationalIssue.severity == "critical_blocker",
                 OperationalIssue.status == "open",
