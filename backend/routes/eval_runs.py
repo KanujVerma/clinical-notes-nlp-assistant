@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from flask import Blueprint, jsonify, request
 from evaluation.strict_evaluator import evaluate_corpus_strictly
+from evaluation.dataset import load_curated_corpus
 from extractors.pipeline import run_pipeline
 from config import Config
 
@@ -99,23 +100,18 @@ def trigger_eval_run():
     # The hosted sandbox serves published immutable benchmark runs only.
     if Config.APP_MODE != "local":
         return jsonify({"error": "Benchmark execution is local-only", "code": "FEATURE_RESTRICTED"}), 403
-    notes_dir = Path(__file__).parent.parent.parent / "data" / "eval" / "notes"
-    labels_dir = Path(__file__).parent.parent.parent / "data" / "eval" / "labels"
-
-    pairs = []
-    for n_path in sorted(notes_dir.glob("*.txt")):
-        l_path = labels_dir / (n_path.stem + ".json")
-        if l_path.exists():
-            with open(n_path) as f:
-                txt = f.read()
-            with open(l_path) as f:
-                lbl = json.load(f)
-            pairs.append((n_path.stem, txt, lbl))
+    data_dir = Path(__file__).parent.parent.parent / "data" / "eval"
+    try:
+        pairs, dataset_manifest = load_curated_corpus(data_dir)
+    except ValueError:
+        return jsonify({"error": "Synthetic evaluation dataset failed integrity validation",
+                        "code": "DATASET_INVALID"}), 422
 
     bundle = evaluate_corpus_strictly(
         notes_and_labels=pairs,
         pipeline_fn=run_pipeline,
         output_dir=str(EVAL_ARTIFACTS_DIR),
+        dataset_manifest=dataset_manifest,
     )
 
     return jsonify({
