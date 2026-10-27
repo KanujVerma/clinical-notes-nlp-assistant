@@ -112,6 +112,37 @@ def process_review_mutation(
     if not ext:
         raise ValueError(f"Extraction {req.extraction_id} not bound to revision {rev.id}")
 
+    # A historical source or extraction may be inspected, but must never be
+    # completed as the current note. Verify this before checking dispositions.
+    if (
+        note.current_source_revision_id != rev.id
+        or note.current_extraction_id != ext.public_id
+        or ext.note_id != note.id
+        or (ext.source_text_hash and ext.source_text_hash != rev.sha256)
+        or note.lock_version != req.expected_lock_version
+        or note.review_head_event_id != req.expected_head_event_id
+    ):
+        raise StaleReviewError("Source, extraction, or review head changed; refresh required.")
+
+    # Critical integrity findings cannot be dismissed by review dispositions.
+    # They require a corrected source, re-extraction, or blocked/unusable state.
+    for issue_id in req.issue_dispositions:
+        target_issue = (
+            session.query(OperationalIssue)
+            .filter(
+                OperationalIssue.id == issue_id,
+                OperationalIssue.workspace_id == workspace_id,
+                OperationalIssue.note_id == note.id,
+                OperationalIssue.source_revision_id == rev.id,
+                OperationalIssue.extraction_id == ext.public_id,
+            )
+            .first()
+        )
+        if not target_issue:
+            raise ValueError("Disposition references an issue outside this extraction.")
+        if target_issue.severity == "critical_blocker":
+            raise BlockedReviewError("Critical integrity issues cannot be dispositioned without remediation.")
+
     # 5. Review Completion Rules (only enforced when event_kind == 'review_completed')
     is_completing = (req.event_kind == "review_completed")
 
@@ -124,7 +155,8 @@ def process_review_mutation(
                 f"Completeness must be explicitly acknowledged for all categories. Missing: {missing_cats}"
             )
 
-        # Check for open critical issues (accounting for dispositions supplied in this review)
+        # Open critical issues always block completion, regardless of whether
+        # the client submitted "resolved", "accepted_risk", or "dismissed".
         open_criticals = (
             session.query(OperationalIssue)
             .filter(
@@ -137,13 +169,9 @@ def process_review_mutation(
             .all()
         )
         if open_criticals:
-            unresolved = []
-            for cr in open_criticals:
-                disp = req.issue_dispositions.get(cr.id) if req.issue_dispositions else None
-                if not disp or disp.disposition not in ("resolved", "accepted_risk", "dismissed"):
-                    unresolved.append(cr.issue_code)
-            if unresolved:
-                raise BlockedReviewError(f"Cannot complete review with open critical issues: {unresolved}")
+            raise BlockedReviewError(
+                "Cannot complete a review with an unresolved critical source/evidence issue."
+            )
 
     # 6. Server-derived outcome
     # Check decisions: if any edit, remove, or add exists -> reviewed_corrected; else reviewed_unchanged
@@ -180,7 +208,7 @@ def process_review_mutation(
         source_revision_id=rev.id,
         extraction_id=req.extraction_id,
         source_hash=rev.sha256,
-        parent_event_id=req.expected_head_event_id or note.review_head_event_id,
+        parent_event_id=req.expected_head_event_id,
         event_kind=req.event_kind,
         reviewed_snapshot_json=json.dumps(req.reviewed_snapshot or {}),
         item_decisions_json=json.dumps(req.item_decisions or {}),
@@ -230,6 +258,7 @@ def process_review_mutation(
             Note.id == req.note_id,
             Note.workspace_id == workspace_id,
             Note.current_source_revision_id == req.source_revision_id,
+            Note.current_extraction_id == ext.public_id,
             Note.lock_version == req.expected_lock_version,
             head_predicate,
         )
