@@ -2,6 +2,8 @@
 
 A **full-stack, synthetic clinical-note extraction and human-review prototype** built with React, TypeScript, Flask, SQLAlchemy, spaCy/medSpaCy, and deterministic rules. It extracts structured fields, lets a reviewer inspect and correct them against the source, and records reviewer activity.
 
+> **Draft feature branch — undergoing independent verification.** Validation-workbench changes have not been merged to `main` or verified in the hosted deployment. The recorded local test counts precede more recent source edits and are not a release certificate.
+
 > **Synthetic engineering demo — not for clinical use.** Do not submit real patient information. This is not clinically validated, does not verify patient identity, and is not an EHR or prescribing tool. Session-based workspace separation is not authentication.
 
 **Hosted demo:** [clinical-nlp.vercel.app](https://clinical-nlp.vercel.app/) (availability and deployment version are not guaranteed by this README). For reproducible behavior, run the checked-out revision locally.
@@ -61,6 +63,7 @@ brew install tesseract poppler
 
 git clone https://github.com/KanujVerma/clinical-notes-nlp-assistant.git
 cd clinical-notes-nlp-assistant
+git switch feat/clinical-validation-workbench
 
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -90,7 +93,7 @@ npm run dev
 
 Open <http://localhost:5173>. Vite proxies `/api` to the local Flask backend. Without `DATABASE_URL`, the backend uses a local SQLite database. Seed synthetic notes with the **Seed demo data** button or use **Load sample note**. No API keys are needed.
 
-**Optional AI explainer:** Set `ANTHROPIC_API_KEY` only if deliberately testing that external feature. Keep it unset for offline extraction/review testing. Never send actual patient data to this demo or to the optional provider.
+**Optional AI explainer:** External paid inference is disabled by default. To explicitly enable it locally, set `ENABLE_EXTERNAL_EXPLAINER=true` AND configure `ANTHROPIC_API_KEY`; keep both disabled for offline processing. A pre-existing API key alone cannot enable provider calls. Keep it unset for offline extraction/review testing. Never send actual patient data to this demo or to the optional provider.
 
 **Docker Compose (development):** `docker compose up --build` starts the backend on port **5000** and the Vite frontend on port **5173**. The Compose configuration is a two-service development environment; it does not serve the whole application solely at port 5000.
 
@@ -114,8 +117,8 @@ In addition to the baseline pipeline, this branch includes the **Clinical NLP Va
 - **Immutable Lineage & Append-Only Event Store**: Ingestion hashes source assets into content-addressed storage (SHA-256). Transcription edits create an incremented `NoteRevision` chain. Review events cite parent pointers, lock versions (optimistic concurrency), and idempotency keys.
 - **Independent Quality Canaries**: Pure validation rules independently check extracted entities for half-open interval coordinate bounds, exact quote integrity (`A08`), decimal dose formatting risks (`A09`), duplicate medication conflicts (`A02`), missing vital units (`A03`), and contradictory instructions (`A04`).
 - **Operational Issues Drawer**: Live slide-out drawer surfacing canaries and critical blockers with explicit reviewer disposition lifecycles.
-- **Strict Statistical Evaluation Lab (`/validation-lab`)**: Pairwise multiset bipartite matching (Hungarian algorithm) evaluating discrete medication attributes (`name`, `dose`, `route`, `frequency`, `duration`, `qualifier`) and case-by-case error attribution (TP/FP/FN).
-- **Cryptographic Export**: Downloadable audit ZIP bundles comprising reviewed JSON, item decisions, and a SHA-256 manifest.
+- **Synthetic Evaluation Lab (`/validation-lab`)**: Deterministic source-occurrence-first medication pairing with a bounded assignment fallback (not the Hungarian algorithm), evaluating annotated medication attributes (`name`, `dose`, `route`, `frequency`, `duration`, `qualifier`) and case-by-case error attribution (TP/FP/FN).
+- **Checksummed Export**: Downloadable review ZIPs with structured decisions, source lineage, and a SHA-256 file manifest. Checksums are not clinician signatures or independent proof of correctness.
 
 Comprehensive documentation is available in [`docs/validation/`](docs/validation/):
 - [Acceptance Matrix (A01–A48)](docs/validation/acceptance-matrix.md)
@@ -130,17 +133,17 @@ Comprehensive documentation is available in [`docs/validation/`](docs/validation
 From the repository root:
 
 ```bash
-# Backend pytest suite (295 passed)
+# Backend pytest suite (rerun and record counts for this exact commit)
 source .venv/bin/activate
 python -m pytest backend/tests/ -q
 
-# Frontend unit tests (68 passed), linting, and build
+# Frontend unit tests, linting, and build
 cd frontend
 npm test
 npm run lint
 npm run build
 
-# End-to-end browser tests (21 passed)
+# End-to-end browser tests (counts depend on checked-out revision)
 # Requires Flask (port 5000) and Vite (port 5173) running:
 npx playwright test
 ```
@@ -149,7 +152,9 @@ npx playwright test
 
 - **Synthetic only:** The system is restricted to synthetic, de-identified clinical scenarios. It is not HIPAA-certified, does not connect to EHRs, does not verify patient identity, and must never be used for real clinical decision-making.
 - **Extraction bounds:** Ambiguous clinical phrasing, novel abbreviations, and unformatted narrative text require human verification. The deterministic pipeline flags anomalies via canaries rather than making autonomous clinical decisions.
-- **Optional AI:** The optional local Ollama adapter and terminology explainer provide informational proposals only; they do not dictate verified clinical facts.
+- **Optional AI:** The Ollama adapter currently provides text-based proposals; full visual OCR/Qwen image inference and handwritten-note fidelity are not proven. The separately configured terminology explainer makes optional paid provider calls only when explicitly enabled.
+- **Evaluation limits:** The historical 20-note synthetic corpus was inspected during development and is not a held-out or clinically adjudicated set. Older saved benchmark artifacts use earlier matching rules and cannot be treated as a comparable strict baseline.
+- **Release status:** The [acceptance matrix](docs/validation/acceptance-matrix.md) records pending final-SHA verification; project readiness, migration compatibility and browser UX should not be inferred from a passing old smoke suite.
 
 ## Project scope and contributions
 
