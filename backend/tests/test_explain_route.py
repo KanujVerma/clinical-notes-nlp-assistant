@@ -57,6 +57,7 @@ class _FakeAIProvider:
 def _patch_ai(monkeypatch, explain_result=None, explain_exc=None, available=True):
     fake = _FakeAIProvider(explain_result=explain_result, explain_exc=explain_exc, available=available)
     monkeypatch.setattr("routes.explain.ai_provider", fake)
+    monkeypatch.setattr("routes.explain.Config.ENABLE_EXTERNAL_EXPLAINER", True)
     return fake
 
 
