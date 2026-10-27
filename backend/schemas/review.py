@@ -15,8 +15,8 @@ class ItemDecision(BaseModel):
 
 
 class IssueDisposition(BaseModel):
-    disposition: str  # acknowledged | dismissed | resolved
-    reason: Optional[str] = None
+    disposition: Literal["acknowledged", "dismissed", "resolved"]
+    reason: str = Field(min_length=1, max_length=1000)
 
 
 class ReviewMutationRequest(BaseModel):
