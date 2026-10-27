@@ -1,9 +1,11 @@
 import os
 import json
+import re
 from pathlib import Path
 from flask import Blueprint, jsonify, request
 from evaluation.strict_evaluator import evaluate_corpus_strictly
 from extractors.pipeline import run_pipeline
+from config import Config
 
 bp = Blueprint("eval_runs", __name__)
 
@@ -65,8 +67,11 @@ def list_eval_runs():
 
 @bp.get("/api/evaluation/runs/<string:run_id>")
 def get_eval_run_detail(run_id: str):
-    run_dir = EVAL_ARTIFACTS_DIR / run_id
-    if not run_dir.exists() or not run_dir.is_dir():
+    # Run IDs are single path components; reject URL path traversal.
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", run_id):
+        return jsonify({"error": "Invalid evaluation run ID", "code": "INVALID_RUN_ID"}), 422
+    run_dir = (EVAL_ARTIFACTS_DIR / run_id).resolve()
+    if run_dir.parent != EVAL_ARTIFACTS_DIR.resolve() or not run_dir.is_dir():
         return jsonify({"error": "Evaluation run not found", "code": "NOT_FOUND"}), 404
 
     try:
@@ -86,11 +91,14 @@ def get_eval_run_detail(run_id: str):
             "manifest": manifest,
         })
     except Exception as e:
-        return jsonify({"error": f"Failed reading run artifacts: {str(e)}", "code": "CORRUPTED_RUN"}), 500
+        return jsonify({"error": "Evaluation run artifacts could not be read", "code": "CORRUPTED_RUN"}), 500
 
 
 @bp.post("/api/evaluation/runs")
 def trigger_eval_run():
+    # The hosted sandbox serves published immutable benchmark runs only.
+    if Config.APP_MODE != "local":
+        return jsonify({"error": "Benchmark execution is local-only", "code": "FEATURE_RESTRICTED"}), 403
     notes_dir = Path(__file__).parent.parent.parent / "data" / "eval" / "notes"
     labels_dir = Path(__file__).parent.parent.parent / "data" / "eval" / "labels"
 
