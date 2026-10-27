@@ -12,6 +12,9 @@ bp = Blueprint("notes", __name__)
 
 @bp.post("/api/notes")
 def create_note():
+    # Public demo may only import server-curated synthetic fixtures.
+    if Config.APP_MODE == "hosted_demo":
+        return jsonify({"error": "Free-text source creation is disabled in the public sandbox", "code": "FEATURE_RESTRICTED"}), 403
     sid = require_session()
     body = request.get_json(silent=True) or {}
     text = body.get("text", "").strip()
