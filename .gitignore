@@ -22,3 +22,4 @@ frontend/dist/
 .pytest_cache/
 test-results/
 frontend/test-results/
+backend/data/storage/

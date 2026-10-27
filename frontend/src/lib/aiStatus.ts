@@ -4,8 +4,13 @@ import { useState, useEffect } from 'react';
 let _aiAvailable: boolean | null = null;
 let _promise: Promise<boolean> | null = null;
 
-function fetchAiStatus(): Promise<boolean> {
-  if (_promise === null) {
+export function resetAiStatusCache() {
+  _aiAvailable = null;
+  _promise = null;
+}
+
+export function fetchAiStatus(forceRefresh = false): Promise<boolean> {
+  if (_promise === null || forceRefresh) {
     _promise = api.getAiStatus()
       .then(r => { _aiAvailable = r.available; return r.available; })
       .catch(() => { _aiAvailable = false; return false; });
@@ -16,8 +21,7 @@ function fetchAiStatus(): Promise<boolean> {
 export function useAiAvailable(): boolean {
   const [available, setAvailable] = useState<boolean>(_aiAvailable ?? false);
   useEffect(() => {
-    if (_aiAvailable !== null) return; // already resolved
-    fetchAiStatus().then(v => setAvailable(v));
+    fetchAiStatus(true).then(v => setAvailable(v));
   }, []);
   return available;
 }

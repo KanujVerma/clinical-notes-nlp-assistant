@@ -87,6 +87,12 @@ export interface MetricsResponse {
       by_category: Record<string, { reviewed: number; corrected: number; rate: number }>;
       by_field: Record<string, { reviewed: number; corrected: number; rate: number }>;
     };
+    issues_summary?: {
+      total: number;
+      open_blockers: number;
+      open_warnings: number;
+      resolved: number;
+    };
   };
 }
 

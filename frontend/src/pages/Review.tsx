@@ -5,6 +5,8 @@ import { api } from "../api/client";
 import { ExtractionResult, NoteDetail } from "../types";
 import NoteViewer from "../components/NoteViewer";
 import FieldEditor, { FieldStatus, FieldCategory } from "../components/FieldEditor";
+import TranscriptionEditModal from "../components/TranscriptionEditModal";
+import OperationalIssuesDrawer from "../components/OperationalIssuesDrawer";
 import { useQueue } from "../context/QueueContext";
 
 type FieldState = { value: string; originalValue: string; status: FieldStatus };
@@ -219,6 +221,21 @@ export default function Review() {
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [reReviewBanner, setReReviewBanner] = useState(false);
+  const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
+  const [isIssuesDrawerOpen, setIsIssuesDrawerOpen] = useState(false);
+  const [currentRevisionId, setCurrentRevisionId] = useState<string | null>(null);
+  const [currentRevisionNumber, setCurrentRevisionNumber] = useState<number>(1);
+  const [currentExtractionId, setCurrentExtractionId] = useState<string | null>(null);
+  const [currentSourceHash, setCurrentSourceHash] = useState<string | null>(null);
+  const [lockVersion, setLockVersion] = useState<number>(0);
+  const [reviewEventId, setReviewEventId] = useState<string | null>(null);
+  const [openBlockersCount, setOpenBlockersCount] = useState<number>(0);
+  const [categoryAck] = useState<Record<string, boolean>>({
+    metadata: true,
+    vitals: true,
+    medications: true,
+    instructions: true,
+  });
 
   const deactivateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -257,7 +274,20 @@ export default function Review() {
       setNoteIdState(state.note_id ?? null);
       setSource(state.source ?? "");
     } else if (noteId) {
-      api.getNoteDetail(Number(noteId)).then((d: NoteDetail) => {
+      const nid = Number(noteId);
+      api.getNoteState(nid).then((st) => {
+        if (st.current_source_revision_id) setCurrentRevisionId(st.current_source_revision_id);
+        if (st.current_extraction_id) setCurrentExtractionId(st.current_extraction_id);
+        if (st.lock_version !== undefined) setLockVersion(st.lock_version);
+        if (st.review_head?.event_id) setReviewEventId(st.review_head.event_id);
+      }).catch(() => {});
+
+      api.getNoteSource(nid).then((src) => {
+        if (src.revision_number) setCurrentRevisionNumber(src.revision_number);
+        if (src.sha256) setCurrentSourceHash(src.sha256);
+      }).catch(() => {});
+
+      api.getNoteDetail(nid).then((d: NoteDetail) => {
         setRawText(d.raw_text);
         setExtracted(d.extracted_json);
         setNoteIdState(d.id);
@@ -371,9 +401,9 @@ export default function Review() {
     setActiveKey(key);
   }, []);
 
-  // Deactivate after 200ms debounce (prevents flicker when moving cursor to a button)
+  // Deactivate handler (preserves active key for keyboard navigation and popover interaction)
   const handleDeactivate = useCallback(() => {
-    deactivateTimeout.current = setTimeout(() => setActiveKey(null), 200);
+    // no-op: preserve activeKey until another card is activated or Escape is pressed
   }, []);
 
   const handleFieldChange = useCallback((key: string, value: string, status: FieldStatus) => {
@@ -423,6 +453,45 @@ export default function Review() {
       validated.medications = validated.medications.filter(
         (_: unknown, i: number) => !removedMedIndices.has(i)
       );
+
+      const itemDecisions: Record<string, any> = {};
+      Object.entries(fields).forEach(([k, f]) => {
+        let dec = "accept";
+        if (f.status === "corrected") dec = "edit";
+        else if (f.status === "removed") dec = "remove";
+        else if (f.status === "accepted" || f.status === "pending") dec = "accept";
+        itemDecisions[k] = {
+          decision: dec,
+          value: f.value,
+        };
+      });
+
+      if (currentExtractionId && currentRevisionId && currentSourceHash) {
+        try {
+          const revRes = await api.submitReview(currentExtractionId, {
+            schema_version: "2.0.0",
+            note_id: noteIdState,
+            source_revision_id: currentRevisionId,
+            extraction_id: currentExtractionId,
+            source_hash: currentSourceHash,
+            expected_lock_version: lockVersion,
+            expected_head_event_id: reviewEventId || undefined,
+            event_kind: "review_completed",
+            item_decisions: itemDecisions,
+            category_acknowledgments: categoryAck,
+            reviewed_snapshot: validated,
+            review_duration_ms: Date.now() - startTime.current,
+          });
+          if (revRes?.event_id) {
+            setReviewEventId(revRes.event_id);
+            setLockVersion((v) => v + 1);
+          }
+        } catch (e: any) {
+          setError(e.message || "Review rejected");
+          return;
+        }
+      }
+
       const result = await api.validate({
         note_id: noteIdState,
         validated_json: validated,
@@ -446,7 +515,19 @@ export default function Review() {
     } finally {
       setSaving(false);
     }
-  }, [noteIdState, extracted, fields, bumpQueue, navigate]);
+  }, [
+    noteIdState,
+    extracted,
+    fields,
+    bumpQueue,
+    navigate,
+    currentExtractionId,
+    currentRevisionId,
+    currentSourceHash,
+    lockVersion,
+    reviewEventId,
+    categoryAck,
+  ]);
 
   // E: Keyboard shortcuts
   useEffect(() => {
@@ -564,6 +645,32 @@ export default function Review() {
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs">
+          <button
+            onClick={() => setIsIssuesDrawerOpen((o) => !o)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold transition-colors"
+          >
+            <span>Issues</span>
+            {openBlockersCount > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500 text-white">
+                {openBlockersCount}
+              </span>
+            ) : null}
+          </button>
+          {reviewEventId && (
+            <button
+              onClick={async () => {
+                try {
+                  await api.downloadExport(reviewEventId);
+                } catch (err: any) {
+                  setError(err.message || "Failed to download export");
+                }
+              }}
+              title="Download verified review bundle ZIP"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-800 hover:bg-emerald-700 text-emerald-100 text-xs font-semibold transition-colors"
+            >
+              <span>Export ZIP</span>
+            </button>
+          )}
           <span className="text-slate-500">&#x23F1; {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}</span>
           {source && (
             <span className={`px-2 py-0.5 rounded border text-[10px] uppercase tracking-wider font-medium
@@ -606,19 +713,27 @@ export default function Review() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left: NoteViewer */}
         <div className="w-1/2 border-r border-slate-200 flex flex-col overflow-hidden bg-white">
-          {/* Legend */}
-          <div className="px-4 py-1.5 border-b border-slate-100 bg-slate-50 flex gap-4 flex-shrink-0">
-            {[
-              { label: "vitals", color: "bg-blue-400" },
-              { label: "meds", color: "bg-green-400" },
-              { label: "instructions", color: "bg-amber-400" },
-              { label: "metadata", color: "bg-violet-400" },
-            ].map(({ label, color }) => (
-              <span key={label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                <span className={`w-2 h-2 rounded-sm ${color} opacity-70`} />
-                {label}
-              </span>
-            ))}
+          {/* Legend and Edit Transcription */}
+          <div className="px-4 py-1.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-4 flex-shrink-0">
+            <div className="flex items-center gap-4">
+              {[
+                { label: "vitals", color: "bg-blue-400" },
+                { label: "meds", color: "bg-green-400" },
+                { label: "instructions", color: "bg-amber-400" },
+                { label: "metadata", color: "bg-violet-400" },
+              ].map(({ label, color }) => (
+                <span key={label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                  <span className={`w-2 h-2 rounded-sm ${color} opacity-70`} />
+                  {label}
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={() => setIsTranscriptionModalOpen(true)}
+              className="text-[11px] font-semibold text-cyan-600 hover:text-cyan-700 underline"
+            >
+              Update Transcription (Rev {currentRevisionNumber})
+            </button>
           </div>
           <NoteViewer
             rawText={rawText}
@@ -781,12 +896,42 @@ export default function Review() {
               {/* F: All notes reviewed state */}
               {saved && !saveFlash ? (
                 <div className="flex items-center gap-3">
-                  <p className="text-green-600 text-xs">All notes reviewed!</p>
+                  <p className="text-green-600 text-xs font-semibold">Review saved!</p>
+                  {reviewEventId && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await api.downloadExport(reviewEventId);
+                        } catch (e: any) {
+                          setError(e.message || "Failed to download export");
+                        }
+                      }}
+                      className="px-3 py-1 bg-emerald-600 text-white rounded text-xs font-semibold hover:bg-emerald-500 shadow-sm transition-colors"
+                    >
+                      Export ZIP
+                    </button>
+                  )}
                   <a href="/history" className="text-xs text-blue-600 hover:underline">History</a>
                   <a href="/metrics" className="text-xs text-blue-600 hover:underline">Metrics</a>
                 </div>
               ) : (
                 <>
+                  {reviewEventId && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await api.downloadExport(reviewEventId);
+                        } catch (e: any) {
+                          setError(e.message || "Failed to download export");
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-md text-xs font-bold hover:bg-emerald-500 shadow-sm transition-colors"
+                    >
+                      Export ZIP
+                    </button>
+                  )}
                   <button
                     onClick={() => handleSave("accepted")}
                     disabled={saving || saved}
@@ -807,6 +952,39 @@ export default function Review() {
           </div>
         </div>
       </div>
+
+      {/* Transcription Edit Modal */}
+      {noteIdState && (
+        <TranscriptionEditModal
+          isOpen={isTranscriptionModalOpen}
+          onClose={() => setIsTranscriptionModalOpen(false)}
+          noteId={noteIdState}
+          currentText={rawText}
+          onRevisionCreated={(newRevId) => {
+            setCurrentRevisionId(newRevId);
+            setCurrentRevisionNumber((n) => n + 1);
+            setReReviewBanner(false);
+            setSaved(false);
+            api.getNoteState(noteIdState).then((st) => {
+              setRawText(st.raw_text);
+              setExtracted(st.extracted_json);
+              setLockVersion(st.lock_version);
+              setReviewEventId(null);
+            });
+          }}
+        />
+      )}
+
+      {/* Operational Issues Drawer */}
+      {noteIdState && (
+        <OperationalIssuesDrawer
+          noteId={noteIdState}
+          revisionId={currentRevisionId}
+          isOpen={isIssuesDrawerOpen}
+          onToggle={() => setIsIssuesDrawerOpen((o) => !o)}
+          onIssuesUpdated={(blockers) => setOpenBlockersCount(blockers)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import json
 from flask import Blueprint, request, jsonify, g
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_
 from models.note import Note
 from models.extraction import Extraction
 from models.validation import Validation
@@ -26,9 +26,11 @@ def list_history():
 
     result = []
     for note in notes:
-        val = g.db.execute(
-            select(Validation).where(Validation.note_id == note.id)
-        ).scalar_one_or_none()
+        val = (
+            g.db.query(Validation)
+            .filter(Validation.note_id == note.id)
+            .first()
+        )
         result.append({
             "id": note.id,
             "filename": note.filename,
@@ -47,16 +49,35 @@ def get_history_detail(note_id: int):
     note = g.db.get(Note, note_id)
     if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
-    if note.session_id != sid:
+    if note.session_id != sid and note.workspace_id != sid:
         return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
 
-    extraction = g.db.execute(
-        select(Extraction).where(Extraction.note_id == note_id)
-    ).scalar_one_or_none()
+    extraction = None
+    if note.current_extraction_id:
+        extraction = (
+            g.db.query(Extraction)
+            .filter(
+                Extraction.note_id == note_id,
+                or_(
+                    Extraction.public_id == note.current_extraction_id,
+                    Extraction.id == int(note.current_extraction_id) if note.current_extraction_id.isdigit() else False,
+                ),
+            )
+            .first()
+        )
+    if not extraction:
+        extraction = (
+            g.db.query(Extraction)
+            .filter(Extraction.note_id == note_id)
+            .order_by(desc(Extraction.id))
+            .first()
+        )
 
-    validation = g.db.execute(
-        select(Validation).where(Validation.note_id == note_id)
-    ).scalar_one_or_none()
+    validation = (
+        g.db.query(Validation)
+        .filter(Validation.note_id == note_id)
+        .first()
+    )
 
     return jsonify({
         "id": note.id,

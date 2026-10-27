@@ -7,6 +7,7 @@ _sqlite_fallback = f"sqlite:///{os.path.join(_BASE, 'app.db')}"
 
 
 class Config:
+    APP_MODE = os.environ.get("APP_MODE", "local")
     PIPELINE_VERSION = "0.1.0"
     SPACY_MODEL = os.environ.get("SPACY_MODEL", "en_core_web_sm")
     # Production: set DATABASE_URL to a Postgres connection string.

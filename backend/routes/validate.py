@@ -1,6 +1,6 @@
 import json
 from flask import Blueprint, request, jsonify, g
-from sqlalchemy import select
+from sqlalchemy import select, desc
 from models.note import Note
 from models.extraction import Extraction
 from models.validation import Validation
@@ -24,18 +24,23 @@ def validate():
     note = g.db.get(Note, note_id)
     if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
-    if note.session_id != sid:
+    if note.session_id != sid and note.workspace_id != sid:
         return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
 
-    extraction = g.db.execute(
-        select(Extraction).where(Extraction.note_id == note_id)
-    ).scalar_one_or_none()
+    extraction = (
+        g.db.query(Extraction)
+        .filter(Extraction.note_id == note_id)
+        .order_by(desc(Extraction.extracted_at))
+        .first()
+    )
     extracted = json.loads(extraction.extracted_json) if extraction else {}
     correction_count = compute_correction_count(extracted, validated_json)
 
-    existing = g.db.execute(
-        select(Validation).where(Validation.note_id == note_id)
-    ).scalar_one_or_none()
+    existing = (
+        g.db.query(Validation)
+        .filter(Validation.note_id == note_id)
+        .first()
+    )
 
     if existing:
         existing.validated_json = json.dumps(validated_json)
@@ -54,15 +59,19 @@ def validate():
 
     g.db.commit()
 
-    next_pending = g.db.execute(
-        select(Note.id)
+    next_pending = (
+        g.db.query(Note.id)
+        .distinct()
         .join(Extraction, Extraction.note_id == Note.id)
         .outerjoin(Validation, Validation.note_id == Note.id)
-        .where(Validation.id == None)  # noqa: E711
-        .where(Note.id != note_id)
-        .where(Note.session_id == sid)
+        .filter(
+            Validation.id.is_(None),
+            Note.id != note_id,
+            Note.session_id == sid,
+        )
         .order_by(Note.created_at.asc())
         .limit(1)
-    ).scalar_one_or_none()
+        .scalar()
+    )
 
     return jsonify({"message": "Validation saved", "correction_count": correction_count, "next_pending_id": next_pending})

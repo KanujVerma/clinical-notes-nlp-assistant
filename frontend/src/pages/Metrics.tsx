@@ -110,6 +110,49 @@ export default function Metrics() {
           </div>
         )}
 
+        {/* Operational Issues & Validation Lab Link */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-600 mb-2">Operational Issues (Workspace)</h2>
+            <div className="grid grid-cols-3 gap-2 text-center mt-3">
+              <div className="bg-rose-50 border border-rose-100 rounded p-2">
+                <span className="block text-rose-600 font-bold text-lg font-mono">
+                  {data.db_stats.issues_summary?.open_blockers || 0}
+                </span>
+                <span className="text-[10px] text-rose-500 font-medium">Critical Blockers</span>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded p-2">
+                <span className="block text-amber-600 font-bold text-lg font-mono">
+                  {data.db_stats.issues_summary?.open_warnings || 0}
+                </span>
+                <span className="text-[10px] text-amber-500 font-medium">Warnings</span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 rounded p-2">
+                <span className="block text-slate-600 font-bold text-lg font-mono">
+                  {data.db_stats.issues_summary?.resolved || 0}
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">Resolved</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg border border-slate-700 p-4 shadow-sm text-white flex flex-col justify-between">
+            <div>
+              <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">Validation Lab</span>
+              <h3 className="text-base font-bold mt-1 text-white">Synthetic Benchmark Evaluation</h3>
+              <p className="text-xs text-slate-300 mt-1">
+                Inspect multiset medication matching, attribute-level precision/recall, and paired regressions.
+              </p>
+            </div>
+            <a
+              href="/validation-lab"
+              className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded bg-cyan-600 hover:bg-cyan-500 text-xs font-bold text-white transition-colors"
+            >
+              Open Validation Lab →
+            </a>
+          </div>
+        </div>
+
         {/* DB correction stats */}
         {data.db_stats.by_status.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">

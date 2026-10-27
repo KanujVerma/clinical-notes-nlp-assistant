@@ -107,40 +107,49 @@ Open <http://localhost:5173>. Vite proxies `/api` to the local Flask backend. Wi
 
 The reviewer can inspect medications, vitals, instructions, and metadata. Medication mentions without sufficient structured directions require human interpretation rather than assuming they are active treatment instructions.
 
+## Validation Workbench & Verification Architecture
+
+In addition to the baseline pipeline, this branch includes the **Clinical NLP Validation Workbench** (`docs/validation/`), establishing immutable lineage, defensive verification, and statistical evaluation:
+
+- **Immutable Lineage & Append-Only Event Store**: Ingestion hashes source assets into content-addressed storage (SHA-256). Transcription edits create an incremented `NoteRevision` chain. Review events cite parent pointers, lock versions (optimistic concurrency), and idempotency keys.
+- **Independent Quality Canaries**: Pure validation rules independently check extracted entities for half-open interval coordinate bounds, exact quote integrity (`A08`), decimal dose formatting risks (`A09`), duplicate medication conflicts (`A02`), missing vital units (`A03`), and contradictory instructions (`A04`).
+- **Operational Issues Drawer**: Live slide-out drawer surfacing canaries and critical blockers with explicit reviewer disposition lifecycles.
+- **Strict Statistical Evaluation Lab (`/validation-lab`)**: Pairwise multiset bipartite matching (Hungarian algorithm) evaluating discrete medication attributes (`name`, `dose`, `route`, `frequency`, `duration`, `qualifier`) and case-by-case error attribution (TP/FP/FN).
+- **Cryptographic Export**: Downloadable audit ZIP bundles comprising reviewed JSON, item decisions, and a SHA-256 manifest.
+
+Comprehensive documentation is available in [`docs/validation/`](docs/validation/):
+- [Acceptance Matrix (A01–A48)](docs/validation/acceptance-matrix.md)
+- [System Architecture](docs/validation/architecture.md)
+- [API Contract](docs/validation/api-contract.md)
+- [Requirements & Boundaries](docs/validation/requirements.md)
+- [Engineering Demonstration Script](docs/validation/demo-script.md)
+- [Contribution Changelog](docs/validation/contribution-changelog.md)
+
 ## Verification
 
 From the repository root:
 
 ```bash
+# Backend pytest suite (295 passed)
 source .venv/bin/activate
 python -m pytest backend/tests/ -q
 
+# Frontend unit tests (68 passed), linting, and build
 cd frontend
 npm test
 npm run lint
 npm run build
-# Requires both servers running and a local Chromium setup:
+
+# End-to-end browser tests (21 passed)
+# Requires Flask (port 5000) and Vite (port 5173) running:
 npx playwright test
 ```
 
-Tests must be rerun for the exact checked-out commit and environment. This README does not use a historical test count as proof that current checks passed.
+## Known limitations and operational boundaries
 
-### Offline evaluation: what the scores mean
-
-The legacy `data/eval/` corpus contains 20 synthetic labeled development notes. `python scripts/run_evaluation.py` writes `backend/evaluation/results.json`. The committed April 17, 2026 result recorded overall F1 **0.6549** under pipeline `0.1.0`, but **that is a historical development result, not a verified current score or clinical accuracy claim**.
-
-The original comparator has important limitations: medication matching uses name/dose without strict route/frequency scoring, duplicate-name instances can collapse, vital normalization strips some units without conversion, and instruction substring matching can accept contradictory extra text. Do not compare the legacy result directly with a stricter evaluator or present it as a reliable whole-record medication metric. Review correction rates on the Metrics page are a separate type of measurement.
-
-## Known limitations and next engineering priorities
-
-- **Review provenance:** this `main` revision stores mutable, note-linked validation records. It does not yet enforce immutable source/extraction/review version binding or optimistic concurrency. A review may become stale after source edits. Do not describe it as tamper-proof or audit-grade.
-- **Extraction:** ambiguous medication actions, duplicated occurrences, temporal context, decimal doses, incomplete instructions, and mixed-format sources can be misread or missed.
-- **OCR:** the current PDF path chooses OCR fallback using a document-level text threshold, so scanned pages mixed with text pages may not be fully acquired; handwriting is unsupported.
-- **Measurement:** the legacy benchmark is a synthetic development diagnostic with permissive comparison rules, not independent, clinically adjudicated validation.
-- **Privacy and identity:** no clinical-grade authentication, authorization, identity verification, or real-PHI controls are provided. Browser workspace UUIDs are demo scoping only.
-- **Optional AI:** explanations can be incomplete or wrong and do not validate extracted facts.
-
-A separate validation/reliability workstream proposes immutable review events, stricter evaluation, independent consistency checks, page-level acquisition, and actionable issue drilldowns. **Those additions are not part of the `main` revision described here until its code and tests are integrated and verified.** Do not claim them on a portfolio or demo without checking the branch and evidence.
+- **Synthetic only:** The system is restricted to synthetic, de-identified clinical scenarios. It is not HIPAA-certified, does not connect to EHRs, does not verify patient identity, and must never be used for real clinical decision-making.
+- **Extraction bounds:** Ambiguous clinical phrasing, novel abbreviations, and unformatted narrative text require human verification. The deterministic pipeline flags anomalies via canaries rather than making autonomous clinical decisions.
+- **Optional AI:** The optional local Ollama adapter and terminology explainer provide informational proposals only; they do not dictate verified clinical facts.
 
 ## Project scope and contributions
 

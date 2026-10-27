@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, g
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from models.note import Note
-from models.extraction import Extraction
 from models.validation import Validation
 from utils.session import require_session
 
@@ -13,10 +12,14 @@ def get_queue():
     sid = require_session()
     stmt = (
         select(Note)
-        .join(Extraction, Extraction.note_id == Note.id)
         .outerjoin(Validation, Validation.note_id == Note.id)
-        .where(Validation.id == None)  # noqa: E711
-        .where(Note.session_id == sid)
+        .where(
+            or_(Note.session_id == sid, Note.workspace_id == sid),
+            Validation.id.is_(None),
+            Note.review_head_event_id.is_(None),
+            or_(Note.status == "needs_review", Note.status == "pending", Note.status.is_(None)),
+        )
+        .distinct()
         .order_by(Note.created_at.asc())
     )
     notes = g.db.execute(stmt).scalars().all()

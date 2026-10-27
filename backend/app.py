@@ -55,6 +55,20 @@ def create_app(test_config: dict | None = None) -> Flask:
     def health():
         return jsonify({"status": "ok", "pipeline_version": app.config["PIPELINE_VERSION"]})
 
+    @app.route("/api/health/live")
+    def health_live():
+        return jsonify({"status": "live", "pipeline_version": app.config["PIPELINE_VERSION"]}), 200
+
+    @app.route("/api/health/ready")
+    def health_ready():
+        try:
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return jsonify({"status": "ready", "database": "connected"}), 200
+        except Exception as e:
+            return jsonify({"status": "not_ready", "error": str(e)}), 503
+
     # Blueprints
     from routes.extract import bp as extract_bp
     from routes.notes import bp as notes_bp
@@ -66,6 +80,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     from routes.queue import bp as queue_bp
     from routes.reset import bp as reset_bp
     from routes.explain import bp as explain_bp
+    from routes.workspaces import bp as workspaces_bp
+    from routes.revisions import bp as revisions_bp
+    from routes.reviews import bp as reviews_bp
+    from routes.issues import bp as issues_bp
+    from routes.ai_candidates import bp as ai_candidates_bp
+    from routes.jobs import bp as jobs_bp
+    from routes.eval_runs import bp as eval_runs_bp
+    from routes.export import bp as export_bp
 
     app.register_blueprint(extract_bp)
     app.register_blueprint(notes_bp)
@@ -77,6 +99,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(queue_bp)
     app.register_blueprint(reset_bp)
     app.register_blueprint(explain_bp)
+    app.register_blueprint(workspaces_bp)
+    app.register_blueprint(revisions_bp)
+    app.register_blueprint(reviews_bp)
+    app.register_blueprint(issues_bp)
+    app.register_blueprint(ai_candidates_bp)
+    app.register_blueprint(jobs_bp)
+    app.register_blueprint(eval_runs_bp)
+    app.register_blueprint(export_bp)
 
     _boot_log.info("blueprints registered")
 
