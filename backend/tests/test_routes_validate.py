@@ -30,12 +30,12 @@ def _make_payload(client, nid, headers, decisions=None, event_kind="review_compl
     for cat in ["vitals", "metadata", "instructions"]:
         for k, v in ext.get(cat, {}).items():
             if isinstance(v, dict) and "value" in v:
-                item_decisions[f"{cat}.{k}"] = {"action": "accept"}
+                item_decisions[f"{cat}.{k}"] = {"decision": "accept"}
     for med in ext.get("medications", []):
         m_id = med.get("id") or med.get("source_occurrence_id") or med.get("name", {}).get("value")
         for field in ["name", "dose", "route", "frequency", "duration", "prn"]:
             if field in med and isinstance(med[field], dict) and "value" in med[field]:
-                item_decisions[f"medications.{m_id}.{field}"] = {"action": "accept"}
+                item_decisions[f"medications.{m_id}.{field}"] = {"decision": "accept"}
     if decisions:
         item_decisions.update(decisions)
     return {
