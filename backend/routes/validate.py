@@ -1,77 +1,39 @@
-import json
-from flask import Blueprint, request, jsonify, g
-from sqlalchemy import select, desc
-from models.note import Note
-from models.extraction import Extraction
-from models.validation import Validation
-from utils.corrections import compute_correction_count
-from utils.session import require_session
+"""Legacy /api/validate adapter.
 
+The original note-ID-only API overwrote a mutable Validation row and could
+'complete' a stale source. Only requests with the full version binding are
+routed to the authoritative append-only review service.
+"""
+from flask import Blueprint, request, jsonify
+from routes.reviews import submit_review
 
 bp = Blueprint("validate", __name__)
 
 
 @bp.post("/api/validate")
 def validate():
-    sid = require_session()
-    body = request.get_json(silent=True) or {}
-    note_id = body.get("note_id")
-    validated_json = body.get("validated_json")
-    status = body.get("status")
-    if not note_id or validated_json is None or not status:
-        return jsonify({"error": "note_id, validated_json, and status are required", "code": "MISSING_FIELDS"}), 400
+    body = request.get_json(silent=True)
+    required = {
+        "note_id",
+        "source_revision_id",
+        "extraction_id",
+        "source_hash",
+        "expected_lock_version",
+        "event_kind",
+        "item_decisions",
+        "category_acknowledgments",
+    }
+    if (
+        not isinstance(body, dict)
+        or not required.issubset(body.keys())
+        or "validated_json" in body
+        or "status" in body
+    ):
+        return jsonify({
+            "error": "The legacy validation payload is no longer supported; use the version-bound reviews API",
+            "code": "REVIEW_BINDING_REQUIRED",
+        }), 422
 
-    note = g.db.get(Note, note_id)
-    if not note:
-        return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
-    if note.session_id != sid and note.workspace_id != sid:
-        return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
-
-    extraction = (
-        g.db.query(Extraction)
-        .filter(Extraction.note_id == note_id)
-        .order_by(desc(Extraction.extracted_at))
-        .first()
-    )
-    extracted = json.loads(extraction.extracted_json) if extraction else {}
-    correction_count = compute_correction_count(extracted, validated_json)
-
-    existing = (
-        g.db.query(Validation)
-        .filter(Validation.note_id == note_id)
-        .first()
-    )
-
-    if existing:
-        existing.validated_json = json.dumps(validated_json)
-        existing.status = status
-        existing.review_duration_ms = body.get("review_duration_ms")
-        existing.correction_count = correction_count
-    else:
-        val = Validation(
-            note_id=note_id,
-            validated_json=json.dumps(validated_json),
-            status=status,
-            review_duration_ms=body.get("review_duration_ms"),
-            correction_count=correction_count,
-        )
-        g.db.add(val)
-
-    g.db.commit()
-
-    next_pending = (
-        g.db.query(Note.id)
-        .distinct()
-        .join(Extraction, Extraction.note_id == Note.id)
-        .outerjoin(Validation, Validation.note_id == Note.id)
-        .filter(
-            Validation.id.is_(None),
-            Note.id != note_id,
-            Note.session_id == sid,
-        )
-        .order_by(Note.created_at.asc())
-        .limit(1)
-        .scalar()
-    )
-
-    return jsonify({"message": "Validation saved", "correction_count": correction_count, "next_pending_id": next_pending})
+    # The modern route validates schema, scope, current source/extraction,
+    # idempotency and optimistic concurrency in the same review service.
+    return submit_review(str(body["extraction_id"]))
