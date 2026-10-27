@@ -162,6 +162,7 @@ def process_review_mutation(
             .filter(
                 OperationalIssue.note_id == note.id,
                 OperationalIssue.source_revision_id == rev.id,
+                OperationalIssue.extraction_id == ext.public_id,
                 OperationalIssue.workspace_id == workspace_id,
                 OperationalIssue.severity == "critical_blocker",
                 OperationalIssue.status == "open",
