@@ -40,7 +40,13 @@ def upload():
             {"error": f"Unsupported file type: {ext}", "code": "UNSUPPORTED_FILE_TYPE"}
         ), 400
 
-    file_bytes = f.read()
+    # Do not read unbounded request bodies into memory, even in local mode.
+    max_file_size = 10 * 1024 * 1024
+    if request.content_length is not None and request.content_length > max_file_size + 64 * 1024:
+        return jsonify({"error": "Upload is too large", "code": "FILE_TOO_LARGE"}), 413
+    file_bytes = f.stream.read(max_file_size + 1)
+    if len(file_bytes) > max_file_size:
+        return jsonify({"error": "Upload is too large", "code": "FILE_TOO_LARGE"}), 413
     if not file_bytes:
         return jsonify({"error": "Empty file provided", "code": "FILE_EMPTY"}), 400
 
