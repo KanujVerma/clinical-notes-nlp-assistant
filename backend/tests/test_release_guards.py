@@ -146,6 +146,8 @@ def test_hosted_mode_rejects_arbitrary_input_and_computation(client, monkeypatch
     assert client.post("/api/upload", headers=headers).status_code == 403
     assert client.post("/api/evaluation/runs", headers=headers).status_code == 403
     assert client.post("/api/jobs", json={"kind": "eval_run"}, headers=headers).status_code == 403
+    assert client.post("/api/extract", json={"text": "untrusted text"}).status_code == 403
+    assert client.post("/api/explain", json={"kind": "medication", "value": "drug"}).status_code == 403
 
 
 def test_only_current_completed_head_removes_note_from_queue(client):
