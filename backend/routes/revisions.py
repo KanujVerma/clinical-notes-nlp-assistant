@@ -13,6 +13,8 @@ bp = Blueprint("revisions", __name__)
 
 @bp.post("/api/notes/<int:note_id>/revisions")
 def append_revision(note_id: int):
+    if Config.APP_MODE == "hosted_demo":
+        return jsonify({"error": "Source replacement is disabled in the public sandbox", "code": "FEATURE_RESTRICTED"}), 403
     sid = require_session()
     body = request.get_json(silent=True) or {}
     new_text = body.get("raw_text") if "raw_text" in body else body.get("text")
