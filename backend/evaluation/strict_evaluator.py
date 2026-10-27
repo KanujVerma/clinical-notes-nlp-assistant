@@ -389,6 +389,7 @@ def evaluate_corpus_strictly(
     notes_and_labels: List[Tuple[str, str, Dict[str, Any]]],  # [(note_id, raw_text, gold_label)]
     pipeline_fn: Any,
     output_dir: Optional[str] = None,
+    dataset_manifest: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Evaluates a test corpus using strict criteria, generating detailed metrics and immutable run artifacts.
@@ -450,7 +451,7 @@ def evaluate_corpus_strictly(
 
     run_bundle = {
         "run_id": run_id,
-        "evaluator_version": "2.0.0_strict",
+        "evaluator_version": "strict_annotated_record_source_first_v3",
         "started_at": started_at,
         "finished_at": finished_at,
         "note_count": len(notes_and_labels),
@@ -469,7 +470,8 @@ def evaluate_corpus_strictly(
 
         metadata = {
             "run_id": run_id,
-            "evaluator": "strict_multiset_v2",
+            "evaluator": "strict_annotated_record_source_first_v3",
+            "dataset_manifest": dataset_manifest,
             "started_at": started_at,
             "finished_at": finished_at,
             "note_count": len(notes_and_labels),
