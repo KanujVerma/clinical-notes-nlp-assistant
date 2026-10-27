@@ -1,6 +1,7 @@
 import uuid
 import datetime
 import hashlib
+import secrets
 from flask import Blueprint, g, jsonify, request
 from models import Workspace
 from config import Config
@@ -12,7 +13,7 @@ bp = Blueprint("workspaces", __name__)
 @bp.post("/api/workspaces")
 def create_workspace():
     ws_id = str(uuid.uuid4())
-    token = uuid.uuid4().hex
+    token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     mode = "hosted_demo" if getattr(Config, "APP_MODE", "local") == "hosted_demo" else "normal"
 
