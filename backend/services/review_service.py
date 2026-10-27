@@ -35,7 +35,9 @@ class InvalidReviewPayloadError(Exception):
 
 def _get_decision_str(d: Any) -> str:
     if isinstance(d, dict):
-        return str(d.get("decision", "accept")).strip().lower()
+        # A JSON object lacking an explicit action must never default to
+        # acceptance, even when it contains an unrelated "action" key.
+        return str(d.get("decision", "")).strip().lower()
     if hasattr(d, "decision"):
         return str(getattr(d, "decision", "accept")).strip().lower()
     if isinstance(d, str):
@@ -137,6 +139,10 @@ def _validate_decision_coverage(extracted_data: Dict[str, Any], decisions: Dict[
 
     for key, decision in decisions.items():
         action = _get_decision_str(decision)
+        if action == "edit":
+            value = _get_decision_val(decision)
+            if not isinstance(value, str) or not value.strip() or len(value) > 4096:
+                raise InvalidReviewPayloadError(f"Edit '{key}' requires a nonempty bounded string value")
         if key in allowed:
             if action == "add":
                 raise InvalidReviewPayloadError(f"Cannot add over an existing extraction field: {key}")
@@ -370,57 +376,73 @@ def derive_reviewed_snapshot(
 
             reviewed_meds.append(med_copy)
 
-    # 6. Additions in item_decisions
-    for k, d in (item_decisions or {}).items():
-        act = _get_decision_str(d)
-        if act == "add":
-            has_corrections = True
-            evidence = d.get("evidence") if isinstance(d, dict) else getattr(d, "evidence", None)
-            reason = (d.get("reason") if isinstance(d, dict) else getattr(d, "reason", None)) or (
-                d.get("no_direct_span_reason") if isinstance(d, dict) else getattr(d, "no_direct_span_reason", None)
+    # 6. Additions. Multiple child operations for a single new medication
+    # are ONE new occurrence, not one medication per attribute.
+    added_meds: Dict[str, Dict[str, Any]] = {}
+    for key, decision in (item_decisions or {}).items():
+        if _get_decision_str(decision) != "add":
+            continue
+        has_corrections = True
+        evidence = decision.get("evidence") if isinstance(decision, dict) else getattr(decision, "evidence", None)
+        reason = (decision.get("no_direct_span_reason") or decision.get("reason")) if isinstance(decision, dict) else None
+        valid_evidence = False
+        if isinstance(evidence, dict):
+            start, end = evidence.get("start"), evidence.get("end")
+            quote = evidence.get("raw_quote")
+            if (type(start) is int and type(end) is int
+                    and 0 <= start < end <= len(raw_text)
+                    and isinstance(quote, str) and raw_text[start:end] == quote):
+                valid_evidence = True
+        if not valid_evidence and not (isinstance(reason, str) and reason.strip()):
+            raise InvalidReviewPayloadError(
+                f"Added item '{key}' requires exact source evidence or a no-direct-span reason"
             )
-            has_valid_evidence = False
-            if evidence and isinstance(evidence, dict):
-                start = evidence.get("start")
-                end = evidence.get("end")
-                quote = evidence.get("raw_quote")
-                span = evidence.get("span")
-                if span and isinstance(span, (list, tuple)) and len(span) == 2:
-                    start, end = span[0], span[1]
+        value = _get_decision_val(decision)
+        if not isinstance(value, (str, dict)):
+            raise InvalidReviewPayloadError(f"Added item '{key}' has invalid value")
 
-                if start is not None and end is not None:
-                    if 0 <= start <= end <= len(raw_text):
-                        if quote is not None:
-                            if raw_text[start:end] == quote:
-                                has_valid_evidence = True
-                        else:
-                            has_valid_evidence = True
-                elif quote and quote in raw_text:
-                    has_valid_evidence = True
+        parts = key.split(".")
+        if len(parts) >= 2 and parts[0] == "med":
+            med_id = parts[1]
+            if not med_id.startswith("med_add_"):
+                raise InvalidReviewPayloadError("Added medication needs a new opaque occurrence ID")
+            if len(parts) == 2 and isinstance(value, dict):
+                item = added_meds.setdefault(med_id, {"id": med_id, "source_occurrence_id": med_id})
+                for attr, attr_value in value.items():
+                    if attr not in ("name", "dose", "route", "frequency", "duration",
+                                    "qualifier", "action", "prn"):
+                        raise InvalidReviewPayloadError("Unknown added medication attribute")
+                    item[attr] = attr_value
+            elif len(parts) == 3 and parts[2] in ("name", "dose", "route", "frequency",
+                                                 "duration", "qualifier", "action", "prn"):
+                item = added_meds.setdefault(med_id, {"id": med_id, "source_occurrence_id": med_id})
+                item[parts[2]] = value
+            else:
+                raise InvalidReviewPayloadError("Malformed added medication field")
+        elif len(parts) == 2 and parts[0] in ("vitals", "instr", "instructions", "meta", "metadata"):
+            target = {"vitals": reviewed_vitals, "instr": reviewed_instructions,
+                      "instructions": reviewed_instructions, "meta": reviewed_metadata,
+                      "metadata": reviewed_metadata}[parts[0]]
+            if parts[1] in target:
+                raise InvalidReviewPayloadError("Added field collides with existing field")
+            target[parts[1]] = {"value": value, "source": "reviewer_added"}
+        else:
+            raise InvalidReviewPayloadError("Unknown added field path")
 
-            has_valid_reason = bool(reason and str(reason).strip())
-            if not (has_valid_evidence or has_valid_reason):
-                raise InvalidReviewPayloadError(
-                    f"Added item '{k}' must carry valid source evidence matching raw text or a reviewer-entered no-direct-span reason."
-                )
-
-            val = _get_decision_val(d)
-            cat = d.get("category") if isinstance(d, dict) else getattr(d, "category", None)
-            if k.startswith("med.") or cat == "medications" or (isinstance(val, dict) and "name" in val):
-                m_obj = dict(val) if isinstance(val, dict) else {"name": str(val)}
-                m_id = k if k.startswith("med_") else f"med_add_{len(reviewed_meds)}"
-                m_obj["id"] = m_id
-                m_obj["source_occurrence_id"] = m_id
-                reviewed_meds.append(m_obj)
-            elif k.startswith("vitals.") or cat == "vitals":
-                f_name = k.replace("vitals.", "")
-                reviewed_vitals[f_name] = {"value": val, "source": "reviewer_added"}
-            elif k.startswith("instr.") or k.startswith("instructions.") or cat == "instructions":
-                f_name = k.replace("instructions.", "").replace("instr.", "")
-                reviewed_instructions[f_name] = {"value": val, "source": "reviewer_added"}
-            elif k.startswith("meta.") or k.startswith("metadata.") or cat == "metadata":
-                f_name = k.replace("metadata.", "").replace("meta.", "")
-                reviewed_metadata[f_name] = {"value": val, "source": "reviewer_added"}
+    occupied = {str(m.get("id") or m.get("source_occurrence_id"))
+                for m in reviewed_meds}
+    for med_id, med in added_meds.items():
+        if med_id in occupied:
+            raise InvalidReviewPayloadError("Duplicate added medication identity")
+        if not isinstance(med.get("name"), str) or not med["name"].strip():
+            raise InvalidReviewPayloadError("Added medication requires a nonempty name")
+        for name, value in med.items():
+            if name in ("id", "source_occurrence_id"):
+                continue
+            if not isinstance(value, (str, bool)) or (isinstance(value, str) and not value.strip()):
+                raise InvalidReviewPayloadError(f"Added medication has invalid {name}")
+        reviewed_meds.append(med)
+        occupied.add(med_id)
 
     derived_snapshot = {
         "pipeline_version": extracted_data.get("pipeline_version", "2.0.0"),
