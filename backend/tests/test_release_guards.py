@@ -31,6 +31,15 @@ def _new_note(client, sid="f12d43be-11ba-4c46-aa13-f5869b129989"):
 
 
 def _review_payload(note, source_hash):
+    extraction = note.get("extracted_json") or {}
+    decisions = {}
+    for category in ("vitals", "instructions", "metadata"):
+        for key, item in (extraction.get(category) or {}).items():
+            if item is not None:
+                decisions[f"{category}.{key}"] = {"decision": "accept"}
+    for idx, med in enumerate(extraction.get("medications") or []):
+        med_id = med.get("id") or med.get("source_occurrence_id") or f"med_{idx}"
+        decisions[f"med.{med_id}"] = {"decision": "accept"}
     return {
         "schema_version": "2.0.0",
         "note_id": note["note_id"],
@@ -41,7 +50,7 @@ def _review_payload(note, source_hash):
         "expected_head_event_id": None,
         "idempotency_key": "test-release-review-0001",
         "event_kind": "review_completed",
-        "item_decisions": {},
+        "item_decisions": decisions,
         "category_acknowledgments": {
             "metadata": True,
             "vitals": True,
@@ -181,3 +190,56 @@ def test_client_snapshot_cannot_invent_medication_without_matching_decisions(cli
         json=payload,
     )
     assert response.status_code == 422, response.json
+
+
+def test_completion_requires_per_field_decisions_even_when_categories_checked(client):
+    headers, note = _new_note(client)
+    # The given extraction may or may not contain a named field depending on
+    # parser rules; make a source-bound nonempty vital fixture explicitly.
+    from models import Extraction
+    with get_session(client.application.config["ENGINE"]) as session:
+        ext = session.query(Extraction).filter(Extraction.public_id == note["extraction_id"]).one()
+        import json
+        extracted = json.loads(ext.extracted_json)
+        extracted["vitals"] = {"heart_rate": {"value": "72 bpm"}}
+        ext.extracted_json = json.dumps(extracted)
+        session.commit()
+
+    source = client.get(f'/api/notes/{note["note_id"]}/source', headers=headers).json
+    payload = _review_payload(note, source["sha256"])
+    payload["item_decisions"] = {}
+    response = client.post(
+        f'/api/extractions/{note["extraction_id"]}/reviews',
+        headers=headers, json=payload,
+    )
+    assert response.status_code == 422
+    assert response.json["code"] == "INCOMPLETE_REVIEW"
+
+
+def test_server_rejects_same_name_but_edited_client_medication(client):
+    headers, note = _new_note(client)
+    from models import Extraction
+    import json
+    with get_session(client.application.config["ENGINE"]) as session:
+        ext = session.query(Extraction).filter(Extraction.public_id == note["extraction_id"]).one()
+        ext.extracted_json = json.dumps({
+            "pipeline_version": "0.1.0",
+            "metadata": {}, "vitals": {}, "instructions": {},
+            "medications": [{"name": "metformin", "dose": "500 mg", "route": "PO"}],
+        })
+        session.commit()
+    source = client.get(f'/api/notes/{note["note_id"]}/source', headers=headers).json
+    payload = _review_payload(note, source["sha256"])
+    payload["item_decisions"] = {"med.med_0": {"decision": "accept"}}
+    payload["reviewed_snapshot"] = {
+        "metadata": {}, "vitals": {}, "instructions": {},
+        "medications": [{
+            "id": "med_0", "name": "metformin", "dose": "5000 mg", "route": "PO",
+        }],
+    }
+    response = client.post(
+        f'/api/extractions/{note["extraction_id"]}/reviews',
+        headers=headers, json=payload,
+    )
+    assert response.status_code == 422
+    assert response.json["code"] == "INVALID_REVIEW_PAYLOAD"
