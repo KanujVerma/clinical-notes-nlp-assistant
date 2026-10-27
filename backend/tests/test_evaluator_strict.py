@@ -64,3 +64,54 @@ def test_zero_support_behavior():
     assert metrics["precision"] is None
     assert metrics["recall"] is None
     assert metrics["f1"] is None
+
+
+def test_duplicate_pairing_does_not_optimize_correct_dose():
+    # Without source occurrence IDs/evidence, pair by occurrence order. The
+    # old comparator matched exact attributes first and falsely reported 2 TP.
+    preds = [
+        {"name": "Lisinopril", "dose": "20 mg", "route": "PO"},
+        {"name": "Lisinopril", "dose": "10 mg", "route": "PO"},
+    ]
+    gold = [
+        {"name": "Lisinopril", "dose": "10 mg", "route": "PO"},
+        {"name": "Lisinopril", "dose": "20 mg", "route": "PO"},
+    ]
+    r = compare_strict_medications(preds, gold)
+    assert (r["tp"], r["fp"], r["fn"]) == (0, 2, 2)
+    assert [(p["pred_idx"], p["label_idx"]) for p in r["pairs"]] == [(0, 0), (1, 1)]
+    assert r["matching_ambiguities"]
+
+
+def test_explicit_occurrence_identity_beats_array_order():
+    preds = [
+        {"name": "Lisinopril", "dose": "20 mg", "source_occurrence_id": "second"},
+        {"name": "Lisinopril", "dose": "10 mg", "source_occurrence_id": "first"},
+    ]
+    gold = [
+        {"name": "Lisinopril", "dose": "10 mg", "source_occurrence_id": "first"},
+        {"name": "Lisinopril", "dose": "20 mg", "source_occurrence_id": "second"},
+    ]
+    r = compare_strict_medications(preds, gold)
+    assert (r["tp"], r["fp"], r["fn"]) == (2, 0, 0)
+    assert [(p["pred_idx"], p["label_idx"]) for p in r["pairs"]] == [(1, 0), (0, 1)]
+
+
+def test_strict_record_rejects_wrong_route_with_same_name_and_dose():
+    r = compare_strict_medications(
+        [{"name": "Drug A", "dose": "5 mg", "route": "IV"}],
+        [{"name": "Drug A", "dose": "5 mg", "route": "PO"}],
+    )
+    assert (r["tp"], r["fp"], r["fn"]) == (0, 1, 1)
+    assert r["attribute_counts"]["route"] == {
+        "tp": 0, "fp": 1, "fn": 1, "excluded_unannotated": 0,
+    }
+
+
+def test_missing_annotation_does_not_count_as_gold_correctness():
+    r = compare_strict_medications(
+        [{"name": "Drug A", "dose": "5 mg", "route": "PO"}],
+        [{"name": "Drug A", "dose": "5 mg"}],
+    )
+    assert r["attribute_counts"]["route"]["excluded_unannotated"] == 1
+    assert r["contract"] == "strict_annotated_record_source_first_v3"
