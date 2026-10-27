@@ -4,6 +4,7 @@ import time
 import json
 import uuid
 import datetime
+import hashlib
 from typing import Optional
 from sqlalchemy import or_, and_, update
 from sqlalchemy.orm import Session
@@ -87,34 +88,52 @@ def process_single_job(job: Job, session: Session) -> bool:
                 .filter(NoteRevision.id == note.current_source_revision_id)
                 .first()
             )
-            raw_text = rev.raw_text if rev else note.raw_text
+            if not rev or rev.id != job.source_revision_id:
+                raise ValueError("JOB_STALE_SOURCE")
+            expected_lock_version = note.lock_version
+            expected_extraction_id = note.current_extraction_id
+            raw_text = rev.raw_text
             extracted = run_pipeline(raw_text)
 
             # Store extraction
             ext = Extraction(
                 note_id=note.id,
                 workspace_id=note.workspace_id,
-                source_revision_id=rev.id if rev else None,
+                source_revision_id=rev.id,
+                source_text_hash=hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
                 extracted_json=json.dumps(extracted),
                 pipeline_version=Config.PIPELINE_VERSION,
             )
             session.add(ext)
             session.flush()
 
-            note.current_extraction_id = ext.public_id
-            note.status = "needs_review"
+            # Re-extraction, even for identical source text, invalidates a
+            # previously completed review. Reject races with source edits.
+            stmt = update(Note).where(
+                Note.id == note.id,
+                Note.workspace_id == job.workspace_id,
+                Note.current_source_revision_id == job.source_revision_id,
+                Note.current_extraction_id == expected_extraction_id,
+                Note.lock_version == expected_lock_version,
+            ).values(
+                current_extraction_id=ext.public_id,
+                review_head_event_id=None,
+                status="needs_review",
+                lock_version=Note.lock_version + 1,
+            )
+            if session.execute(stmt).rowcount != 1:
+                raise ValueError("JOB_STALE_SOURCE")
             job.result_json = json.dumps({"extraction_id": ext.public_id, "fields_count": len(extracted.get("medications", []))})
             job.status = "succeeded"
 
         elif job.kind == "eval_run":
-            notes_dir = payload.get("notes_dir")
-            labels_dir = payload.get("labels_dir")
-            output_dir = payload.get("output_dir", "artifacts/evaluation")
-
-            # Load evaluation notes
+            # The run is deliberately restricted to the repository's pinned
+            # synthetic evaluation data. Job JSON cannot select filesystem
+            # paths or send private source data into benchmark artifacts.
             from pathlib import Path
-            n_dir = Path(notes_dir) if notes_dir else Path(__file__).parent.parent / "data" / "eval" / "notes"
-            l_dir = Path(labels_dir) if labels_dir else Path(__file__).parent.parent / "data" / "eval" / "labels"
+            n_dir = Path(__file__).parent.parent / "data" / "eval" / "notes"
+            l_dir = Path(__file__).parent.parent / "data" / "eval" / "labels"
+            output_dir = str(Path(__file__).parent.parent / "artifacts" / "evaluation")
 
             pairs = []
             for n_path in sorted(n_dir.glob("*.txt")):
@@ -131,8 +150,7 @@ def process_single_job(job: Job, session: Session) -> bool:
             job.status = "succeeded"
 
         else:
-            job.status = "succeeded"
-            job.result_json = json.dumps({"status": "noop"})
+            raise ValueError("INVALID_JOB_KIND")
 
         job.finished_at = datetime.datetime.now(datetime.timezone.utc)
         session.commit()
