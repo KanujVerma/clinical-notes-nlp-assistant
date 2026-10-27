@@ -67,17 +67,6 @@ export const api = {
     });
   },
 
-  validate: (payload: {
-    note_id: number;
-    validated_json: any;
-    status: string;
-    review_duration_ms: number;
-  }) =>
-    request<{ ok: boolean; correction_count: number; next_pending_id: number | null }>("/validate", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
   getHistory: (page = 1) =>
     request<{ notes: any[]; page: number }>(`/history?page=${page}`),
 
@@ -91,11 +80,10 @@ export const api = {
 
   getQueue: () => request<QueueResponse>("/queue"),
 
-  updateNoteText: (noteId: number, text: string) =>
-    request<{ note_id: number; extracted_json: any }>(`/notes/${noteId}/text`, {
-      method: "PUT",
-      body: JSON.stringify({ text }),
-    }),
+  // The previous unbound PUT endpoint could destroy extraction history.
+  // Always use the version-bound append-only source revision API instead.
+  updateNoteText: async (noteId: number, text: string) =>
+    api.appendNoteRevision(noteId, text, "ocr_preview_edit"),
 
   resetWorkspace: () =>
     request<{ deleted_notes: number; deleted_extractions: number; deleted_validations: number }>(
@@ -128,11 +116,21 @@ export const api = {
   getNoteSource: (noteId: number) =>
     request<any>(`/notes/${noteId}/source`),
 
-  appendNoteRevision: (noteId: number, raw_text: string, reason?: string) =>
-    request<any>(`/notes/${noteId}/revisions`, {
+  appendNoteRevision: async (noteId: number, raw_text: string, reason?: string) => {
+    const state = await api.getNoteState(noteId);
+    if (!state.current_source_revision_id || typeof state.lock_version !== "number") {
+      throw new Error("Source binding is unavailable. Reload the note before editing.");
+    }
+    return request<any>(`/notes/${noteId}/revisions`, {
       method: "POST",
-      body: JSON.stringify({ raw_text, reason }),
-    }),
+      body: JSON.stringify({
+        raw_text,
+        reason: reason || "human_transcription_edit",
+        expected_source_revision_id: state.current_source_revision_id,
+        expected_lock_version: state.lock_version,
+      }),
+    });
+  },
 
   getNoteRevisions: (noteId: number) =>
     request<any[]>(`/notes/${noteId}/revisions`),
