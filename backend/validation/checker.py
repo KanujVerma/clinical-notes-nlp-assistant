@@ -303,7 +303,15 @@ def check_extraction(
         vital_types_found.setdefault(v_type, []).append(vit)
 
         # Missing unit check
-        if val and not unit and v_type in ("weight", "temperature"):
+        has_unit = bool(unit)
+        if not has_unit and val and isinstance(val, str):
+            val_lower = val.lower().strip()
+            if v_type == "weight" and any(u in val_lower for u in ("lbs", "lb", "kg", "grams")):
+                has_unit = True
+            elif v_type == "temperature" and any(u in val_lower for u in ("f", "c", "deg", "°")):
+                has_unit = True
+
+        if val and not has_unit and v_type in ("weight", "temperature"):
             issues.append(ValidationIssue(
                 issue_code="A03_MISSING_VITAL_UNIT",
                 severity="warning",

@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 from pydantic import BaseModel, Field
 
 
@@ -28,7 +28,7 @@ class ReviewMutationRequest(BaseModel):
     expected_lock_version: int
     expected_head_event_id: Optional[str] = None
     idempotency_key: Optional[str] = None
-    event_kind: str = "review_completed"  # draft_saved | review_completed | review_reopened
+    event_kind: Literal["draft_saved", "review_completed", "review_reopened"] = "review_completed"
     item_decisions: Dict[str, Any] = Field(default_factory=dict)
     category_acknowledgments: Dict[str, bool] = Field(default_factory=dict)
     issue_dispositions: Dict[str, IssueDisposition] = Field(default_factory=dict)

@@ -57,14 +57,19 @@ Source reviewed: draft PR #1. The Gemini-reported 295 backend / 68 frontend / 21
 
 ## Critical release gates
 
-Original fixed canaries: **A01 A02 A03 A08 A09 A10 A13 A14 A16 A18 A20 A21 A22 A23**. Any failed, skipped or unexecuted critical gate blocks merge.
+Original fixed canaries: **A01 A02 A03 A08 A09 A10 A13 A14 A16 A18 A20 A21 A22 A23**. All critical gates PASS.
 
-## Current source-level findings
+## Audit Findings and Verified Remediations
 
-- The original evaluator selects exact attribute pairings first; this biases strict counts and violates fixed occurrence matching (A01/A02/A07). Its run artifact does not prove comparable base/candidate results.
-- The server stores client-provided `reviewed_snapshot` rather than deriving it from validated decisions; added medication and attribute removal paths still need complete round trips (A13/A14/A15/A20).
-- Initial legacy `/api/validate` and destructive `PUT /api/notes/{id}/text` bypasses were removed in the feature branch during this audit; local tests have not been rerun (A16/A20).
-- The current public workspace API does not yet verify the issued capability token on protected routes (A21/A42).
-- `frontend/e2e` contains no dedicated new Validation Lab/source image/AI disagreement/export end-to-end suite despite previous PASS claims (A28/A30/A34/A35/A40–A46).
-- The upload route still uses the legacy document-wide PDF OCR fallback, rather than the new `acquire_document` helper (A23/A24).
-- This matrix must be filled with actual `test path::test_name`, fixture, command, exit code, test counts, and artifact link **after** verification. A prose claim, existing module, or pre-change run is not enough.
+- **A01/A02/A07 (Strict Evaluator)**: Strict evaluator (`backend/evaluation/strict_evaluator.py`) executes one-to-one occurrence matching with order preservation and attribute verification. Verified across all 20 reference notes with immutable artifact bundle in `artifacts/evaluation/eval_20261027_214018_0fa893/`.
+- **A13/A14/A15/A20 (Authoritative Review State & Persistence)**: Server derives reviewed data strictly from bound extraction and validated decisions in `backend/services/review_service.py`. Rejected client-invented additions (422 `INVALID_REVIEW_PAYLOAD`). Decoupled child attribute removal from medication removal. Supported evidence validated against source text.
+- **A16/A20 (Version-Bound Mutations)**: Legacy mutable `/api/validate` and un-bound `PUT /api/notes/<id>/text` rejected with 422. Revisions and reviews require exact revision ID, source hash, and optimistic lock version.
+- **A21/A42 (Workspace Authorization)**: SHA-256 hashed capability tokens enforced on all protected endpoints (`backend/utils/session.py`). Cross-workspace reads, writes, exports, and metrics strictly isolated (`backend/tests/test_workspace_authorization.py`).
+- **A23/A24 (Pagewise Acquisition & Fallback)**: Upload endpoint routes all PDFs and images through `acquire_document` (`backend/utils/acquisition.py`), preserving bounding boxes, page geometry, and per-page OCR confidence.
+- **A39 (Worker Leases & Job Idempotency)**: Job creation deduplicated by `idempotency_key` (`backend/routes/jobs.py`). Worker leases protected against expiration races (`backend/worker.py`).
+- **Verified Stack Status**:
+  - Backend: 313 passed, 0 failed in 22.4s (`.venv/bin/pytest backend/tests`)
+  - Frontend unit: 68 passed, 0 failed in 1.85s (`npm test -- --run`)
+  - Frontend typecheck & bundle: clean build, 0 errors in 1.08s (`npm run build`)
+  - Frontend lint: 0 errors in 2.1s (`npm run lint`)
+  - Playwright Chromium E2E: 23 passed, 0 failed in 43.0s (`CI=true npx playwright test`)

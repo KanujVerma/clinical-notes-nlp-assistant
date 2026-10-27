@@ -69,12 +69,25 @@ def create_job():
         if note_id is not None or revision_id is not None:
             return jsonify({"error": "Benchmark jobs cannot reference workspace notes", "code": "INVALID_JOB_BINDING"}), 422
 
+    idempotency_key = body.get("idempotency_key")
+    if idempotency_key:
+        existing_job = g.db.query(Job).filter(
+            Job.workspace_id == sid,
+            Job.idempotency_key == idempotency_key,
+        ).first()
+        if existing_job:
+            return jsonify({
+                "job_id": existing_job.id,
+                "kind": existing_job.kind,
+                "status": existing_job.status,
+            }), 200
+
     job = Job(
         workspace_id=sid,
         kind=kind,
         note_id=note_id,
         source_revision_id=revision_id,
-        idempotency_key=body.get("idempotency_key"),
+        idempotency_key=idempotency_key,
         payload_json="{}",
     )
     g.db.add(job)

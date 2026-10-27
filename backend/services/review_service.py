@@ -164,14 +164,26 @@ def derive_reviewed_snapshot(
     ext_meds = extracted_data.get("medications") or []
     for idx, med in enumerate(ext_meds):
         med_id = med.get("id") or med.get("source_occurrence_id") or f"med_{idx}"
-        med_dec = (item_decisions or {}).get(med_id) or (item_decisions or {}).get(f"med.{idx}")
+        med_dec = (
+            (item_decisions or {}).get(med_id)
+            or (item_decisions or {}).get(f"med.{med_id}")
+            or (item_decisions or {}).get(f"medications.{med_id}")
+            or (item_decisions or {}).get(f"med.{idx}")
+            or (item_decisions or {}).get(f"medications.{idx}")
+        )
+        name_dec = (
+            (item_decisions or {}).get(f"{med_id}.name")
+            or (item_decisions or {}).get(f"med.{med_id}.name")
+            or (item_decisions or {}).get(f"medications.{med_id}.name")
+            or (item_decisions or {}).get(f"med.{idx}.name")
+        )
         is_med_removed = False
-        if med_dec:
+        if (med_dec and _get_decision_str(med_dec) == "remove") or (name_dec and _get_decision_str(name_dec) == "remove"):
+            is_med_removed = True
+            has_corrections = True
+        elif med_dec:
             act = _get_decision_str(med_dec)
-            if act == "remove":
-                is_med_removed = True
-                has_corrections = True
-            elif act == "edit":
+            if act == "edit":
                 has_corrections = True
             elif act == "pending" and is_completing:
                 raise IncompleteReviewError(f"Medication '{med_id}' is pending.")
@@ -192,7 +204,10 @@ def derive_reviewed_snapshot(
                 if not a_dec:
                     a_dec = (
                         (item_decisions or {}).get(f"{med_id}.{attr}")
+                        or (item_decisions or {}).get(f"med.{med_id}.{attr}")
+                        or (item_decisions or {}).get(f"medications.{med_id}.{attr}")
                         or (item_decisions or {}).get(f"med.{idx}.{attr}")
+                        or (item_decisions or {}).get(f"medications.{idx}.{attr}")
                     )
                 if a_dec:
                     a_act = _get_decision_str(a_dec)
@@ -216,16 +231,29 @@ def derive_reviewed_snapshot(
             reason = (d.get("reason") if isinstance(d, dict) else getattr(d, "reason", None)) or (
                 d.get("no_direct_span_reason") if isinstance(d, dict) else getattr(d, "no_direct_span_reason", None)
             )
-            has_ev = False
+            has_valid_evidence = False
             if evidence and isinstance(evidence, dict):
-                if evidence.get("raw_quote") or evidence.get("span") or (
-                    evidence.get("start") is not None and evidence.get("end") is not None
-                ):
-                    has_ev = True
-            has_rs = bool(reason and str(reason).strip())
-            if not (has_ev or has_rs):
+                start = evidence.get("start")
+                end = evidence.get("end")
+                quote = evidence.get("raw_quote")
+                span = evidence.get("span")
+                if span and isinstance(span, (list, tuple)) and len(span) == 2:
+                    start, end = span[0], span[1]
+
+                if start is not None and end is not None:
+                    if 0 <= start <= end <= len(raw_text):
+                        if quote is not None:
+                            if raw_text[start:end] == quote:
+                                has_valid_evidence = True
+                        else:
+                            has_valid_evidence = True
+                elif quote and quote in raw_text:
+                    has_valid_evidence = True
+
+            has_valid_reason = bool(reason and str(reason).strip())
+            if not (has_valid_evidence or has_valid_reason):
                 raise InvalidReviewPayloadError(
-                    f"Added item '{k}' must carry source evidence or a reviewer-entered no-direct-span reason."
+                    f"Added item '{k}' must carry valid source evidence matching raw text or a reviewer-entered no-direct-span reason."
                 )
 
             val = _get_decision_val(d)
@@ -299,6 +327,12 @@ def process_review_mutation(
     Executes atomic review write with optimistic concurrency and idempotency.
     Returns (ReviewEvent, is_replay).
     """
+    valid_event_kinds = {"draft_saved", "review_completed", "review_reopened"}
+    if req.event_kind not in valid_event_kinds:
+        raise InvalidReviewPayloadError(
+            f"Unsupported event_kind '{req.event_kind}'. Must be one of {valid_event_kinds}."
+        )
+
     body_dict = raw_request_dict or req.model_dump()
     req_hash = canonical_hash(body_dict)
 
@@ -447,9 +481,11 @@ def process_review_mutation(
     elif req.event_kind == "review_reopened":
         derived_outcome = "needs_review"
         new_note_status = "needs_review"
-    else:
+    elif req.event_kind == "review_completed":
         derived_outcome = "reviewed_corrected" if has_corrections else "reviewed_unchanged"
         new_note_status = derived_outcome
+    else:
+        raise InvalidReviewPayloadError(f"Unsupported event_kind '{req.event_kind}'.")
 
     # 7. Create ReviewEvent (storing authoritative server-derived snapshot)
     review_event = ReviewEvent(

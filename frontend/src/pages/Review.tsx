@@ -1065,8 +1065,15 @@ export default function Review() {
               setRawText(st.raw_text);
               setExtracted(st.extracted_json);
               setLockVersion(st.lock_version);
+              if (st.current_source_revision_id) setCurrentRevisionId(st.current_source_revision_id);
+              if (st.current_extraction_id) setCurrentExtractionId(st.current_extraction_id);
+              if (st.source_hash) setCurrentSourceHash(st.source_hash);
               setReviewEventId(null);
             });
+            api.getNoteSource(noteIdState).then((src) => {
+              if (src.sha256) setCurrentSourceHash(src.sha256);
+              if (src.revision_number) setCurrentRevisionNumber(src.revision_number);
+            }).catch(() => {});
           }}
         />
       )}

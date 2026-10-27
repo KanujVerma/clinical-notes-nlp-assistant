@@ -107,6 +107,26 @@ def process_single_job(job: Job, session: Session) -> bool:
             session.add(ext)
             session.flush()
 
+            # Record operational issues for new extraction
+            from models import OperationalIssue
+            issues = check_extraction(rev, ext)
+            for iss in issues:
+                op_issue = OperationalIssue(
+                    workspace_id=job.workspace_id,
+                    note_id=note.id,
+                    source_revision_id=rev.id,
+                    extraction_id=ext.public_id,
+                    issue_code=iss.issue_code,
+                    severity=iss.severity,
+                    category=iss.category,
+                    item_id=iss.item_id,
+                    field_path=iss.field_path,
+                    evidence_span_json=json.dumps(iss.evidence_span) if iss.evidence_span else None,
+                    safe_explanation=iss.safe_explanation,
+                    check_policy_version=iss.check_policy_version,
+                )
+                session.add(op_issue)
+
             # Re-extraction, even for identical source text, invalidates a
             # previously completed review. Reject races with source edits.
             stmt = update(Note).where(
@@ -152,17 +172,32 @@ def process_single_job(job: Job, session: Session) -> bool:
         else:
             raise ValueError("INVALID_JOB_KIND")
 
-        job.finished_at = datetime.datetime.now(datetime.timezone.utc)
+        now_dt = datetime.datetime.now(datetime.timezone.utc)
+        stmt = update(Job).where(
+            Job.id == job.id,
+            Job.lease_owner == job.lease_owner,
+            Job.status == "running",
+        ).values(
+            status="succeeded",
+            result_json=job.result_json,
+            finished_at=now_dt,
+        )
+        if session.execute(stmt).rowcount != 1:
+            session.rollback()
+            return False
         session.commit()
         return True
 
     except Exception as e:
         session.rollback()
-        job.status = "failed"
-        job.error_code = "PROCESSING_ERROR"
-        job.error_message = str(e)
-        job.finished_at = datetime.datetime.now(datetime.timezone.utc)
-        session.commit()
+        now_dt = datetime.datetime.now(datetime.timezone.utc)
+        target = session.query(Job).filter(Job.id == job.id).first()
+        if target and target.lease_owner == job.lease_owner and target.status == "running":
+            target.status = "failed"
+            target.error_code = "PROCESSING_ERROR"
+            target.error_message = str(e)
+            target.finished_at = now_dt
+            session.commit()
         return False
 
 

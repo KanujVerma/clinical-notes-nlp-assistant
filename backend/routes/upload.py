@@ -97,8 +97,15 @@ def upload():
                     storage_root=STORAGE_ROOT,
                 )
                 text = details["canonical_text"]
-                source = "pdf"
-                ocr_confidence = details.get("average_confidence")
+                pages = details.get("pages") or []
+                ocr_pages = [p for p in pages if p.get("acquisition_method") == "tesseract_ocr"]
+                if ocr_pages:
+                    source = "ocr" if len(ocr_pages) == len(pages) else "pdf"
+                    confs = [p["confidence"] for p in ocr_pages if p.get("confidence") is not None]
+                    ocr_confidence = (sum(confs) / len(confs)) if confs else None
+                else:
+                    source = "pdf"
+                    ocr_confidence = None
             except pytesseract.TesseractNotFoundError:
                 return jsonify({
                     "error": "OCR engine not available. Install tesseract-ocr.",
@@ -162,7 +169,9 @@ def upload():
                 )
                 text = details["canonical_text"]
                 source = "ocr"
-                ocr_confidence = details.get("average_confidence")
+                pages = details.get("pages") or []
+                confs = [p["confidence"] for p in pages if p.get("confidence") is not None]
+                ocr_confidence = (sum(confs) / len(confs)) if confs else None
             except pytesseract.TesseractNotFoundError:
                 return jsonify({
                     "error": "OCR engine not available. Install tesseract-ocr.",
@@ -243,6 +252,7 @@ def upload():
         raw_text=text,
         normalized_text=text,
         sha256=text_hash,
+        pages_json=acq_run.pages_json,
         creation_reason="acquisition",
     )
     g.db.add(rev)

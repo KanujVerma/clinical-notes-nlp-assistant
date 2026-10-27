@@ -138,6 +138,13 @@ def get_note(note_id: int):
                 "reviewed_snapshot": json.loads(rev_event.reviewed_snapshot_json or "{}"),
             }
 
+    rev = (
+        g.db.query(NoteRevision)
+        .filter(NoteRevision.id == note.current_source_revision_id)
+        .first()
+    ) if note.current_source_revision_id else None
+    source_hash = rev.sha256 if rev else hashlib.sha256((note.raw_text or "").encode("utf-8")).hexdigest()
+
     return jsonify({
         "id": note.id,
         "filename": note.filename,
@@ -147,6 +154,7 @@ def get_note(note_id: int):
         "status": note.status,
         "lock_version": note.lock_version,
         "current_source_revision_id": note.current_source_revision_id,
+        "source_hash": source_hash,
         "current_extraction_id": ext.public_id if ext else None,
         "review_head": review_head,
         "extracted_json": extracted_data,

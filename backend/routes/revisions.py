@@ -198,11 +198,20 @@ def get_note_source(note_id: int):
     sha256 = rev.sha256 if rev else hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
 
     pages = []
-    if rev and rev.pages_json:
-        try:
-            pages = json.loads(rev.pages_json)
-        except Exception:
-            pages = []
+    if rev:
+        if rev.pages_json:
+            try:
+                pages = json.loads(rev.pages_json)
+            except Exception:
+                pages = []
+        elif rev.acquisition_run_id:
+            from models import AcquisitionRun
+            acq = g.db.query(AcquisitionRun).filter(AcquisitionRun.id == rev.acquisition_run_id).first()
+            if acq and acq.pages_json:
+                try:
+                    pages = json.loads(acq.pages_json)
+                except Exception:
+                    pages = []
 
     return jsonify({
         "note_id": note.id,

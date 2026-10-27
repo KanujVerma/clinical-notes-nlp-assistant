@@ -50,7 +50,7 @@ def _compute_correction_rates(pairs):
         val_meds_list = validated.get("medications") or []
 
         def get_occ_id(m, idx):
-            return m.get("source_occurrence_id") or m.get("occurrence_id") or m.get("id") or f"occ_{m.get('name')}_{idx}"
+            return m.get("source_occurrence_id") or m.get("occurrence_id") or m.get("id") or f"med_{idx}"
 
         ext_meds = {get_occ_id(m, i): m for i, m in enumerate(ext_meds_list)}
         val_meds = {get_occ_id(m, i): m for i, m in enumerate(val_meds_list)}

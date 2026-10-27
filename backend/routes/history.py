@@ -32,15 +32,29 @@ def list_history():
             .filter(Validation.note_id == note.id)
             .first()
         )
-        # A legacy Validation row is not a completion for the current source.
-        # Current status is maintained by the version-bound review service.
+        corr_count = None if val else 0
+        if note.review_head_event_id:
+            event = (
+                g.db.query(ReviewEvent)
+                .filter(ReviewEvent.id == note.review_head_event_id)
+                .first()
+            )
+            if event:
+                decisions = json.loads(event.item_decisions_json or "{}")
+                corr_count = sum(
+                    1
+                    for action in decisions.values()
+                    if (action.get("decision") if isinstance(action, dict) else action)
+                    in ("edit", "remove", "add")
+                )
+
         result.append({
             "id": note.id,
             "filename": note.filename,
             "source": note.source,
             "created_at": note.created_at.isoformat() if note.created_at else None,
             "status": note.status or ("legacy_unverified" if val else "needs_review"),
-            "correction_count": None if val else 0,
+            "correction_count": corr_count,
         })
 
     return jsonify({"notes": result, "page": page, "per_page": per_page})
