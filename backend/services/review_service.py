@@ -42,7 +42,7 @@ def _get_decision_str(d: Any) -> str:
         return str(getattr(d, "decision", "accept")).strip().lower()
     if isinstance(d, str):
         return d.strip().lower()
-    return "accept"
+    return ""
 
 
 def _get_decision_val(d: Any) -> Any:
