@@ -68,6 +68,21 @@ def update_issue_disposition(issue_id: str):
     if disposition not in ("acknowledged", "dismissed", "resolved"):
         return jsonify({"error": "Invalid disposition", "code": "INVALID_DISPOSITION"}), 400
 
+    # An integrity blocker is not resolved by a human acknowledgement. It
+    # remains open until the underlying source/extraction is repaired and a
+    # new bound check run supersedes the finding.
+    if issue.severity == "critical_blocker":
+        return jsonify({
+            "error": "Critical source/evidence issues require correction and reprocessing",
+            "code": "CRITICAL_ISSUE_NOT_DISMISSIBLE",
+        }), 409
+
+    if not isinstance(reason, str) or not reason.strip():
+        return jsonify({
+            "error": "A disposition reason is required",
+            "code": "DISPOSITION_REASON_REQUIRED",
+        }), 422
+
     issue.status = disposition
     evt = IssueEvent(
         issue_id=issue.id,
