@@ -67,6 +67,18 @@ def test_note_lifecycle_revisions_and_review_export(client):
 
     # 5. Complete review via /api/extractions/<id>/reviews
     src_hash = src_res.json["sha256"]
+    # Accept the actual extracted fields/medication occurrences. A fabricated
+    # "med_lisinopril" ID does not demonstrate a valid item decision.
+    extracted = note_data["extracted_json"]
+    decisions = {}
+    for cat in ("vitals", "instructions", "metadata"):
+        for field, value in (extracted.get(cat) or {}).items():
+            if value is not None:
+                decisions[f"{cat}.{field}"] = {"decision": "accept"}
+    for idx, med in enumerate(extracted.get("medications") or []):
+        mid = med.get("id") or med.get("source_occurrence_id") or f"med_{idx}"
+        decisions[f"med.{mid}"] = {"decision": "accept"}
+
     review_payload = {
         "note_id": note_id,
         "source_revision_id": rev_id,
@@ -74,7 +86,7 @@ def test_note_lifecycle_revisions_and_review_export(client):
         "source_hash": src_hash,
         "expected_lock_version": 0,
         "event_kind": "review_completed",
-        "item_decisions": {"med_lisinopril": {"decision": "accept"}},
+        "item_decisions": decisions,
         "category_acknowledgments": {
             "metadata": True,
             "vitals": True,
