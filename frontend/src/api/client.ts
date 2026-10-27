@@ -19,6 +19,7 @@ export function getSessionId(): string {
 const WORKSPACE_KEY = "clinical_nlp_workspace_capability_v1";
 type WorkspaceCapability = { id: string; token: string; expiresAt: number };
 let workspaceHeadersPromise: Promise<Record<string, string>> | null = null;
+let workspaceExpiresAt = 0;
 
 async function resolveWorkspaceHeaders(): Promise<Record<string, string>> {
   const raw = localStorage.getItem(WORKSPACE_KEY);
@@ -26,6 +27,7 @@ async function resolveWorkspaceHeaders(): Promise<Record<string, string>> {
     try {
       const existing = JSON.parse(raw) as WorkspaceCapability;
       if (existing.id && existing.token && existing.expiresAt > Date.now() + 15_000) {
+        workspaceExpiresAt = existing.expiresAt;
         return {
           "X-Workspace-ID": existing.id,
           "X-Workspace-Token": existing.token,
@@ -66,10 +68,17 @@ async function resolveWorkspaceHeaders(): Promise<Record<string, string>> {
     expiresAt: Date.parse(workspace.expires_at),
   };
   localStorage.setItem(WORKSPACE_KEY, JSON.stringify(record));
+  workspaceExpiresAt = record.expiresAt;
   return { "X-Workspace-ID": record.id, "X-Workspace-Token": record.token };
 }
 
 async function getWorkspaceHeaders(): Promise<Record<string, string>> {
+  if (workspaceExpiresAt && Date.now() + 15_000 >= workspaceExpiresAt) {
+    // Never keep an expired capability alive in the cached Promise.
+    workspaceHeadersPromise = null;
+    workspaceExpiresAt = 0;
+    localStorage.removeItem(WORKSPACE_KEY);
+  }
   if (!workspaceHeadersPromise) {
     workspaceHeadersPromise = resolveWorkspaceHeaders().catch((error: unknown) => {
       workspaceHeadersPromise = null;
