@@ -163,71 +163,10 @@ def get_note(note_id: int):
 
 @bp.put("/api/notes/<int:note_id>/text")
 def update_note_text(note_id: int):
-    sid = require_session()
-    note = g.db.get(Note, note_id)
-    if not note:
-        return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
-    if note.session_id != sid and note.workspace_id != sid:
-        return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
+    """Legacy route adapter: use the same append-only bound revision service.
 
-    body = request.get_json(silent=True) or {}
-    text = body.get("text", "").strip()
-    if not text:
-        return jsonify({"error": "Text is required", "code": "TEXT_REQUIRED"}), 400
-
-    note.raw_text = text
-    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-    # Determine next revision number
-    latest_rev = (
-        g.db.query(NoteRevision)
-        .filter(NoteRevision.note_id == note_id)
-        .order_by(NoteRevision.revision_number.desc())
-        .first()
-    )
-    next_rev_num = (latest_rev.revision_number + 1) if latest_rev else 1
-
-    rev = NoteRevision(
-        note_id=note.id,
-        workspace_id=sid,
-        revision_number=next_rev_num,
-        parent_revision_id=latest_rev.id if latest_rev else None,
-        raw_text=text,
-        normalized_text=text,
-        sha256=text_hash,
-        creation_reason="human_edit",
-    )
-    g.db.add(rev)
-    g.db.flush()
-
-    note.current_source_revision_id = rev.id
-
-    # For legacy backwards compatibility: delete old extractions if requested by legacy test
-    g.db.query(Extraction).filter_by(note_id=note_id).delete()
-
-    # Re-run pipeline and create new extraction
-    extracted = run_pipeline(text)
-    extraction = Extraction(
-        note_id=note_id,
-        workspace_id=sid,
-        source_revision_id=rev.id,
-        source_text_hash=text_hash,
-        extracted_json=json.dumps(extracted),
-        pipeline_version=Config.PIPELINE_VERSION,
-    )
-    g.db.add(extraction)
-    g.db.flush()
-
-    note.current_extraction_id = extraction.public_id
-    note.review_head_event_id = None
-    note.lock_version += 1
-    note.status = "needs_review"
-    g.db.commit()
-
-    return jsonify({
-        "note_id": note_id,
-        "revision_id": rev.id,
-        "extraction_id": extraction.public_id,
-        "extracted_json": extracted,
-        "status": note.status,
-    }), 200
+    Unlike the old implementation this never deletes an existing extraction.
+    Callers must send expected_source_revision_id and expected_lock_version.
+    """
+    from routes.revisions import append_revision
+    return append_revision(note_id)
