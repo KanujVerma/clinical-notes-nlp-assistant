@@ -34,116 +34,187 @@ def compare_strict_medications(
     preds: List[Dict[str, Any]],
     labels: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
+    """Match instances by source occurrence, never by dose/route correctness.
+
+    The strict record count covers explicitly annotated gold attributes.
+    Missing gold dimensions are unannotated, not automatically true negatives.
+    Pair identity and evidence pairing are chosen independently from attribute
+    correctness so duplicate-name errors cannot be optimized away.
     """
-    Multiset medication matching:
-    Greedy deterministic bipartite matching based on name agreement, attribute agreement, and order.
-    Does NOT collapse duplicate-name medications.
-    """
-    matched_preds = set()
-    matched_labels = set()
-    pairs = []
+    from functools import lru_cache
 
-    # 1. Exact matches (name, dose, route, frequency, action)
-    for p_idx, p in enumerate(preds):
-        p_name = canonical_str(p.get("name"))
-        p_dose = canonical_str(p.get("dose"))
-        p_route = canonical_str(p.get("route"))
-        p_freq = canonical_str(p.get("frequency"))
-        p_action = canonical_str(p.get("action") or "unspecified")
+    if not isinstance(preds, list) or not isinstance(labels, list):
+        raise ValueError("Medication predictions and gold labels must be lists.")
+    if not all(isinstance(x, dict) for x in preds + labels):
+        raise ValueError("Medication occurrences must be objects.")
+    if any(not canonical_str(x.get("name")) for x in labels):
+        raise ValueError("Gold medication names must be nonempty.")
 
-        for l_idx, l in enumerate(labels):
-            if l_idx in matched_labels:
-                continue
-            l_name = canonical_str(l.get("name"))
-            l_dose = canonical_str(l.get("dose"))
-            l_route = canonical_str(l.get("route"))
-            l_freq = canonical_str(l.get("frequency"))
-            l_action = canonical_str(l.get("action") or "unspecified")
+    attrs = ("dose", "route", "frequency", "duration", "qualifier",
+             "prn", "action", "temporal_status")
+    matched_p = set()
+    matched_l = set()
+    pair_indices = []
+    ambiguity_flags = []
 
-            if p_name == l_name and p_dose == l_dose and p_route == l_route and p_freq == l_freq and p_action == l_action:
-                matched_preds.add(p_idx)
-                matched_labels.add(l_idx)
-                pairs.append({
-                    "pred_idx": p_idx,
-                    "label_idx": l_idx,
-                    "pred": p,
-                    "label": l,
-                    "match_type": "exact",
-                    "tp": 1,
-                    "fp": 0,
-                    "fn": 0,
-                })
-                break
+    def occurrence(item):
+        return item.get("source_occurrence_id") or item.get("occurrence_id")
 
-    # 2. Relaxed name + dose matches
-    for p_idx, p in enumerate(preds):
-        if p_idx in matched_preds:
+    def span(item):
+        ev = item.get("evidence")
+        if isinstance(ev, dict):
+            a, b = ev.get("start"), ev.get("end")
+        elif isinstance(item.get("span"), (list, tuple)) and len(item["span"]) == 2:
+            a, b = item["span"]
+        else:
+            return None
+        if type(a) is int and type(b) is int and 0 <= a < b:
+            return (a, b)
+        return None
+
+    def overlap(p, l):
+        ps, ls = span(preds[p]), span(labels[l])
+        return max(0, min(ps[1], ls[1]) - max(ps[0], ls[0])) if ps and ls else 0
+
+    # Explicit shared source-occurrence identities are authoritative when both
+    # sides provide them, but never match a different normalized drug name.
+    for p_idx, pred in enumerate(preds):
+        pid = occurrence(pred)
+        if pid is None:
             continue
-        p_name = canonical_str(p.get("name"))
-        p_dose = canonical_str(p.get("dose"))
-        p_route = canonical_str(p.get("route"))
-        p_freq = canonical_str(p.get("frequency"))
-        p_action = canonical_str(p.get("action") or "unspecified")
-
-        for l_idx, l in enumerate(labels):
-            if l_idx in matched_labels:
+        for l_idx, lab in enumerate(labels):
+            if l_idx in matched_l:
                 continue
-            l_name = canonical_str(l.get("name"))
-            l_dose = canonical_str(l.get("dose"))
-            l_route = canonical_str(l.get("route"))
-            l_freq = canonical_str(l.get("frequency"))
-            l_action = canonical_str(l.get("action") or "unspecified")
-
-            if p_name == l_name:
-                matched_preds.add(p_idx)
-                matched_labels.add(l_idx)
-                is_dose_match = (p_dose == l_dose) if (p_dose or l_dose) else True
-                is_route_match = (p_route == l_route) if (p_route or l_route) else True
-                is_freq_match = (p_freq == l_freq) if (p_freq or l_freq) else True
-                is_action_match = (p_action == l_action) if (p_action or l_action) else True
-                is_full_match = is_dose_match and is_route_match and is_freq_match and is_action_match
-
-                pairs.append({
-                    "pred_idx": p_idx,
-                    "label_idx": l_idx,
-                    "pred": p,
-                    "label": l,
-                    "match_type": "exact_attributes" if is_full_match else "attribute_mismatch",
-                    "tp": 1 if is_full_match else 0,
-                    "fp": 0 if is_full_match else 1,
-                    "fn": 0 if is_full_match else 1,
-                    "attribute_mismatches": {
-                        "dose": (p.get("dose"), l.get("dose")),
-                        "route": (p.get("route"), l.get("route")),
-                        "frequency": (p.get("frequency"), l.get("frequency")),
-                        "action": (p.get("action"), l.get("action")),
-                    }
-                })
+            if (pid == occurrence(lab)
+                    and canonical_str(pred.get("name")) == canonical_str(lab.get("name"))):
+                pair_indices.append((p_idx, l_idx, "source_occurrence"))
+                matched_p.add(p_idx)
+                matched_l.add(l_idx)
                 break
 
-    # 3. Remaining un-paired predictions are False Positives
-    unpaired_preds = []
-    for p_idx, p in enumerate(preds):
-        if p_idx not in matched_preds:
-            unpaired_preds.append(p)
+    names = sorted({canonical_str(item.get("name")) for item in preds + labels} - {""})
+    for name in names:
+        pi = [i for i, p in enumerate(preds)
+              if i not in matched_p and canonical_str(p.get("name")) == name]
+        li = [i for i, l in enumerate(labels)
+              if i not in matched_l and canonical_str(l.get("name")) == name]
+        if not pi or not li:
+            continue
 
-    # 4. Remaining un-paired labels are False Negatives
-    unpaired_labels = []
-    for l_idx, l in enumerate(labels):
-        if l_idx not in matched_labels:
-            unpaired_labels.append(l)
+        # Position in the original source is preferred, then record order.
+        pi.sort(key=lambda i: (span(preds[i])[0] if span(preds[i]) else float("inf"), i))
+        li.sort(key=lambda i: (span(labels[i])[0] if span(labels[i]) else float("inf"), i))
+        if max(len(pi), len(li)) > 12:
+            raise ValueError("More than 12 duplicate medication instances require explicit source occurrence IDs")
 
-    tp = sum(p["tp"] for p in pairs)
-    fp = sum(p["fp"] for p in pairs) + len(unpaired_preds)
-    fn = sum(p["fn"] for p in pairs) + len(unpaired_labels)
+        if len(pi) > 1 or len(li) > 1:
+            ambiguity_flags.append({
+                "name": name,
+                "reason": "duplicate occurrence assignment",
+                "source_evidence_available": any(
+                    span(preds[p]) and span(labels[l]) for p in pi for l in li
+                ),
+            })
 
+        # Exhaustive bounded one-to-one assignment maximizes evidence overlap
+        # only. It does not use dose/route/frequency or strict-record success.
+        small_is_pred = len(pi) <= len(li)
+        small = pi if small_is_pred else li
+        large = li if small_is_pred else pi
+
+        @lru_cache(maxsize=None)
+        def solve(pos, mask):
+            if pos == len(small):
+                return (0, 0, ())
+            best = None
+            for j, big in enumerate(large):
+                if mask & (1 << j):
+                    continue
+                p_idx, l_idx = (small[pos], big) if small_is_pred else (big, small[pos])
+                sc, distance, remainder = solve(pos + 1, mask | (1 << j))
+                candidate = (
+                    sc + overlap(p_idx, l_idx),
+                    distance + abs(p_idx - l_idx),
+                    ((p_idx, l_idx),) + remainder,
+                )
+                # Maximize source overlap; break ties by stable occurrence
+                # order/distance and then lexicographic index order.
+                if (best is None
+                        or (-candidate[0], candidate[1], candidate[2])
+                        < (-best[0], best[1], best[2])):
+                    best = candidate
+            return best
+
+        _, _, chosen = solve(0, 0)
+        for p_idx, l_idx in chosen:
+            pair_indices.append((p_idx, l_idx, "source_overlap_or_order"))
+            matched_p.add(p_idx)
+            matched_l.add(l_idx)
+
+    pair_indices.sort(key=lambda x: (x[1], x[0]))
+    pairs = []
+    attr_counts = {a: {"tp": 0, "fp": 0, "fn": 0, "excluded_unannotated": 0} for a in attrs}
+    for p_idx, l_idx, match_type in pair_indices:
+        p, l = preds[p_idx], labels[l_idx]
+        mismatches = {}
+        for attr in attrs:
+            if attr not in l:
+                attr_counts[attr]["excluded_unannotated"] += 1
+                continue
+            predicted, expected = canonical_str(p.get(attr)), canonical_str(l.get(attr))
+            if predicted == expected:
+                if expected:
+                    attr_counts[attr]["tp"] += 1
+            else:
+                mismatches[attr] = (p.get(attr), l.get(attr))
+                if predicted:
+                    attr_counts[attr]["fp"] += 1
+                if expected:
+                    attr_counts[attr]["fn"] += 1
+        # If explicit gold source identity or span exists, association is scored.
+        source_ok = True
+        if occurrence(l) is not None:
+            source_ok = occurrence(p) == occurrence(l)
+        elif span(l) is not None:
+            source_ok = span(p) == span(l)
+        if not source_ok:
+            mismatches["source_association"] = (span(p), span(l))
+        exact = not mismatches
+        pairs.append({
+            "pred_idx": p_idx, "label_idx": l_idx,
+            "pred": p, "label": l, "match_type": match_type,
+            "tp": 1 if exact else 0,
+            "fp": 0 if exact else 1, "fn": 0 if exact else 1,
+            "attribute_mismatches": mismatches,
+            "unannotated_attributes": [a for a in attrs if a not in l],
+        })
+
+    unpaired_preds = [p for idx, p in enumerate(preds) if idx not in matched_p]
+    unpaired_labels = [l for idx, l in enumerate(labels) if idx not in matched_l]
+
+    # Unpaired gold labels remain FNs; per-attribute denominators remain visible.
+    for gold in unpaired_labels:
+        for attr in attrs:
+            if attr in gold and canonical_str(gold[attr]):
+                attr_counts[attr]["fn"] += 1
+            elif attr not in gold:
+                attr_counts[attr]["excluded_unannotated"] += 1
+    for pred in unpaired_preds:
+        for attr in attrs:
+            if canonical_str(pred.get(attr)):
+                attr_counts[attr]["fp"] += 1
+
+    tp = sum(pair["tp"] for pair in pairs)
+    fp = sum(pair["fp"] for pair in pairs) + len(unpaired_preds)
+    fn = sum(pair["fn"] for pair in pairs) + len(unpaired_labels)
     return {
-        "tp": tp,
-        "fp": fp,
-        "fn": fn,
+        "tp": tp, "fp": fp, "fn": fn,
         "pairs": pairs,
         "false_positives": unpaired_preds,
         "false_negatives": unpaired_labels,
+        "attribute_counts": attr_counts,
+        "matching_ambiguities": ambiguity_flags,
+        "contract": "strict_annotated_record_source_first_v3",
     }
 
 
