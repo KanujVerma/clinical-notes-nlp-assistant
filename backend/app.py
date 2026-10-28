@@ -30,11 +30,18 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     # DB
     engine = get_engine(app.config["DATABASE_URL"])
+    # Only disposable SQLite/local or test databases are auto-migrated. Hosted
+    # and PostgreSQL schemas require an explicit, preapproved migration gate.
+    allow_local_migration = bool(app.config.get("TESTING")) or (
+        Config.APP_MODE == "local" and engine.dialect.name == "sqlite"
+    )
     try:
-        init_db(engine)
-    except Exception as exc:
-        import logging
-        logging.warning("DB init failed on startup (will retry per-request): %s", exc)
+        init_db(engine, migrate=allow_local_migration)
+    except Exception:
+        # Do not start serving requests or leak database exception strings
+        # when an audited migration/schema check did not complete.
+        _boot_log.error("Database migration or schema readiness gate failed")
+        raise RuntimeError("Database schema not ready; complete the migration gate before startup") from None
     app.config["ENGINE"] = engine
 
     @app.before_request
