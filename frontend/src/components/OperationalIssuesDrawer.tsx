@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { api } from "../api/client";
+import { api, type AiAdapter } from "../api/client";
 
 export default function OperationalIssuesDrawer({
   noteId,
@@ -21,6 +21,11 @@ export default function OperationalIssuesDrawer({
   const [loadingIssues, setLoadingIssues] = useState(false);
   const [aiDiscrepancies, setAiDiscrepancies] = useState<any[]>([]);
   const [loadingAi, setLoadingAi] = useState(false);
+  const [aiAdapter, setAiAdapter] = useState<AiAdapter>("text");
+  const [aiJobId, setAiJobId] = useState<string | null>(null);
+  const [aiJobStatus, setAiJobStatus] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiCandidates, setAiCandidates] = useState<Record<string, unknown> | null>(null);
 
   const currentBindingRef = useRef({ noteId, revisionId, extractionId });
   currentBindingRef.current = { noteId, revisionId, extractionId };
@@ -32,6 +37,11 @@ export default function OperationalIssuesDrawer({
 
   useEffect(() => {
     setAiDiscrepancies([]);
+    setAiCandidates(null);
+    setAiJobId(null);
+    setAiJobStatus(null);
+    setAiError(null);
+    setLoadingAi(false);
     loadIssues();
   }, [noteId, revisionId, extractionId]);
 
@@ -64,23 +74,90 @@ export default function OperationalIssuesDrawer({
   }
 
   async function handleRequestAi() {
-    const reqNoteId = noteId;
-    const reqRevId = revisionId;
-    const reqExtId = extractionId;
+    if (!revisionId || !extractionId) {
+      setAiError("Current source/extraction is not ready; refresh the note.");
+      return;
+    }
+    const expected = { noteId, revisionId, extractionId };
+    setAiError(null);
+    setAiJobStatus(null);
+    setAiCandidates(null);
+    setAiDiscrepancies([]);
+    setLoadingAi(true);
     try {
-      setLoadingAi(true);
-      const res = await api.requestAiCandidates(noteId);
-      // Ignore if binding changed while request was in-flight (compare with live ref)
-      const cur = currentBindingRef.current;
-      if (cur.noteId === reqNoteId && cur.revisionId === reqRevId && cur.extractionId === reqExtId) {
-        setAiDiscrepancies(res.discrepancies || []);
+      const response = await api.requestAiCandidates(noteId, {
+        adapter: aiAdapter,
+        source_revision_id: revisionId,
+        extraction_id: extractionId,
+        page_number: 1,
+        idempotency_key: crypto.randomUUID(),
+      });
+      const current = currentBindingRef.current;
+      if (current.noteId !== expected.noteId ||
+          current.revisionId !== expected.revisionId ||
+          current.extractionId !== expected.extractionId) {
+        return;
       }
-    } catch (err: any) {
-      alert(`AI proposal failed: ${err.message}`);
-    } finally {
-      setLoadingAi(false);
+      setAiJobId(response.job_id);
+      setAiJobStatus(response.status);
+    } catch (err) {
+      const current = currentBindingRef.current;
+      if (current.noteId === expected.noteId &&
+          current.revisionId === expected.revisionId &&
+          current.extractionId === expected.extractionId) {
+        setAiError(err instanceof Error ? err.message : "Cannot queue local AI task");
+        setLoadingAi(false);
+      }
     }
   }
+
+  useEffect(() => {
+    if (!aiJobId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const poll = async () => {
+      try {
+        const job = await api.getJob(aiJobId);
+        if (stopped) return;
+        setAiJobStatus(job.status);
+        if (job.status === "succeeded") {
+          const runs = await api.getAiCandidates(noteId);
+          if (stopped) return;
+          const matching = runs.find(
+            (run) => run.id === job.result?.inference_run_id &&
+              run.is_current && run.source_revision_id === revisionId
+          );
+          if (!matching) {
+            setAiError("Inference result no longer matches the current source revision.");
+          } else {
+            setAiDiscrepancies(matching.discrepancies || []);
+            setAiCandidates(matching.candidates || {});
+          }
+          setAiJobId(null);
+          setLoadingAi(false);
+        } else if (job.status === "failed" || job.status === "canceled" ||
+                   job.status === "partial") {
+          setAiError(`Local AI task did not complete: ${job.error_code || job.status}`);
+          setAiJobId(null);
+          setLoadingAi(false);
+        } else {
+          timer = setTimeout(poll, 2000);
+        }
+      } catch (err) {
+        if (!stopped) {
+          setAiError(err instanceof Error ? err.message : "Could not check AI job");
+          setAiJobId(null);
+          setLoadingAi(false);
+        }
+      }
+    };
+    void poll();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [aiJobId, noteId, revisionId]);
+
 
   const openIssues = issues.filter((i) => i.status === "open");
   const blockerCount = openIssues.filter((i) => i.severity === "critical_blocker").length;
@@ -177,18 +254,47 @@ export default function OperationalIssuesDrawer({
               Local AI Understanding
             </h4>
             {isHosted ? (
-              <span className="text-[11px] text-slate-400">Recorded synthetic examples only</span>
+              <span className="text-[11px] text-slate-400">Live AI disabled in hosted sandbox</span>
             ) : (
-              <button
-                onClick={handleRequestAi}
-                disabled={loadingAi}
-                className="rounded bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-cyan-400 hover:bg-slate-700 disabled:opacity-50"
-              >
-                {loadingAi ? "Analyzing…" : "Request Proposals"}
-              </button>
+              <div className="flex items-center gap-2">
+                <select
+                  aria-label="Local AI adapter"
+                  value={aiAdapter}
+                  onChange={(event) => setAiAdapter(event.target.value as AiAdapter)}
+                  disabled={loadingAi}
+                  className="bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-[11px]"
+                >
+                  <option value="text">Text proposal</option>
+                  <option value="glm_ocr">GLM-OCR image</option>
+                  <option value="qwen3_vl">Qwen3-VL image</option>
+                </select>
+                <button
+                  onClick={handleRequestAi}
+                  disabled={loadingAi || !revisionId || !extractionId}
+                  className="rounded bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-cyan-400 hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {loadingAi ? "Queued / processing" : "Request Proposals"}
+                </button>
+              </div>
             )}
           </div>
 
+          {aiJobStatus && (
+            <p role="status" className="mt-2 text-xs text-slate-300">
+              Local AI job: {aiJobStatus}. A separate local worker must be running.
+            </p>
+          )}
+          {aiError && (
+            <p role="alert" className="mt-2 text-xs text-rose-300">{aiError}</p>
+          )}
+          {aiCandidates && (
+            <details className="mt-2 text-xs text-slate-300">
+              <summary className="cursor-pointer">Unverified AI candidate output</summary>
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-[11px]">
+                {JSON.stringify(aiCandidates, null, 2).slice(0, 3000)}
+              </pre>
+            </details>
+          )}
           {aiDiscrepancies.length > 0 && (
             <div className="rounded-lg border border-cyan-800/80 bg-cyan-950/20 p-3 space-y-2 mt-2">
               <span className="text-[11px] font-bold text-cyan-300 uppercase">
