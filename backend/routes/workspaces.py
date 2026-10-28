@@ -5,6 +5,7 @@ import datetime
 import hashlib
 import secrets
 from flask import Blueprint, g, jsonify, request
+from sqlalchemy import text
 from models import Workspace
 from config import Config
 from services.ollama_service import is_ollama_available
@@ -19,8 +20,8 @@ LOCAL_WORKSPACE_HOURS = 24
 def purge_expired_workspaces(db, now: datetime.datetime):
     """Transactionally cleans up expired workspaces and all their associated records."""
     from models import (
-        Note, NoteRevision, Extraction, OperationalIssue,
-        ReviewEvent, InferenceRun, SourceAsset, Job, Validation
+        Note, NoteRevision, Extraction, OperationalIssue, IssueEvent,
+        ReviewEvent, InferenceRun, SourceAsset, AcquisitionRun, Job, Validation
     )
     expired_ids = [w[0] for w in db.query(Workspace.id).filter(Workspace.expires_at < now).all()]
     if not expired_ids:
@@ -28,8 +29,20 @@ def purge_expired_workspaces(db, now: datetime.datetime):
 
     # Find all note IDs in expired workspaces
     expired_note_ids = [n[0] for n in db.query(Note.id).filter(Note.workspace_id.in_(expired_ids)).all()]
+    # Delete dependent rows before referenced parents. PostgreSQL enforces
+    # foreign keys even when SQLite development is configured more loosely.
     if expired_note_ids:
         db.query(Validation).filter(Validation.note_id.in_(expired_note_ids)).delete(synchronize_session=False)
+
+    issue_ids = [row[0] for row in db.query(OperationalIssue.id).filter(
+        OperationalIssue.workspace_id.in_(expired_ids)
+    ).all()]
+    if issue_ids:
+        db.query(IssueEvent).filter(IssueEvent.issue_id.in_(issue_ids)).delete(synchronize_session=False)
+
+    asset_ids = [row[0] for row in db.query(SourceAsset.id).filter(
+        SourceAsset.workspace_id.in_(expired_ids)
+    ).all()]
 
     db.query(ReviewEvent).filter(ReviewEvent.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
     db.query(OperationalIssue).filter(OperationalIssue.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
@@ -38,6 +51,8 @@ def purge_expired_workspaces(db, now: datetime.datetime):
     db.query(NoteRevision).filter(NoteRevision.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
     db.query(Job).filter(Job.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
     db.query(Note).filter(Note.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    if asset_ids:
+        db.query(AcquisitionRun).filter(AcquisitionRun.source_asset_id.in_(asset_ids)).delete(synchronize_session=False)
     db.query(SourceAsset).filter(SourceAsset.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
     db.query(Workspace).filter(Workspace.id.in_(expired_ids)).delete(synchronize_session=False)
     db.commit()
@@ -52,7 +67,11 @@ def create_workspace():
         # 1. Purge expired workspaces and data to maintain bounded sandbox storage
         purge_expired_workspaces(g.db, now)
 
-        # 2. Enforce active workspace concurrency quota
+        # 2. Serialize the hosted quota check and insert under one
+        # PostgreSQL transaction. A read-count-check without this lock can
+        # overshoot 50 under simultaneous anonymous requests.
+        if g.db.get_bind().dialect.name == "postgresql":
+            g.db.execute(text("SELECT pg_advisory_xact_lock(2761028)"))
         active_count = g.db.query(Workspace).filter(Workspace.mode == "hosted_demo").count()
         if active_count >= MAX_HOSTED_WORKSPACES:
             return jsonify({
