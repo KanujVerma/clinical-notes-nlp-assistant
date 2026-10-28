@@ -1,0 +1,57 @@
+name: Local vision evaluation contract (no cloud models)
+
+on:
+  pull_request:
+    paths:
+      - "backend/evaluation/**"
+      - "backend/tests/test_local_vision_eval.py"
+      - "backend/tests/test_vision_benchmark_contract.py"
+      - ".github/workflows/local-vision-eval.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tesseract-synthetic-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_MODE: local
+      ENABLE_EXTERNAL_EXPLAINER: "false"
+      ENABLE_LOCAL_AI: "false"
+      OLLAMA_HOST: http://127.0.0.1:11434
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install offline Tesseract and Python deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr poppler-utils
+          python -m pip install -r requirements.txt
+      - name: Run offline benchmark-contract negative controls
+        run: |
+          python -m pytest backend/tests/test_local_vision_eval.py \
+            backend/tests/test_vision_benchmark_contract.py -q
+      - name: Generate hash-pinned printed synthetic images
+        run: |
+          python backend/evaluation/generate_synthetic_visual_cases.py \
+            --output data/vision_gold
+      - name: Execute real Tesseract baseline (no Ollama)
+        run: |
+          mkdir -p artifacts/qa-vision
+          python backend/evaluation/local_vision_eval.py \
+            --manifest data/vision_gold/manifest.json \
+            --arms tesseract \
+            --output-dir artifacts/qa-vision
+      - name: Store labeled development baseline only
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-tesseract-development-baseline
+          path: artifacts/qa-vision/
+          if-no-files-found: error
