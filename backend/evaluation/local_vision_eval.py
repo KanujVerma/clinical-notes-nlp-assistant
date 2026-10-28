@@ -42,7 +42,7 @@ from services.multimodal_service import glm_ocr_infer, qwen3_vl_infer, calculate
 
 
 ARMS = ("tesseract", "glm_ocr", "qwen3_vl")
-FIELDS = ("name", "dose", "route", "frequency")
+FIELDS = ("name", "dose", "route", "frequency", "action")
 VITAL_FIELDS = ("vital_type", "value", "unit")
 
 
@@ -100,7 +100,7 @@ def score_occurrences(
             diffs = {
                 field: {"expected": exp.get(field), "predicted": pred.get(field)}
                 for field in fields
-                if _normalize(exp.get(field)) != _normalize(pred.get(field))
+                if field in exp and _normalize(exp.get(field)) != _normalize(pred.get(field))
             }
             if diffs:
                 fp += 1
