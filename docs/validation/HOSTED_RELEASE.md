@@ -55,12 +55,18 @@ This is a curated synthetic portfolio demonstration, not clinical software.
    Verify Cache-Control: no-store and absence of credentials in URLs.
    Do not confuse a checksum with independently verified clinical content.
 
-6. Review production integration separately. The current Vercel repository
-   configuration rewrites all paths to index.html, and the local Vite proxy
-   is development-only. Before publication, configure and test the **actual
-   production /api routing path** to Render, with correct CORS
-   FRONTEND_URL and no browser-exposed database or provider secrets.
-   Do not claim the public demo works merely because local Vite tests passed.
+6. Review production integration separately. The current Vercel
+   configuration rewrites all paths to index.html; the local Vite proxy is
+   development-only. This PR's frontend now **fails closed on production**
+   when VITE_API_BASE_URL is missing. Before publication, set the Vercel
+   environment variable VITE_API_BASE_URL to the approved, verified HTTPS
+   **Render backend origin only** (no trailing /api). Configure Render
+   FRONTEND_URL as the **exact** public Vercel origin, without a trailing
+   slash. Do not include API keys, database URLs, provider credentials or
+   workspace tokens in VITE_ variables. Verify in a real browser that calls
+   go directly to the HTTPS Render /api routes with correct CORS and the
+   server-issued workspace token in headers. Do not claim the public demo
+   works merely because local Vite proxy tests passed.
 
 7. Back up the actual hosted database before any manually approved migration.
    Review deployed revision, migration plan, operational impact, privileges,
