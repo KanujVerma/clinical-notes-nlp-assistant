@@ -4,6 +4,44 @@ import { AiExplainRequest, AiExplainResponse, AiStatusResponse } from "../lib/ai
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "") + "/api";
 
+export type AiAdapter = "text" | "glm_ocr" | "qwen3_vl";
+export interface AiJobRequest {
+  adapter: AiAdapter;
+  source_revision_id: string;
+  extraction_id: string;
+  page_number: number;
+  idempotency_key: string;
+}
+export interface AiJobResponse {
+  job_id: string;
+  status: string;
+  adapter: AiAdapter;
+  source_revision_id: string;
+  is_replay?: boolean;
+}
+export interface JobStatus {
+  id: string;
+  kind: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "partial" | "canceled";
+  progress: number;
+  result: null | { inference_run_id?: string; source_revision_id?: string; status?: string };
+  error_code?: string | null;
+}
+export interface InferenceCandidateRun {
+  id: string;
+  source_revision_id: string;
+  is_current: boolean;
+  task_type: string;
+  status: string;
+  error_code?: string | null;
+  model_name: string;
+  model_digest?: string | null;
+  duration_ms?: number | null;
+  discrepancies: Array<{ type: string; medication?: string; detail?: string }>;
+  candidates: Record<string, unknown>;
+}
+
+
 export function getSessionId(): string {
   const KEY = "clinical_nlp_session_id";
   let sid = localStorage.getItem(KEY);
@@ -277,10 +315,15 @@ export const api = {
     }),
 
   getAiCandidates: (noteId: number) =>
-    request<any[]>(`/notes/${noteId}/ai-candidates`),
+    request<InferenceCandidateRun[]>(`/notes/${noteId}/ai-candidates`),
 
-  requestAiCandidates: (noteId: number) =>
-    request<any>(`/notes/${noteId}/ai-candidates`, { method: "POST" }),
+  requestAiCandidates: (noteId: number, body: AiJobRequest) =>
+    request<AiJobResponse>(`/notes/${noteId}/ai-candidates`, {
+      method: "POST", body: JSON.stringify(body),
+    }),
+
+  getJob: (jobId: string) =>
+    request<JobStatus>(`/jobs/${encodeURIComponent(jobId)}`),
 
   getEvalRuns: () =>
     request<any[]>("/evaluation/runs"),
