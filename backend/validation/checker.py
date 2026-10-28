@@ -213,30 +213,53 @@ def check_extraction(
             med_names.setdefault(name, []).append(med)
 
         # Decimal dose check (Rule A09 / A01)
-        if dose:
-            dose_str = str(dose)
-            # Detect leading decimal point without leading zero (e.g. .5 mg)
-            if re.search(r'(?<!\d)\.\d+', dose_str):
-                issues.append(ValidationIssue(
-                    issue_code="A09_DECIMAL_DOSE_LEADING_ZERO_MISSING",
-                    severity="warning",
-                    category="clinical_canary",
-                    item_id=m_id,
-                    field_path="dose",
-                    safe_explanation=f"Medication '{name}' dose '{dose_str}' lacks a leading zero before decimal (risk of 10x dosing error)",
-                    check_policy_version=policy_version,
-                ))
-            # Detect trailing zero after decimal (e.g. 5.0 mg)
-            if re.search(r'\.\d*0\b', dose_str):
-                issues.append(ValidationIssue(
-                    issue_code="A09_DECIMAL_DOSE_TRAILING_ZERO",
-                    severity="info",
-                    category="clinical_canary",
-                    item_id=m_id,
-                    field_path="dose",
-                    safe_explanation=f"Medication '{name}' dose '{dose_str}' has a trailing zero (e.g. 5.0 mg, risk of reading as 50 mg)",
-                    check_policy_version=policy_version,
-                ))
+        med_context = ""
+        ev = med.get("evidence")
+        if isinstance(ev, dict) and "start" in ev and "end" in ev:
+            s, e = ev["start"], ev["end"]
+            if 0 <= s < e <= len(raw_text):
+                line_start = raw_text.rfind("\n", 0, s)
+                line_start = 0 if line_start == -1 else line_start + 1
+                line_end = raw_text.find("\n", e)
+                line_end = len(raw_text) if line_end == -1 else line_end
+                med_context = raw_text[line_start:line_end]
+        elif name:
+            n_idx = raw_text.lower().find(name)
+            if n_idx != -1:
+                line_start = raw_text.rfind("\n", 0, n_idx)
+                line_start = 0 if line_start == -1 else line_start + 1
+                line_end = raw_text.find("\n", n_idx)
+                line_end = len(raw_text) if line_end == -1 else line_end
+                med_context = raw_text[line_start:line_end]
+
+        dose_str = str(dose) if dose else ""
+        source_naked_dec = re.search(r'(?<!\d)\.\d+\s*(?:mg|mcg|g|ml|tab|units?)?', med_context)
+        dose_naked_dec = re.search(r'(?<!\d)\.\d+', dose_str)
+
+        # Detect leading decimal point without leading zero (e.g. .5 mg) in dose or source
+        if dose_naked_dec or source_naked_dec:
+            dec_token = dose_naked_dec.group(0) if dose_naked_dec else source_naked_dec.group(0).strip()
+            issues.append(ValidationIssue(
+                issue_code="A09_DECIMAL_DOSE_LEADING_ZERO_MISSING",
+                severity="warning",
+                category="clinical_canary",
+                item_id=m_id,
+                field_path="dose",
+                safe_explanation=f"Medication '{name}' dose contains/references '{dec_token}' lacking a leading zero before decimal (risk of 10x dosing error)",
+                check_policy_version=policy_version,
+            ))
+
+        # Detect trailing zero after decimal (e.g. 5.0 mg)
+        if re.search(r'\.\d*0\b', dose_str) or re.search(r'\.\d*0\s*(?:mg|mcg|g|ml|tab|units?)?\b', med_context):
+            issues.append(ValidationIssue(
+                issue_code="A09_DECIMAL_DOSE_TRAILING_ZERO",
+                severity="info",
+                category="clinical_canary",
+                item_id=m_id,
+                field_path="dose",
+                safe_explanation=f"Medication '{name}' dose '{dose_str or 'specified in source'}' has a trailing zero (e.g. 5.0 mg, risk of reading as 50 mg)",
+                check_policy_version=policy_version,
+            ))
 
         # Missing route / frequency check (Rule A01)
         if not route and action in ("start", "continue", "modify"):
@@ -361,7 +384,7 @@ def check_extraction(
     if isinstance(metadata, dict):
         for k, v in metadata.items():
             if isinstance(v, dict):
-                ev = v.get("evidence") or {}
+                ev = v.get("evidence") or v
                 val = v.get("value")
                 verify_evidence(ev, f"meta_{k}", f"metadata.{k}")
             elif isinstance(v, str):

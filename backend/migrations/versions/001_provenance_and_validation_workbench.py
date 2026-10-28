@@ -22,6 +22,65 @@ def upgrade() -> None:
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
 
+    # 0a. notes (if fresh database)
+    if "notes" not in tables:
+        op.create_table(
+            "notes",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("filename", sa.String(), nullable=True),
+            sa.Column("raw_text", sa.Text(), nullable=False),
+            sa.Column("source", sa.String(), nullable=False),
+            sa.Column("ocr_confidence", sa.Float(), nullable=True),
+            sa.Column("session_id", sa.String(36), nullable=True),
+            sa.Column("workspace_id", sa.String(36), nullable=True),
+            sa.Column("current_source_revision_id", sa.String(36), nullable=True),
+            sa.Column("current_extraction_id", sa.String(36), nullable=True),
+            sa.Column("review_head_event_id", sa.String(36), nullable=True),
+            sa.Column("lock_version", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column("status", sa.String(32), nullable=False, server_default="needs_review"),
+            sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+            sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now(), nullable=True),
+        )
+        op.create_index("ix_notes_session_id", "notes", ["session_id"])
+        op.create_index("ix_notes_workspace_id", "notes", ["workspace_id"])
+
+    # 0b. extractions (if fresh database)
+    if "extractions" not in tables:
+        op.create_table(
+            "extractions",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("note_id", sa.Integer(), sa.ForeignKey("notes.id"), nullable=False),
+            sa.Column("extracted_json", sa.Text(), nullable=False),
+            sa.Column("pipeline_version", sa.String(), nullable=False),
+            sa.Column("extracted_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+            sa.Column("public_id", sa.String(36), nullable=True),
+            sa.Column("workspace_id", sa.String(36), nullable=True),
+            sa.Column("source_revision_id", sa.String(36), nullable=True),
+            sa.Column("source_text_hash", sa.String(64), nullable=True),
+            sa.Column("rules_hash", sa.String(64), nullable=True),
+            sa.Column("vocabulary_hash", sa.String(64), nullable=True),
+            sa.Column("schema_version", sa.String(32), nullable=False, server_default="2.0.0"),
+            sa.Column("status", sa.String(32), nullable=False, server_default="completed"),
+            sa.Column("check_policy_version", sa.String(32), nullable=False, server_default="1.0.0"),
+            sa.Column("error_metadata_json", sa.Text(), nullable=True),
+        )
+        op.create_index("ix_extractions_note_id", "extractions", ["note_id"])
+        op.create_index("ix_extractions_public_id", "extractions", ["public_id"])
+        op.create_index("ix_extractions_workspace_id", "extractions", ["workspace_id"])
+
+    # 0c. validations (if fresh database)
+    if "validations" not in tables:
+        op.create_table(
+            "validations",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("note_id", sa.Integer(), sa.ForeignKey("notes.id"), nullable=False, unique=True),
+            sa.Column("validated_json", sa.Text(), nullable=False),
+            sa.Column("status", sa.String(), nullable=False),
+            sa.Column("review_duration_ms", sa.Integer(), nullable=True),
+            sa.Column("correction_count", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column("validated_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        )
+
     # 1. workspaces
     if "workspaces" not in tables:
         op.create_table(
@@ -220,48 +279,54 @@ def upgrade() -> None:
         op.create_index("ix_jobs_workspace_id", "jobs", ["workspace_id"])
         op.create_index("ix_jobs_status", "jobs", ["status"])
 
-    # 10. Update notes columns if not present
-    note_cols = [c["name"] for c in inspector.get_columns("notes")] if "notes" in tables else []
-    if "workspace_id" not in note_cols:
-        op.add_column("notes", sa.Column("workspace_id", sa.String(36), nullable=True))
-        op.create_index("ix_notes_workspace_id", "notes", ["workspace_id"])
-    if "current_source_revision_id" not in note_cols:
-        op.add_column("notes", sa.Column("current_source_revision_id", sa.String(36), nullable=True))
-    if "current_extraction_id" not in note_cols:
-        op.add_column("notes", sa.Column("current_extraction_id", sa.String(36), nullable=True))
-    if "review_head_event_id" not in note_cols:
-        op.add_column("notes", sa.Column("review_head_event_id", sa.String(36), nullable=True))
-    if "lock_version" not in note_cols:
-        op.add_column("notes", sa.Column("lock_version", sa.Integer(), nullable=False, server_default="0"))
-    if "status" not in note_cols:
-        op.add_column("notes", sa.Column("status", sa.String(32), nullable=False, server_default="needs_review"))
-    if "updated_at" not in note_cols:
-        op.add_column("notes", sa.Column("updated_at", sa.DateTime(), nullable=True))
+    # 10. Update notes columns if present prior to migration
+    if "notes" in tables:
+        note_cols = [c["name"] for c in inspector.get_columns("notes")]
+        if "filename" not in note_cols:
+            op.add_column("notes", sa.Column("filename", sa.String(), nullable=True))
+        if "ocr_confidence" not in note_cols:
+            op.add_column("notes", sa.Column("ocr_confidence", sa.Float(), nullable=True))
+        if "workspace_id" not in note_cols:
+            op.add_column("notes", sa.Column("workspace_id", sa.String(36), nullable=True))
+            op.create_index("ix_notes_workspace_id", "notes", ["workspace_id"])
+        if "current_source_revision_id" not in note_cols:
+            op.add_column("notes", sa.Column("current_source_revision_id", sa.String(36), nullable=True))
+        if "current_extraction_id" not in note_cols:
+            op.add_column("notes", sa.Column("current_extraction_id", sa.String(36), nullable=True))
+        if "review_head_event_id" not in note_cols:
+            op.add_column("notes", sa.Column("review_head_event_id", sa.String(36), nullable=True))
+        if "lock_version" not in note_cols:
+            op.add_column("notes", sa.Column("lock_version", sa.Integer(), nullable=False, server_default="0"))
+        if "status" not in note_cols:
+            op.add_column("notes", sa.Column("status", sa.String(32), nullable=False, server_default="needs_review"))
+        if "updated_at" not in note_cols:
+            op.add_column("notes", sa.Column("updated_at", sa.DateTime(), nullable=True))
 
-    # 11. Update extractions columns if not present
-    ext_cols = [c["name"] for c in inspector.get_columns("extractions")] if "extractions" in tables else []
-    if "public_id" not in ext_cols:
-        op.add_column("extractions", sa.Column("public_id", sa.String(36), nullable=True))
-        op.create_index("ix_extractions_public_id", "extractions", ["public_id"])
-    if "workspace_id" not in ext_cols:
-        op.add_column("extractions", sa.Column("workspace_id", sa.String(36), nullable=True))
-        op.create_index("ix_extractions_workspace_id", "extractions", ["workspace_id"])
-    if "source_revision_id" not in ext_cols:
-        op.add_column("extractions", sa.Column("source_revision_id", sa.String(36), nullable=True))
-    if "source_text_hash" not in ext_cols:
-        op.add_column("extractions", sa.Column("source_text_hash", sa.String(64), nullable=True))
-    if "rules_hash" not in ext_cols:
-        op.add_column("extractions", sa.Column("rules_hash", sa.String(64), nullable=True))
-    if "vocabulary_hash" not in ext_cols:
-        op.add_column("extractions", sa.Column("vocabulary_hash", sa.String(64), nullable=True))
-    if "schema_version" not in ext_cols:
-        op.add_column("extractions", sa.Column("schema_version", sa.String(32), nullable=False, server_default="2.0.0"))
-    if "status" not in ext_cols:
-        op.add_column("extractions", sa.Column("status", sa.String(32), nullable=False, server_default="completed"))
-    if "check_policy_version" not in ext_cols:
-        op.add_column("extractions", sa.Column("check_policy_version", sa.String(32), nullable=False, server_default="1.0.0"))
-    if "error_metadata_json" not in ext_cols:
-        op.add_column("extractions", sa.Column("error_metadata_json", sa.Text(), nullable=True))
+    # 11. Update extractions columns if present prior to migration
+    if "extractions" in tables:
+        ext_cols = [c["name"] for c in inspector.get_columns("extractions")]
+        if "public_id" not in ext_cols:
+            op.add_column("extractions", sa.Column("public_id", sa.String(36), nullable=True))
+            op.create_index("ix_extractions_public_id", "extractions", ["public_id"])
+        if "workspace_id" not in ext_cols:
+            op.add_column("extractions", sa.Column("workspace_id", sa.String(36), nullable=True))
+            op.create_index("ix_extractions_workspace_id", "extractions", ["workspace_id"])
+        if "source_revision_id" not in ext_cols:
+            op.add_column("extractions", sa.Column("source_revision_id", sa.String(36), nullable=True))
+        if "source_text_hash" not in ext_cols:
+            op.add_column("extractions", sa.Column("source_text_hash", sa.String(64), nullable=True))
+        if "rules_hash" not in ext_cols:
+            op.add_column("extractions", sa.Column("rules_hash", sa.String(64), nullable=True))
+        if "vocabulary_hash" not in ext_cols:
+            op.add_column("extractions", sa.Column("vocabulary_hash", sa.String(64), nullable=True))
+        if "schema_version" not in ext_cols:
+            op.add_column("extractions", sa.Column("schema_version", sa.String(32), nullable=False, server_default="2.0.0"))
+        if "status" not in ext_cols:
+            op.add_column("extractions", sa.Column("status", sa.String(32), nullable=False, server_default="completed"))
+        if "check_policy_version" not in ext_cols:
+            op.add_column("extractions", sa.Column("check_policy_version", sa.String(32), nullable=False, server_default="1.0.0"))
+        if "error_metadata_json" not in ext_cols:
+            op.add_column("extractions", sa.Column("error_metadata_json", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:

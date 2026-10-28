@@ -102,9 +102,14 @@ def _validate_decision_coverage(extracted_data: Dict[str, Any], decisions: Dict[
                 "prn", "action", "status", "temporal_status"
             }:
                 raise InvalidReviewPayloadError("Unknown medication child attribute")
-            for val in nested.values():
-                if _get_decision_str(val) not in ("accept", "edit", "remove", "pending"):
+            for child_attr, val in nested.items():
+                child_action = _get_decision_str(val)
+                if child_action not in ("accept", "edit", "remove", "pending"):
                     raise InvalidReviewPayloadError("Invalid medication child decision")
+                if child_action == "edit":
+                    child_val = _get_decision_val(val)
+                    if not isinstance(child_val, str) or not child_val.strip() or len(child_val) > 4096:
+                        raise InvalidReviewPayloadError(f"Edit '{med_id}.{child_attr}' requires a nonempty bounded string value")
         for attr, val in med.items():
             if attr not in ("name", "dose", "route", "frequency", "duration",
                             "qualifier", "prn", "action", "status", "temporal_status"):
@@ -128,8 +133,8 @@ def _validate_decision_coverage(extracted_data: Dict[str, Any], decisions: Dict[
                     raise IncompleteReviewError(f"Pending decision for medication {med_id}.{attr}")
         if completing and not any(p in decisions for p in parents):
             # A child-level decision for each present attr is sufficient.
-            if not any(k.startswith(f"med.{med_id}.") or k.startswith(f"medications.{med_id}.")
-                       or k.startswith(f"med.{idx}.") for k in decisions):
+            if not any(k.startswith(f"{med_id}.") or k.startswith(f"med.{med_id}.") or k.startswith(f"medications.{med_id}.")
+                       or k.startswith(f"med.{idx}.") or k.startswith(f"medications.{idx}.") for k in decisions):
                 raise IncompleteReviewError(f"Medication {med_id} has no review decision")
 
     for name, keys, _ in required:
@@ -332,7 +337,17 @@ def derive_reviewed_snapshot(
             or (item_decisions or {}).get(f"med.{idx}.name")
         )
         is_med_removed = False
-        if (med_dec and _get_decision_str(med_dec) == "remove") or (name_dec and _get_decision_str(name_dec) == "remove"):
+        nested_name_dec = None
+        if med_dec and isinstance(med_dec, dict) and med_dec.get("attribute_decisions"):
+            nested_name_dec = med_dec["attribute_decisions"].get("name")
+        elif med_dec and getattr(med_dec, "attribute_decisions", None):
+            nested_name_dec = getattr(med_dec, "attribute_decisions", {}).get("name")
+
+        if (
+            (med_dec and _get_decision_str(med_dec) == "remove")
+            or (name_dec and _get_decision_str(name_dec) == "remove")
+            or (nested_name_dec and _get_decision_str(nested_name_dec) == "remove")
+        ):
             is_med_removed = True
             has_corrections = True
         elif med_dec:
@@ -353,7 +368,7 @@ def derive_reviewed_snapshot(
             elif med_dec and getattr(med_dec, "attribute_decisions", None):
                 attr_decs = getattr(med_dec, "attribute_decisions")
 
-            for attr in ("dose", "route", "frequency", "duration", "qualifier", "action", "status", "name"):
+            for attr in ("name", "dose", "route", "frequency", "duration", "qualifier", "prn", "action", "status", "temporal_status"):
                 a_dec = attr_decs.get(attr)
                 if not a_dec:
                     a_dec = (
@@ -366,6 +381,10 @@ def derive_reviewed_snapshot(
                 if a_dec:
                     a_act = _get_decision_str(a_dec)
                     if a_act == "remove":
+                        if attr == "name":
+                            is_med_removed = True
+                            has_corrections = True
+                            break
                         med_copy.pop(attr, None)
                         has_corrections = True
                     elif a_act == "edit":
@@ -374,7 +393,8 @@ def derive_reviewed_snapshot(
                     elif a_act == "pending" and is_completing:
                         raise IncompleteReviewError(f"Attribute '{med_id}.{attr}' is pending.")
 
-            reviewed_meds.append(med_copy)
+            if not is_med_removed:
+                reviewed_meds.append(med_copy)
 
     # 6. Additions. Multiple child operations for a single new medication
     # are ONE new occurrence, not one medication per attribute.
@@ -633,6 +653,32 @@ def process_review_mutation(
         raise InvalidReviewPayloadError(f"Unsupported event_kind '{req.event_kind}'.")
 
     # 7. Create ReviewEvent (storing authoritative server-derived snapshot)
+    merged_issue_dispositions = {}
+    if req.issue_dispositions:
+        merged_issue_dispositions = {k: v.model_dump() for k, v in req.issue_dispositions.items()}
+    else:
+        from models import IssueEvent
+        bound_issues = (
+            session.query(OperationalIssue)
+            .filter(
+                OperationalIssue.note_id == note.id,
+                OperationalIssue.extraction_id == req.extraction_id,
+                OperationalIssue.status != "open",
+            )
+            .all()
+        )
+        for iss in bound_issues:
+            latest_ev = (
+                session.query(IssueEvent)
+                .filter(IssueEvent.issue_id == iss.id)
+                .order_by(IssueEvent.created_at.desc())
+                .first()
+            )
+            merged_issue_dispositions[iss.id] = {
+                "disposition": iss.status,
+                "reason": latest_ev.reason if latest_ev else "Reviewer acknowledged in workspace",
+            }
+
     review_event = ReviewEvent(
         workspace_id=workspace_id,
         note_id=note.id,
@@ -644,7 +690,7 @@ def process_review_mutation(
         reviewed_snapshot_json=json.dumps(derived_snapshot),
         item_decisions_json=json.dumps(req.item_decisions or {}),
         category_acknowledgments_json=json.dumps(req.category_acknowledgments or {}),
-        issue_dispositions_json=json.dumps({k: v.model_dump() for k, v in req.issue_dispositions.items()} if req.issue_dispositions else {}),
+        issue_dispositions_json=json.dumps(merged_issue_dispositions),
         derived_outcome=derived_outcome,
         idempotency_key=req.idempotency_key,
         request_hash=req_hash,

@@ -155,8 +155,13 @@ export const api = {
 
   // The previous unbound PUT endpoint could destroy extraction history.
   // Always use the version-bound append-only source revision API instead.
-  updateNoteText: async (noteId: number, text: string) =>
-    api.appendNoteRevision(noteId, text, "ocr_preview_edit"),
+  updateNoteText: async (
+    noteId: number,
+    text: string,
+    expectedRevisionId?: string | null,
+    expectedLockVersion?: number | null
+  ) =>
+    api.appendNoteRevision(noteId, text, "ocr_preview_edit", expectedRevisionId, expectedLockVersion),
 
   resetWorkspace: () =>
     request<{ deleted_notes: number; deleted_extractions: number; deleted_validations: number }>(
@@ -189,9 +194,16 @@ export const api = {
   getNoteSource: (noteId: number) =>
     request<any>(`/notes/${noteId}/source`),
 
-  appendNoteRevision: async (noteId: number, raw_text: string, reason?: string) => {
-    const state = await api.getNoteState(noteId);
-    if (!state.current_source_revision_id || typeof state.lock_version !== "number") {
+  appendNoteRevision: async (
+    noteId: number,
+    raw_text: string,
+    reason?: string,
+    expectedRevisionId?: string | null,
+    expectedLockVersion?: number | null
+  ) => {
+    const revId = expectedRevisionId;
+    const lockVer = expectedLockVersion;
+    if (!revId || typeof lockVer !== "number") {
       throw new Error("Source binding is unavailable. Reload the note before editing.");
     }
     return request<any>(`/notes/${noteId}/revisions`, {
@@ -199,8 +211,8 @@ export const api = {
       body: JSON.stringify({
         raw_text,
         reason: reason || "human_transcription_edit",
-        expected_source_revision_id: state.current_source_revision_id,
-        expected_lock_version: state.lock_version,
+        expected_source_revision_id: revId,
+        expected_lock_version: lockVer,
       }),
     });
   },

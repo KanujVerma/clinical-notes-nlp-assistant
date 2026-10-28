@@ -1,15 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "../api/client";
 
 export default function OperationalIssuesDrawer({
   noteId,
   revisionId,
+  extractionId,
   isOpen,
   onToggle,
   onIssuesUpdated,
 }: {
   noteId: number;
   revisionId?: string | null;
+  extractionId?: string | null;
   isOpen: boolean;
   onToggle: () => void;
   onIssuesUpdated?: (openBlockersCount: number) => void;
@@ -19,16 +21,25 @@ export default function OperationalIssuesDrawer({
   const [aiDiscrepancies, setAiDiscrepancies] = useState<any[]>([]);
   const [loadingAi, setLoadingAi] = useState(false);
 
+  const currentBindingRef = useRef({ noteId, revisionId, extractionId });
+  currentBindingRef.current = { noteId, revisionId, extractionId };
+
   useEffect(() => {
+    setAiDiscrepancies([]);
     loadIssues();
-  }, [noteId, revisionId]);
+  }, [noteId, revisionId, extractionId]);
 
   async function loadIssues() {
     try {
       setLoadingIssues(true);
       const data = await api.getIssues({ note_id: noteId });
-      setIssues(data);
-      const blockers = data.filter((i) => i.severity === "critical_blocker" && i.status === "open").length;
+      const currentIssues = (data || []).filter((i: any) => {
+        if (revisionId && i.source_revision_id && i.source_revision_id !== revisionId) return false;
+        if (extractionId && i.extraction_id && i.extraction_id !== extractionId) return false;
+        return true;
+      });
+      setIssues(currentIssues);
+      const blockers = currentIssues.filter((i: any) => i.severity === "critical_blocker" && i.status === "open").length;
       if (onIssuesUpdated) onIssuesUpdated(blockers);
     } catch {
       // silently ignore
@@ -47,10 +58,17 @@ export default function OperationalIssuesDrawer({
   }
 
   async function handleRequestAi() {
+    const reqNoteId = noteId;
+    const reqRevId = revisionId;
+    const reqExtId = extractionId;
     try {
       setLoadingAi(true);
       const res = await api.requestAiCandidates(noteId);
-      setAiDiscrepancies(res.discrepancies || []);
+      // Ignore if binding changed while request was in-flight (compare with live ref)
+      const cur = currentBindingRef.current;
+      if (cur.noteId === reqNoteId && cur.revisionId === reqRevId && cur.extractionId === reqExtId) {
+        setAiDiscrepancies(res.discrepancies || []);
+      }
     } catch (err: any) {
       alert(`AI proposal failed: ${err.message}`);
     } finally {

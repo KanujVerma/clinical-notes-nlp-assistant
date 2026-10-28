@@ -136,6 +136,7 @@ def get_note(note_id: int):
                 "derived_outcome": rev_event.derived_outcome,
                 "event_kind": rev_event.event_kind,
                 "reviewed_snapshot": json.loads(rev_event.reviewed_snapshot_json or "{}"),
+                "item_decisions": json.loads(rev_event.item_decisions_json or "{}"),
             }
 
     rev = (

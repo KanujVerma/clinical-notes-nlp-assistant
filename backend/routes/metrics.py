@@ -1,7 +1,7 @@
 import json
 import os
 from flask import Blueprint, jsonify, g
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, and_
 from models import Note, Extraction, Validation, ReviewEvent, OperationalIssue
 from config import Config
 from utils.session import require_session
@@ -118,7 +118,7 @@ def metrics():
             current_completed_events.append(ev)
             reviewed_note_ids.add(n.id)
 
-    # 2. Legacy validation fallback/support (excluding notes that have current ReviewEvents)
+    # 2. Legacy validation fallback/support (excluding notes that have current ReviewEvents or are pending)
     legacy_query = (
         select(
             Validation.status,
@@ -127,7 +127,11 @@ def metrics():
             func.avg(Validation.review_duration_ms).label("avg_review_ms"),
         )
         .join(Note, Note.id == Validation.note_id)
-        .where(or_(Note.workspace_id == sid, Note.session_id == sid))
+        .where(
+            or_(Note.workspace_id == sid, Note.session_id == sid),
+            Note.review_head_event_id.is_(None),
+            Note.status.in_(["accepted", "corrected", "reviewed_unchanged", "reviewed_corrected"]),
+        )
     )
     if reviewed_note_ids:
         legacy_query = legacy_query.where(Note.id.not_in(reviewed_note_ids))
@@ -136,9 +140,19 @@ def metrics():
     # Collect pairs for correction rate
     val_query = (
         select(Extraction.extracted_json, Validation.validated_json)
-        .join(Note, Note.id == Extraction.note_id)
-        .join(Validation, Validation.note_id == Extraction.note_id)
-        .where(or_(Note.workspace_id == sid, Note.session_id == sid))
+        .join(Note, Note.id == Validation.note_id)
+        .join(
+            Extraction,
+            or_(
+                Extraction.public_id == Note.current_extraction_id,
+                and_(Note.current_extraction_id.is_(None), Extraction.note_id == Note.id),
+            ),
+        )
+        .where(
+            or_(Note.workspace_id == sid, Note.session_id == sid),
+            Note.review_head_event_id.is_(None),
+            Note.status.in_(["accepted", "corrected", "reviewed_unchanged", "reviewed_corrected"]),
+        )
     )
     if reviewed_note_ids:
         val_query = val_query.where(Note.id.not_in(reviewed_note_ids))

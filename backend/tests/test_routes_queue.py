@@ -19,9 +19,22 @@ def _create_note(client, text="BP: 120/80. HR: 72.", sid=SID):
     return resp.get_json()["note_id"]
 
 
+def _explicit_accepts(extracted):
+    result = {}
+    for category in ("vitals", "instructions", "metadata"):
+        for key, value in (extracted.get(category) or {}).items():
+            if value is not None:
+                result[f"{category}.{key}"] = {"decision": "accept"}
+    for idx, med in enumerate(extracted.get("medications") or []):
+        med_id = med.get("id") or med.get("source_occurrence_id") or f"med_{idx}"
+        result[f"med.{med_id}"] = {"decision": "accept"}
+    return result
+
+
 def _validate_note(client, note_id, sid=SID):
     note_info = client.get(f"/api/notes/{note_id}", headers={"X-Session-ID": sid}).json
     source = client.get(f"/api/notes/{note_id}/source", headers={"X-Session-ID": sid}).json
+    item_decisions = _explicit_accepts(note_info.get("extracted_json") or {})
     resp = client.post(
         f"/api/extractions/{note_info['current_extraction_id']}/reviews",
         json={
@@ -31,7 +44,7 @@ def _validate_note(client, note_id, sid=SID):
             "source_hash": source["sha256"],
             "expected_lock_version": note_info["lock_version"],
             "event_kind": "review_completed",
-            "item_decisions": {},
+            "item_decisions": item_decisions,
             "category_acknowledgments": {
                 "metadata": True, "vitals": True, "medications": True, "instructions": True,
             },

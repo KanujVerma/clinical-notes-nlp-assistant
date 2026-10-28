@@ -72,6 +72,7 @@ export interface NoteDetail {
     derived_outcome: string;
     event_kind: string;
     reviewed_snapshot: ExtractionResult;
+    item_decisions?: Record<string, any>;
   } | null;
   validation: {
     status: string;

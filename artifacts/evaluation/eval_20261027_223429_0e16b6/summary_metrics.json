@@ -1,0 +1,52 @@
+{
+  "medications": {
+    "tp": 13,
+    "fp": 34,
+    "fn": 32,
+    "precision": 0.2766,
+    "recall": 0.2889,
+    "f1": 0.2826,
+    "support": 45,
+    "has_support": true
+  },
+  "vitals": {
+    "tp": 57,
+    "fp": 26,
+    "fn": 61,
+    "precision": 0.6867,
+    "recall": 0.4831,
+    "f1": 0.5672,
+    "support": 118,
+    "has_support": true
+  },
+  "instructions": {
+    "tp": 15,
+    "fp": 13,
+    "fn": 34,
+    "precision": 0.5357,
+    "recall": 0.3061,
+    "f1": 0.3896,
+    "support": 49,
+    "has_support": true
+  },
+  "metadata": {
+    "tp": 31,
+    "fp": 9,
+    "fn": 18,
+    "precision": 0.775,
+    "recall": 0.6327,
+    "f1": 0.6966,
+    "support": 49,
+    "has_support": true
+  },
+  "overall": {
+    "tp": 116,
+    "fp": 82,
+    "fn": 145,
+    "precision": 0.5859,
+    "recall": 0.4444,
+    "f1": 0.5054,
+    "support": 261,
+    "has_support": true
+  }
+}

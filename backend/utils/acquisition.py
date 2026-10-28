@@ -54,7 +54,7 @@ def acquire_document(
     storage_path = os.path.join(storage_dir, f"{sha256}.bin")
 
     if not os.path.exists(storage_path):
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(dir=storage_dir, delete=False) as tmp:
             tmp.write(file_bytes)
             tmp_path = tmp.name
         os.replace(tmp_path, storage_path)

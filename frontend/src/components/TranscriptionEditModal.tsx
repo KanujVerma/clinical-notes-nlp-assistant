@@ -6,12 +6,16 @@ export default function TranscriptionEditModal({
   onClose,
   noteId,
   currentText,
+  expectedRevisionId,
+  expectedLockVersion,
   onRevisionCreated,
 }: {
   isOpen: boolean;
   onClose: () => void;
   noteId: number;
   currentText: string;
+  expectedRevisionId?: string | null;
+  expectedLockVersion?: number | null;
   onRevisionCreated: (newRevisionId: string) => void;
 }) {
   const [text, setText] = useState(currentText);
@@ -30,7 +34,13 @@ export default function TranscriptionEditModal({
     try {
       setSaving(true);
       setError(null);
-      const res = await api.appendNoteRevision(noteId, text, reason);
+      const res = await api.appendNoteRevision(
+        noteId,
+        text,
+        reason,
+        expectedRevisionId,
+        expectedLockVersion
+      );
       onRevisionCreated(res.revision_id);
       onClose();
     } catch (err: any) {

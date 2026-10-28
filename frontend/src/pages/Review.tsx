@@ -237,6 +237,12 @@ export default function Review() {
 
   const deactivateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const pendingSubmissionRef = useRef<{
+    idempotencyKey: string;
+    reviewDurationMs: number;
+    expectedHeadEventId: string | null;
+    expectedLockVersion: number;
+  } | null>(null);
 
   // Timer
   useEffect(() => {
@@ -258,6 +264,12 @@ export default function Review() {
     setFields({});
     setActiveKey(null);
     setEditingKey(null);
+    setCurrentRevisionId(null);
+    setCurrentExtractionId(null);
+    setCurrentSourceHash(null);
+    setLockVersion(0);
+    setReviewEventId(null);
+    pendingSubmissionRef.current = null;
     setCategoryAck({
       metadata: false, vitals: false, medications: false, instructions: false,
     });
@@ -278,6 +290,8 @@ export default function Review() {
         const nid = Number(noteId);
         Promise.all([api.getNoteState(nid), api.getNoteSource(nid)])
           .then(([st, src]) => {
+            if (st.raw_text) setRawText(st.raw_text);
+            if (st.extracted_json) setExtracted(st.extracted_json);
             setCurrentRevisionId(st.current_source_revision_id ?? null);
             setCurrentExtractionId(st.current_extraction_id ?? null);
             setLockVersion(st.lock_version ?? 0);
@@ -290,10 +304,10 @@ export default function Review() {
     } else if (noteId) {
       const nid = Number(noteId);
       api.getNoteState(nid).then((st) => {
-        if (st.current_source_revision_id) setCurrentRevisionId(st.current_source_revision_id);
-        if (st.current_extraction_id) setCurrentExtractionId(st.current_extraction_id);
+        setCurrentRevisionId(st.current_source_revision_id ?? null);
+        setCurrentExtractionId(st.current_extraction_id ?? null);
         if (st.lock_version !== undefined) setLockVersion(st.lock_version);
-        if (st.review_head?.event_id) setReviewEventId(st.review_head.event_id);
+        setReviewEventId(st.review_head?.event_id ?? null);
       }).catch(() => {});
 
       api.getNoteSource(nid).then((src) => {
@@ -316,7 +330,11 @@ export default function Review() {
         // G: Re-review awareness
         const valSnapshot = d.review_head?.reviewed_snapshot || d.validation?.validated_json;
         if (valSnapshot && d.extracted_json) {
-          setReReviewBanner(true);
+          const isDraft = d.review_head?.event_kind === "draft_saved";
+          const itemDecs = d.review_head?.item_decisions || {};
+          if (!isDraft) {
+            setReReviewBanner(true);
+          }
           // Offset timer by previous review duration
           if (d.validation?.review_duration_ms) {
             startTime.current = Date.now() - d.validation.review_duration_ms;
@@ -358,7 +376,16 @@ export default function Review() {
 
           // Diff extracted vs validated
           Object.keys(extFlat).forEach((key) => {
-            if (!(key in valFlat)) {
+            const decObj = itemDecs[key];
+            const explicitDec = typeof decObj === "string" ? decObj : decObj?.decision;
+            if (explicitDec) {
+              if (explicitDec === "accept") overrides[key] = { value: valFlat[key] ?? extFlat[key], status: "accepted" };
+              else if (explicitDec === "edit") overrides[key] = { value: valFlat[key] ?? extFlat[key], status: "corrected" };
+              else if (explicitDec === "remove") overrides[key] = { value: extFlat[key], status: "removed" };
+              else overrides[key] = { value: extFlat[key], status: "pending" };
+            } else if (isDraft) {
+              overrides[key] = { value: extFlat[key], status: "pending" };
+            } else if (!(key in valFlat)) {
               // In extracted but not in validated → removed
               overrides[key] = { value: extFlat[key], status: "removed" };
             } else if (extFlat[key] === valFlat[key]) {
@@ -431,6 +458,7 @@ export default function Review() {
   }, []);
 
   const handleFieldChange = useCallback((key: string, value: string, status: FieldStatus) => {
+    pendingSubmissionRef.current = null;
     setFields((prev) => {
       const previous = prev[key];
       if (status === "removed" && previous?.originalValue === "") {
@@ -447,11 +475,19 @@ export default function Review() {
         }
         return next;
       }
-      return { ...prev, [key]: { ...previous, value, status } };
+      const effectiveStatus =
+        status === "accepted" &&
+        previous?.originalValue !== undefined &&
+        previous.originalValue !== "" &&
+        value !== previous.originalValue
+          ? "corrected"
+          : status;
+      return { ...prev, [key]: { ...previous, value, status: effectiveStatus } };
     });
   }, []);
 
   function handleAddField(key: string, value: string) {
+    pendingSubmissionRef.current = null;
     setFields((prev) => ({ ...prev, [key]: { value, originalValue: "", status: "corrected" } }));
   }
 
@@ -534,8 +570,10 @@ export default function Review() {
           pendingFields.push(k);
         } else {
           let dec = "accept";
-          if (f.status === "corrected") {
-            dec = f.originalValue === "" ? "add" : "edit";
+          if (f.originalValue === "") {
+            dec = f.status === "removed" ? "remove" : "add";
+          } else if (f.status === "corrected") {
+            dec = "edit";
           } else if (f.status === "removed") {
             dec = "remove";
           } else if (f.status === "accepted") {
@@ -567,6 +605,27 @@ export default function Review() {
         throw new Error("Source/extraction binding has not loaded. Retry when note details are available.");
       }
 
+      let idempotencyKey: string;
+      let reviewDurationMs: number;
+
+      if (
+        pendingSubmissionRef.current &&
+        pendingSubmissionRef.current.expectedHeadEventId === (reviewEventId ?? null) &&
+        pendingSubmissionRef.current.expectedLockVersion === lockVersion
+      ) {
+        idempotencyKey = pendingSubmissionRef.current.idempotencyKey;
+        reviewDurationMs = pendingSubmissionRef.current.reviewDurationMs;
+      } else {
+        idempotencyKey = crypto.randomUUID();
+        reviewDurationMs = Date.now() - startTime.current;
+        pendingSubmissionRef.current = {
+          idempotencyKey,
+          reviewDurationMs,
+          expectedHeadEventId: reviewEventId ?? null,
+          expectedLockVersion: lockVersion,
+        };
+      }
+
       // A review must have exactly ONE authoritative write. Never follow an
       // immutable ReviewEvent with the old mutable /api/validate API.
       const revRes = await api.submitReview(currentExtractionId, {
@@ -581,13 +640,14 @@ export default function Review() {
         item_decisions: itemDecisions,
         category_acknowledgments: categoryAck,
         reviewed_snapshot: validated,
-        review_duration_ms: Date.now() - startTime.current,
-        idempotency_key: crypto.randomUUID(),
+        review_duration_ms: reviewDurationMs,
+        idempotency_key: idempotencyKey,
       });
 
       if (!revRes?.event_id) {
         throw new Error("The server did not confirm a review event.");
       }
+      pendingSubmissionRef.current = null;
       setReviewEventId(revRes.event_id);
       setLockVersion((v) => v + 1);
       const pendingQueue = await api.getQueue().catch(() => null);
@@ -648,16 +708,39 @@ export default function Review() {
       if (e.key === "Escape") {
         setActiveKey(null);
       }
+      if (e.key === "c" || e.key === "C") {
+        setCategoryAck((prev) => {
+          const allChecked = Object.values(prev).every(Boolean);
+          const nextVal = !allChecked;
+          return { metadata: nextVal, vitals: nextVal, medications: nextVal, instructions: nextVal };
+        });
+      }
       if (e.key === "Tab") {
-        e.preventDefault();
         const keys = Object.keys(fields);
-        if (keys.length === 0) return;
-        if (!activeKey) {
-          handleActivate(keys[0]);
-        } else {
-          const idx = keys.indexOf(activeKey);
-          const next = e.shiftKey ? keys[idx - 1] : keys[idx + 1];
-          if (next) handleActivate(next);
+        if (keys.length > 0) {
+          if (!activeKey) {
+            e.preventDefault();
+            handleActivate(keys[0]);
+          } else {
+            const idx = keys.indexOf(activeKey);
+            if (e.shiftKey) {
+              if (idx > 0) {
+                e.preventDefault();
+                handleActivate(keys[idx - 1]);
+              } else {
+                setActiveKey(null);
+              }
+            } else {
+              if (idx < keys.length - 1) {
+                e.preventDefault();
+                handleActivate(keys[idx + 1]);
+              } else {
+                e.preventDefault();
+                setActiveKey(null);
+                document.getElementById("ack-metadata")?.focus();
+              }
+            }
+          }
         }
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
@@ -872,6 +955,7 @@ export default function Review() {
                                 className={otherFields.length > 0 ? "border-b border-green-100" : ""}
                               >
                                 <FieldEditor
+                                  key={`${currentRevisionId ?? "rev"}-${nameEntry[0]}`}
                                   label="name"
                                   value={nameEntry[1].value}
                                   originalValue={nameEntry[1].originalValue}
@@ -897,6 +981,7 @@ export default function Review() {
                                     onMouseLeave={handleDeactivate}
                                   >
                                     <FieldEditor
+                                      key={`${currentRevisionId ?? "rev"}-${k}`}
                                       label={k.split(".")[2]}
                                       value={f.value}
                                       originalValue={f.originalValue}
@@ -950,6 +1035,7 @@ export default function Review() {
                         onMouseLeave={handleDeactivate}
                       >
                         <FieldEditor
+                          key={`${currentRevisionId ?? "rev"}-${k}`}
                           label={k.replace(prefix, "").replace(/^\d+\./, "")}
                           value={f.value}
                           originalValue={f.originalValue}
@@ -1080,6 +1166,8 @@ export default function Review() {
           onClose={() => setIsTranscriptionModalOpen(false)}
           noteId={noteIdState}
           currentText={rawText}
+          expectedRevisionId={currentRevisionId}
+          expectedLockVersion={lockVersion}
           onRevisionCreated={(newRevId) => {
             setCurrentRevisionId(newRevId);
             setCurrentRevisionNumber((n) => n + 1);
@@ -1110,6 +1198,7 @@ export default function Review() {
         <OperationalIssuesDrawer
           noteId={noteIdState}
           revisionId={currentRevisionId}
+          extractionId={currentExtractionId}
           isOpen={isIssuesDrawerOpen}
           onToggle={() => setIsIssuesDrawerOpen((o) => !o)}
           onIssuesUpdated={(blockers) => setOpenBlockersCount(blockers)}

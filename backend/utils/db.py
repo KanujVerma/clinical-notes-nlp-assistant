@@ -28,7 +28,23 @@ def get_engine(database_url: str):
 
 
 def init_db(engine) -> None:
-    # 1. Create all missing tables
+    # 1. Apply versioned schema migrations via Alembic if available
+    try:
+        import os
+        from alembic.config import Config as AlembicConfig
+        from alembic import command
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ini_path = os.path.join(backend_dir, "alembic.ini")
+        if os.path.exists(ini_path):
+            cfg = AlembicConfig(ini_path)
+            raw_url = engine.url.render_as_string(hide_password=False) if hasattr(engine.url, "render_as_string") else str(engine.url)
+            cfg.set_main_option("sqlalchemy.url", raw_url)
+            command.upgrade(cfg, "head")
+    except Exception as exc:
+        import logging
+        logging.getLogger("db").warning("Alembic upgrade failed: %s", exc)
+
+    # Ensure all tables exist
     Base.metadata.create_all(engine)
 
     # 2. Baseline migration for legacy notes: synthesize NoteRevision for notes without current_source_revision_id

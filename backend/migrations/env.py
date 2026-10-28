@@ -21,6 +21,9 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def get_url():
+    url = config.get_main_option("sqlalchemy.url")
+    if url and not url.startswith("driver://") and url != "driver://user:pass@localhost/dbname":
+        return url
     return Config.DATABASE_URL or "sqlite:///app.db"
 
 def run_migrations_offline() -> None:

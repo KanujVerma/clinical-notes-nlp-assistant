@@ -76,6 +76,8 @@ def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job
 
 def process_single_job(job: Job, session: Session) -> bool:
     """Processes a claimed job and records output."""
+    claimed_lease_owner = job.lease_owner
+    job_id = job.id
     try:
         payload = json.loads(job.payload_json or "{}")
 
@@ -145,7 +147,6 @@ def process_single_job(job: Job, session: Session) -> bool:
             if session.execute(stmt).rowcount != 1:
                 raise ValueError("JOB_STALE_SOURCE")
             job.result_json = json.dumps({"extraction_id": ext.public_id, "fields_count": len(extracted.get("medications", []))})
-            job.status = "succeeded"
 
         elif job.kind == "eval_run":
             # The run is deliberately restricted to the repository's pinned
@@ -160,7 +161,6 @@ def process_single_job(job: Job, session: Session) -> bool:
                 dataset_manifest=dataset_manifest,
             )
             job.result_json = json.dumps({"run_id": bundle["run_id"], "overall": bundle["summary"]["overall"]})
-            job.status = "succeeded"
 
         else:
             raise ValueError("INVALID_JOB_KIND")
@@ -178,19 +178,31 @@ def process_single_job(job: Job, session: Session) -> bool:
         if session.execute(stmt).rowcount != 1:
             session.rollback()
             return False
+        job.status = "succeeded"
         session.commit()
         return True
 
     except Exception as e:
         session.rollback()
         now_dt = datetime.datetime.now(datetime.timezone.utc)
-        target = session.query(Job).filter(Job.id == job.id).first()
-        if target and target.lease_owner == job.lease_owner and target.status == "running":
-            target.status = "failed"
-            target.error_code = "PROCESSING_ERROR"
-            target.error_message = str(e)
-            target.finished_at = now_dt
+        fail_stmt = (
+            update(Job)
+            .where(
+                Job.id == job_id,
+                Job.lease_owner == claimed_lease_owner,
+                Job.status == "running",
+            )
+            .values(
+                status="failed",
+                error_code="PROCESSING_ERROR",
+                error_message=str(e),
+                finished_at=now_dt,
+            )
+        )
+        if session.execute(fail_stmt).rowcount == 1:
             session.commit()
+        else:
+            session.rollback()
         return False
 
 

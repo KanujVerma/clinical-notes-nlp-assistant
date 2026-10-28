@@ -91,6 +91,7 @@ def get_history_detail(note_id: int):
         )
 
     current_review = None
+    review_head = None
     if note.review_head_event_id:
         event = (
             g.db.query(ReviewEvent)
@@ -119,6 +120,13 @@ def get_history_detail(note_id: int):
                 "source_revision_id": event.source_revision_id,
                 "extraction_id": event.extraction_id,
             }
+            review_head = {
+                "event_id": event.id,
+                "derived_outcome": event.derived_outcome,
+                "event_kind": event.event_kind,
+                "reviewed_snapshot": json.loads(event.reviewed_snapshot_json or "{}"),
+                "item_decisions": decisions,
+            }
     # Legacy note-ID-only validations remain historical and unverified; do
     # not pass them to the editor as if they were a current completed review.
 
@@ -131,4 +139,5 @@ def get_history_detail(note_id: int):
         "extracted_json": json.loads(extraction.extracted_json) if extraction else None,
         "pipeline_version": extraction.pipeline_version if extraction else None,
         "validation": current_review,
+        "review_head": review_head,
     })

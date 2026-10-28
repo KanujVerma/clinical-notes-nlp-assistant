@@ -73,6 +73,27 @@ def extract_candidates_with_local_ai(
         res = query_ollama(model=model, prompt=prompt, system=system_prompt)
         raw_output = res.get("response", "{}")
         parsed = json.loads(raw_output)
+        if not isinstance(parsed, dict):
+            raise ValueError("Candidate response must be a JSON object")
+
+        # Normalize and validate candidate fields
+        if "medications" in parsed:
+            if not isinstance(parsed["medications"], list):
+                raise ValueError("Medications must be a list")
+            cleaned_meds = []
+            for item in parsed["medications"]:
+                if not isinstance(item, dict):
+                    continue
+                cleaned_item = {str(k): str(v) for k, v in item.items() if v is not None}
+                if cleaned_item.get("name"):
+                    cleaned_meds.append(cleaned_item)
+            parsed["medications"] = cleaned_meds
+        else:
+            parsed["medications"] = []
+
+        if "vitals" in parsed and not isinstance(parsed["vitals"], (list, dict)):
+            raise ValueError("Vitals must be a list or dict")
+
         return {
             "status": "completed",
             "model": model,
@@ -96,8 +117,8 @@ def detect_discrepancies(
     Flags discrepancies in dose, route, frequency, or omission.
     """
     discrepancies = []
-    rule_meds = {m.get("name", "").lower().strip(): m for m in rule_extraction.get("medications", []) if m.get("name")}
-    ai_meds = {m.get("name", "").lower().strip(): m for m in ai_candidate.get("medications", []) if m.get("name")}
+    rule_meds = {str(m.get("name") or "").lower().strip(): m for m in rule_extraction.get("medications", []) if m.get("name")}
+    ai_meds = {str(m.get("name") or "").lower().strip(): m for m in (ai_candidate.get("medications") or []) if m.get("name")}
 
     # Check medications found by AI but missed by rules
     for name, a_med in ai_meds.items():
@@ -111,8 +132,8 @@ def detect_discrepancies(
         else:
             r_med = rule_meds[name]
             # Check dose discrepancy
-            r_dose = (r_med.get("dose") or "").strip().lower()
-            a_dose = (a_med.get("dose") or "").strip().lower()
+            r_dose = str(r_med.get("dose") or "").strip().lower()
+            a_dose = str(a_med.get("dose") or "").strip().lower()
             if r_dose and a_dose and r_dose != a_dose:
                 discrepancies.append({
                     "type": "dose_discrepancy",

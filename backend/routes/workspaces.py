@@ -26,11 +26,15 @@ def create_workspace():
     g.db.add(ws)
     g.db.commit()
 
+    expires_dt = ws.expires_at
+    if expires_dt and expires_dt.tzinfo is None:
+        expires_dt = expires_dt.replace(tzinfo=datetime.timezone.utc)
+
     return jsonify({
         "workspace_id": ws.id,
         "token": token,
         "mode": ws.mode,
-        "expires_at": ws.expires_at.isoformat() if ws.expires_at else None,
+        "expires_at": expires_dt.isoformat() if expires_dt else None,
     }), 201
 
 
