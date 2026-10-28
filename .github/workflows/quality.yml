@@ -1,0 +1,126 @@
+name: Quality — synthetic/offline
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feat/clinical-validation-workbench]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clinical-nlp-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install OCR system tools
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr poppler-utils
+      - name: Install pinned Python dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+      - name: Run backend and release guards offline
+        env:
+          APP_MODE: local
+          ENABLE_LOCAL_AI: 'false'
+          ENABLE_EXTERNAL_EXPLAINER: 'false'
+        run: python -m pytest backend/tests/ -q
+      - name: Upload failing backend evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-pytest-evidence
+          path: |
+            .pytest_cache/
+            artifacts/verification/
+          if-no-files-found: ignore
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Vitest
+        run: npm test
+      - name: ESLint
+        run: npm run lint
+      - name: TypeScript and Vite build
+        run: npm run build
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install test runtime
+        working-directory: .
+        run: |
+          sudo apt-get update && sudo apt-get install -y tesseract-ocr poppler-utils
+          python -m pip install -r requirements.txt
+      - run: npm ci
+      - name: Install Chromium and OS libraries
+        run: npx playwright install --with-deps chromium
+      - name: Start synthetic Flask and Vite servers
+        env:
+          DATABASE_URL: sqlite:////tmp/clinical-nlp-playwright.sqlite
+          APP_MODE: local
+          ENABLE_LOCAL_AI: 'false'
+          ENABLE_EXTERNAL_EXPLAINER: 'false'
+        run: |
+          python ../backend/app.py >/tmp/clinical-nlp-backend.log 2>&1 &
+          npm run dev -- --host 127.0.0.1 >/tmp/clinical-nlp-frontend.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5000/api/health >/dev/null &&
+               curl -fsS http://127.0.0.1:5173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/clinical-nlp-backend.log
+          cat /tmp/clinical-nlp-frontend.log
+          exit 1
+      - name: Playwright against real local services
+        env:
+          CI: 'true'
+        run: npx playwright test --workers=1 --reporter=line
+      - name: Upload failing browser evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-e2e-evidence
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+            /tmp/clinical-nlp-backend.log
+            /tmp/clinical-nlp-frontend.log
+          if-no-files-found: ignore

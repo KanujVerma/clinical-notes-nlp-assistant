@@ -21,6 +21,40 @@ def note_id(client):
     resp = client.post("/api/notes", json={"text": "BP: 120/80. HR: 72."}, headers={"X-Session-ID": SID})
     return resp.get_json()["note_id"]
 
+
+def _make_payload(client, nid, headers, decisions=None, event_kind="review_completed"):
+    source = client.get(f"/api/notes/{nid}/source", headers=headers).json
+    note = client.get(f"/api/notes/{nid}", headers=headers).json
+    ext = note["extracted_json"]
+    item_decisions = {}
+    for cat in ["vitals", "metadata", "instructions"]:
+        for k, v in ext.get(cat, {}).items():
+            if isinstance(v, dict) and "value" in v:
+                item_decisions[f"{cat}.{k}"] = {"decision": "accept"}
+    for med in ext.get("medications", []):
+        m_id = med.get("id") or med.get("source_occurrence_id") or med.get("name", {}).get("value")
+        for field in ["name", "dose", "route", "frequency", "duration", "prn"]:
+            if field in med and isinstance(med[field], dict) and "value" in med[field]:
+                item_decisions[f"medications.{m_id}.{field}"] = {"decision": "accept"}
+    if decisions:
+        item_decisions.update(decisions)
+    return {
+        "note_id": nid,
+        "source_revision_id": note["current_source_revision_id"],
+        "extraction_id": note["current_extraction_id"],
+        "source_hash": source["sha256"],
+        "expected_lock_version": note["lock_version"],
+        "event_kind": event_kind,
+        "item_decisions": item_decisions,
+        "category_acknowledgments": {
+            "vitals": True,
+            "metadata": True,
+            "medications": True,
+            "instructions": True,
+        },
+    }
+
+
 def test_validate_missing_session_returns_400(client):
     resp = client.post("/api/validate", json={
         "note_id": 1,
@@ -30,57 +64,88 @@ def test_validate_missing_session_returns_400(client):
     assert resp.status_code == 400
     assert resp.get_json()["code"] == "MISSING_SESSION_ID"
 
-def test_validate_returns_200(client, note_id):
+
+def test_validate_legacy_payload_returns_422(client, note_id):
     resp = client.post("/api/validate", json={
         "note_id": note_id,
         "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
         "status": "accepted",
-        "review_duration_ms": 5000,
     }, headers={"X-Session-ID": SID})
-    assert resp.status_code == 200
+    assert resp.status_code == 422
+    assert resp.get_json()["code"] == "REVIEW_BINDING_REQUIRED"
 
-def test_validate_upserts(client, note_id):
-    payload = {
-        "note_id": note_id,
-        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
-        "status": "accepted",
-        "review_duration_ms": 3000,
-    }
-    client.post("/api/validate", json=payload, headers={"X-Session-ID": SID})
-    payload["status"] = "corrected"
+
+def test_validate_missing_binding_fields_returns_422(client, note_id):
+    resp = client.post("/api/validate", json={"note_id": note_id}, headers={"X-Session-ID": SID})
+    assert resp.status_code == 422
+    assert resp.get_json()["code"] == "REVIEW_BINDING_REQUIRED"
+
+
+def test_validate_returns_201_on_bound_review(client, note_id):
+    payload = _make_payload(client, note_id, headers={"X-Session-ID": SID})
     resp = client.post("/api/validate", json=payload, headers={"X-Session-ID": SID})
-    assert resp.status_code == 200
-    detail = client.get(f"/api/history/{note_id}", headers={"X-Session-ID": SID}).get_json()
-    assert detail["validation"]["status"] == "corrected"
+    assert resp.status_code == 201
+    assert resp.get_json()["event_kind"] == "review_completed"
+    assert resp.get_json()["derived_outcome"] == "reviewed_unchanged"
+
+
+def test_validate_correction_creates_new_event(client, note_id):
+    payload = _make_payload(client, note_id, headers={"X-Session-ID": SID})
+    resp = client.post("/api/validate", json=payload, headers={"X-Session-ID": SID})
+    assert resp.status_code == 201
+    first_event_id = resp.get_json()["event_id"]
+
+    # Second review modifies blood_pressure
+    decisions = {
+        "vitals.blood_pressure": {
+            "decision": "edit",
+            "value": "130/85",
+        }
+    }
+    payload2 = _make_payload(client, note_id, headers={"X-Session-ID": SID}, decisions=decisions)
+    payload2["expected_head_event_id"] = first_event_id
+    payload2["expected_lock_version"] = 1
+    resp2 = client.post("/api/validate", json=payload2, headers={"X-Session-ID": SID})
+    assert resp2.status_code == 201
+    assert resp2.get_json()["derived_outcome"] == "reviewed_corrected"
+
+    detail = client.get(f"/api/notes/{note_id}", headers={"X-Session-ID": SID}).get_json()
+    assert detail["review_head"]["derived_outcome"] == "reviewed_corrected"
+
+
+def test_validate_other_session_note_returns_error(client):
+    note_resp = client.post("/api/notes", json={"text": "BP: 120/80."}, headers={"X-Session-ID": SID})
+    nid = note_resp.get_json()["note_id"]
+    payload = _make_payload(client, nid, headers={"X-Session-ID": SID})
+    resp = client.post("/api/validate", json=payload, headers={"X-Session-ID": SID2})
+    assert resp.status_code in (400, 403)
+
+
+def test_validate_nonexistent_extraction_returns_400(client):
+    payload = {
+        "note_id": 9999,
+        "source_revision_id": "rev-9999",
+        "extraction_id": "nonexistent-ext",
+        "source_hash": "dummyhash",
+        "expected_lock_version": 0,
+        "event_kind": "review_completed",
+        "item_decisions": {},
+        "category_acknowledgments": {
+            "vitals": True,
+            "metadata": True,
+            "medications": True,
+            "instructions": True,
+        },
+    }
+    resp = client.post("/api/validate", json=payload, headers={"X-Session-ID": SID})
+    assert resp.status_code == 400
+
 
 def test_correction_count_computed():
     ext = {"vitals": {"blood_pressure": {"value": "120/80"}}, "medications": [], "instructions": {}, "metadata": {}}
     val = {"vitals": {"blood_pressure": {"value": "130/85"}}, "medications": [], "instructions": {}, "metadata": {}}
     assert compute_correction_count(ext, val) == 1
 
-def test_validate_missing_note_id_returns_400(client):
-    resp = client.post("/api/validate", json={"status": "accepted"}, headers={"X-Session-ID": SID})
-    assert resp.status_code == 400
-
-def test_validate_nonexistent_note_returns_404(client):
-    resp = client.post("/api/validate", json={
-        "note_id": 9999,
-        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
-        "status": "accepted",
-    }, headers={"X-Session-ID": SID})
-    assert resp.status_code == 404
-
-def test_validate_other_session_note_returns_403(client):
-    # SID creates a note; SID2 should not be able to validate it
-    note_resp = client.post("/api/notes", json={"text": "BP: 120/80."}, headers={"X-Session-ID": SID})
-    nid = note_resp.get_json()["note_id"]
-    resp = client.post("/api/validate", json={
-        "note_id": nid,
-        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
-        "status": "accepted",
-    }, headers={"X-Session-ID": SID2})
-    assert resp.status_code == 403
-    assert resp.get_json()["code"] == "FORBIDDEN"
 
 def test_metrics_null_eval_when_no_results_file(client):
     resp = client.get("/api/metrics", headers={"X-Session-ID": SID})
@@ -89,44 +154,3 @@ def test_metrics_null_eval_when_no_results_file(client):
     assert "eval" in data
     assert data["eval"] is None
     assert "db_stats" in data
-
-def test_validate_response_includes_message_and_next_pending_id(client, note_id):
-    resp = client.post("/api/validate", json={
-        "note_id": note_id,
-        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
-        "status": "accepted",
-    }, headers={"X-Session-ID": SID})
-    assert resp.status_code == 200
-    body = resp.get_json()
-    assert "message" in body
-    assert "next_pending_id" in body
-    assert body["next_pending_id"] is None
-
-def test_validate_next_pending_id_returns_unvalidated_note(client):
-    resp1 = client.post("/api/notes", json={"text": "BP: 120/80. HR: 72."}, headers={"X-Session-ID": SID})
-    note_id_1 = resp1.get_json()["note_id"]
-    resp2 = client.post("/api/notes", json={"text": "HR: 68. Weight: 150 lbs."}, headers={"X-Session-ID": SID})
-    note_id_2 = resp2.get_json()["note_id"]
-
-    resp = client.post("/api/validate", json={
-        "note_id": note_id_1,
-        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
-        "status": "accepted",
-    }, headers={"X-Session-ID": SID})
-    body = resp.get_json()
-    assert resp.status_code == 200
-    assert body["next_pending_id"] == note_id_2
-
-def test_validate_next_pending_id_ignores_other_session(client):
-    # SID2 creates a pending note; SID should not see it as next_pending_id
-    client.post("/api/notes", json={"text": "HR: 68."}, headers={"X-Session-ID": SID2})
-    note_resp = client.post("/api/notes", json={"text": "BP: 120/80."}, headers={"X-Session-ID": SID})
-    nid = note_resp.get_json()["note_id"]
-
-    resp = client.post("/api/validate", json={
-        "note_id": nid,
-        "validated_json": {"vitals": {}, "medications": [], "instructions": {}, "metadata": {}},
-        "status": "accepted",
-    }, headers={"X-Session-ID": SID})
-    body = resp.get_json()
-    assert body["next_pending_id"] is None

@@ -33,7 +33,7 @@ test("Seed demo → toast → auto-navigate to Queue", async ({ page }) => {
   await page.getByRole("button", { name: /Seed demo data/i }).click();
 
   // Toast should appear
-  await expect(page.getByText(/Seeded|already exist/i)).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText(/Seeded|already exist/i)).toBeVisible({ timeout: 15_000 });
 
   // Either navigates to /queue (new data) or stays on upload (already seeded)
   // Either is acceptable — just confirm no crash
@@ -44,10 +44,11 @@ test("Seed demo → toast → auto-navigate to Queue", async ({ page }) => {
 
 test("Queue page lists pending notes", async ({ page }) => {
   await page.goto(`${BASE}/queue`);
-  // Should show at least one note or an empty-state message — either is fine
-  const hasNotes = await page.locator("table tbody tr").count() > 0;
-  const hasEmpty = await page.getByText(/no pending/i).isVisible().catch(() => false);
-  expect(hasNotes || hasEmpty).toBeTruthy();
+  await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+  // Should show at least one note or the empty-state message — either is fine
+  await expect(
+    page.locator("table tbody tr").first().or(page.getByText("No notes pending review."))
+  ).toBeVisible();
 });
 
 test("Paste text → extract → Review page opens", async ({ page }) => {
@@ -124,6 +125,12 @@ test("Review page — edit a field value and save corrections", async ({ page })
   await page.getByRole("button", { name: /Extract & Review/i }).click();
   await waitForReviewPage(page);
 
+  // Acknowledge all 4 categories
+  await page.locator('[data-testid="ack-metadata"]').check();
+  await page.locator('[data-testid="ack-vitals"]').check();
+  await page.locator('[data-testid="ack-medications"]').check();
+  await page.locator('[data-testid="ack-instructions"]').check();
+
   // Click Edit on first field
   const firstValue = page.locator('[data-testid="field-value"]').first();
   await firstValue.hover();
@@ -131,18 +138,16 @@ test("Review page — edit a field value and save corrections", async ({ page })
 
   // Type a new value
   const input = page.locator("input").first();
-  await input.triple_click?.() ?? await input.click({ clickCount: 3 });
+  await input.click({ clickCount: 3 });
   await input.fill("edited value");
   await page.getByRole("button", { name: "save" }).first().click();
 
-  // Save corrections button should be enabled
-  const saveBtn = page.getByRole("button", { name: /Save corrections/i });
-  await expect(saveBtn).toBeEnabled();
-  await saveBtn.click();
+  // Accept all remaining pending fields (which preserves the corrected field and saves)
+  await page.getByRole("button", { name: /Accept all/i }).click();
 
   // Flash message or auto-advance
   await expect(
-    page.getByText(/Saved|loading next/i).or(page.getByText(/All notes reviewed/i))
+    page.getByText(/Saved|loading next|Review saved/i).or(page.getByText(/All notes reviewed/i))
   ).toBeVisible({ timeout: 6_000 });
 });
 
@@ -187,6 +192,12 @@ test("Re-review — previously reviewed note shows banner", async ({ page }) => 
   await page.getByRole("button", { name: /Load sample note/i }).click();
   await page.getByRole("button", { name: /Extract & Review/i }).click();
   await waitForReviewPage(page);
+
+  // Acknowledge all 4 categories
+  await page.locator('[data-testid="ack-metadata"]').check();
+  await page.locator('[data-testid="ack-vitals"]').check();
+  await page.locator('[data-testid="ack-medications"]').check();
+  await page.locator('[data-testid="ack-instructions"]').check();
 
   // Accept all
   await page.getByRole("button", { name: /Accept all/i }).click();

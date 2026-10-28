@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from config import Config
 from utils.session import require_session
 from utils import ai_provider
 from utils.rate_limit import check_rate_limit
@@ -15,6 +16,8 @@ MODEL_USED = "claude-haiku-4-5-20251001"
 
 @bp.post("/api/explain")
 def explain():
+    if Config.APP_MODE == "hosted_demo":
+        return jsonify({"error": "External AI is disabled in the public sandbox", "code": "FEATURE_RESTRICTED"}), 403
     session_id = require_session()
 
     body = request.get_json(silent=True) or {}
@@ -48,6 +51,10 @@ def explain():
                     {"error": f"context values must be {MAX_CONTEXT_VALUE_LEN} chars or fewer", "code": "INVALID_INPUT"}
                 ), 400
 
+    # An API key alone never authorizes a paid provider call.
+    if not Config.ENABLE_EXTERNAL_EXPLAINER:
+        return jsonify({"error": "External AI is disabled by configuration", "code": "AI_DISABLED"}), 503
+
     # Rate limit check
     allowed, retry_after = check_rate_limit(session_id)
     if not allowed:
@@ -66,5 +73,7 @@ def explain():
 
 @bp.get("/api/explain/status")
 def explain_status():
-    available = ai_provider.is_available()
+    available = (Config.APP_MODE != "hosted_demo"
+                 and Config.ENABLE_EXTERNAL_EXPLAINER
+                 and ai_provider.is_available())
     return jsonify({"available": available}), 200

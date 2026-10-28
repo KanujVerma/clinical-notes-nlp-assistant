@@ -2,6 +2,8 @@
 
 A **full-stack, synthetic clinical-note extraction and human-review prototype** built with React, TypeScript, Flask, SQLAlchemy, spaCy/medSpaCy, and deterministic rules. It extracts structured fields, lets a reviewer inspect and correct them against the source, and records reviewer activity.
 
+> **Draft feature branch — undergoing independent verification.** Validation-workbench changes have not been merged to `main` or verified in the hosted deployment. The recorded local test counts precede more recent source edits and are not a release certificate.
+
 > **Synthetic engineering demo — not for clinical use.** Do not submit real patient information. This is not clinically validated, does not verify patient identity, and is not an EHR or prescribing tool. Session-based workspace separation is not authentication.
 
 **Hosted demo:** [clinical-nlp.vercel.app](https://clinical-nlp.vercel.app/) (availability and deployment version are not guaranteed by this README). For reproducible behavior, run the checked-out revision locally.
@@ -61,6 +63,7 @@ brew install tesseract poppler
 
 git clone https://github.com/KanujVerma/clinical-notes-nlp-assistant.git
 cd clinical-notes-nlp-assistant
+git switch feat/clinical-validation-workbench
 
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -71,28 +74,28 @@ npm ci
 cd ..
 ```
 
-Open two terminals from the repository root:
+Start the full local workbench (Flask, Vite and **one durable processing worker**) with:
 
 ```bash
-# Terminal 1 — Flask
-source .venv/bin/activate
-cd backend
-python app.py
-# http://localhost:5000
+make dev
+# http://127.0.0.1:5173
 ```
 
+The local AI panel now queues source/extraction-bound jobs and polls the worker. Without a running worker, requests remain queued; Flask itself does **not** run inference. Launch Ollama separately only when testing an installed, free local model. The two vision adapters require an original synthetic PDF/image, and neither their output nor visual-coordinate suggestions can automatically approve review data.
+
+If running services separately, open three terminals:
+
 ```bash
-# Terminal 2 — Vite
-cd frontend
-npm run dev
-# http://localhost:5173
+.venv/bin/python backend/app.py       # Flask on port 5000
+.venv/bin/python backend/worker.py    # one local processing worker
+cd frontend && npm run dev            # Vite on port 5173
 ```
 
 Open <http://localhost:5173>. Vite proxies `/api` to the local Flask backend. Without `DATABASE_URL`, the backend uses a local SQLite database. Seed synthetic notes with the **Seed demo data** button or use **Load sample note**. No API keys are needed.
 
-**Optional AI explainer:** Set `ANTHROPIC_API_KEY` only if deliberately testing that external feature. Keep it unset for offline extraction/review testing. Never send actual patient data to this demo or to the optional provider.
+**Optional AI explainer:** External paid inference is disabled by default. To explicitly enable it locally, set `ENABLE_EXTERNAL_EXPLAINER=true` AND configure `ANTHROPIC_API_KEY`; keep both disabled for offline processing. A pre-existing API key alone cannot enable provider calls. Keep it unset for offline extraction/review testing. Never send actual patient data to this demo or to the optional provider.
 
-**Docker Compose (development):** `docker compose up --build` starts the backend on port **5000** and the Vite frontend on port **5173**. The Compose configuration is a two-service development environment; it does not serve the whole application solely at port 5000.
+**Docker Compose (development):** `docker compose up --build` starts the backend on port **5000** and Vite on **5173**, but the two-service Compose configuration does **not** start the local worker or enable AI inference. Use `make dev` for the complete local workbench.
 
 ## Review controls
 
@@ -107,40 +110,52 @@ Open <http://localhost:5173>. Vite proxies `/api` to the local Flask backend. Wi
 
 The reviewer can inspect medications, vitals, instructions, and metadata. Medication mentions without sufficient structured directions require human interpretation rather than assuming they are active treatment instructions.
 
+## Validation Workbench & Verification Architecture
+
+In addition to the baseline pipeline, this branch includes the **Clinical NLP Validation Workbench** (`docs/validation/`), establishing immutable lineage, defensive verification, and statistical evaluation:
+
+- **Immutable Lineage & Append-Only Event Store**: Ingestion hashes source assets into content-addressed storage (SHA-256). Transcription edits create an incremented `NoteRevision` chain. Review events cite parent pointers, lock versions (optimistic concurrency), and idempotency keys.
+- **Independent Quality Canaries**: Pure validation rules independently check extracted entities for half-open interval coordinate bounds, exact quote integrity (`A08`), decimal dose formatting risks (`A09`), duplicate medication conflicts (`A02`), missing vital units (`A03`), and contradictory instructions (`A04`).
+- **Operational Issues Drawer**: Live slide-out drawer surfacing canaries and critical blockers with explicit reviewer disposition lifecycles.
+- **Synthetic Evaluation Lab (`/validation-lab`)**: Deterministic source-occurrence-first medication pairing with a bounded assignment fallback (not the Hungarian algorithm), evaluating annotated medication attributes (`name`, `dose`, `route`, `frequency`, `duration`, `qualifier`) and case-by-case error attribution (TP/FP/FN).
+- **Checksummed Export**: Downloadable review ZIPs with structured decisions, source lineage, and a SHA-256 file manifest. Checksums are not clinician signatures or independent proof of correctness.
+
+Comprehensive documentation is available in [`docs/validation/`](docs/validation/):
+- [Acceptance Matrix (A01–A48)](docs/validation/acceptance-matrix.md)
+- [System Architecture](docs/validation/architecture.md)
+- [API Contract](docs/validation/api-contract.md)
+- [Requirements & Boundaries](docs/validation/requirements.md)
+- [Engineering Demonstration Script](docs/validation/demo-script.md)
+- [Contribution Changelog](docs/validation/contribution-changelog.md)
+
 ## Verification
 
 From the repository root:
 
 ```bash
+# Backend pytest suite (rerun and record counts for this exact commit)
 source .venv/bin/activate
 python -m pytest backend/tests/ -q
 
+# Frontend unit tests, linting, and build
 cd frontend
 npm test
 npm run lint
 npm run build
-# Requires both servers running and a local Chromium setup:
+
+# End-to-end browser tests (counts depend on checked-out revision)
+# Requires Flask (port 5000) and Vite (port 5173) running:
 npx playwright test
 ```
 
-Tests must be rerun for the exact checked-out commit and environment. This README does not use a historical test count as proof that current checks passed.
+## Known limitations and operational boundaries
 
-### Offline evaluation: what the scores mean
-
-The legacy `data/eval/` corpus contains 20 synthetic labeled development notes. `python scripts/run_evaluation.py` writes `backend/evaluation/results.json`. The committed April 17, 2026 result recorded overall F1 **0.6549** under pipeline `0.1.0`, but **that is a historical development result, not a verified current score or clinical accuracy claim**.
-
-The original comparator has important limitations: medication matching uses name/dose without strict route/frequency scoring, duplicate-name instances can collapse, vital normalization strips some units without conversion, and instruction substring matching can accept contradictory extra text. Do not compare the legacy result directly with a stricter evaluator or present it as a reliable whole-record medication metric. Review correction rates on the Metrics page are a separate type of measurement.
-
-## Known limitations and next engineering priorities
-
-- **Review provenance:** this `main` revision stores mutable, note-linked validation records. It does not yet enforce immutable source/extraction/review version binding or optimistic concurrency. A review may become stale after source edits. Do not describe it as tamper-proof or audit-grade.
-- **Extraction:** ambiguous medication actions, duplicated occurrences, temporal context, decimal doses, incomplete instructions, and mixed-format sources can be misread or missed.
-- **OCR:** the current PDF path chooses OCR fallback using a document-level text threshold, so scanned pages mixed with text pages may not be fully acquired; handwriting is unsupported.
-- **Measurement:** the legacy benchmark is a synthetic development diagnostic with permissive comparison rules, not independent, clinically adjudicated validation.
-- **Privacy and identity:** no clinical-grade authentication, authorization, identity verification, or real-PHI controls are provided. Browser workspace UUIDs are demo scoping only.
-- **Optional AI:** explanations can be incomplete or wrong and do not validate extracted facts.
-
-A separate validation/reliability workstream proposes immutable review events, stricter evaluation, independent consistency checks, page-level acquisition, and actionable issue drilldowns. **Those additions are not part of the `main` revision described here until its code and tests are integrated and verified.** Do not claim them on a portfolio or demo without checking the branch and evidence.
+- **Synthetic only:** The system is restricted to synthetic, de-identified clinical scenarios. It is not HIPAA-certified, does not connect to EHRs, does not verify patient identity, and must never be used for real clinical decision-making.
+- **Extraction bounds:** Ambiguous clinical phrasing, novel abbreviations, and unformatted narrative text require human verification. The deterministic pipeline flags anomalies via canaries rather than making autonomous clinical decisions.
+- **Optional local AI:** This branch includes GLM-OCR and Qwen3-VL image-input adapters as well as text-only suggestions. All model outputs remain proposals, separate from reviewed state. The unit tests use mocked model responses; no actual on-device handwriting accuracy benchmark has been verified. Vision requests without an original image source now fail closed. Paid terminology explanation remains disabled without explicit opt-in.
+- **Live synthetic OCR benchmark:** The repo now has a deterministic **printed** synthetic image generator. Run `python backend/evaluation/generate_synthetic_visual_cases.py --output data/vision_gold`, then, if `glm-ocr:q8_0` is installed in local Ollama, run `python backend/evaluation/vision_benchmark.py --manifest data/vision_gold/manifest.json`. The runner records source hashes, the installed model digest, predictions, critical-token differences, and CER/WER; it fails when the model is unavailable. Generated printed images are not handwriting and are not a held-out set. Real handwriting requires separate images and separately verified gold transcription. The previously reported handwritten CER/WER values came from handcrafted example strings, NOT model inference.
+- **Evaluation limits:** The historical 20-note synthetic corpus was inspected during development and is not a held-out or clinically adjudicated set. Older saved benchmark artifacts use earlier matching rules and cannot be treated as a comparable strict baseline.
+- **Release status:** The [acceptance matrix](docs/validation/acceptance-matrix.md) records pending final-SHA verification; project readiness, migration compatibility and browser UX should not be inferred from a passing old smoke suite.
 
 ## Project scope and contributions
 

@@ -57,6 +57,7 @@ class _FakeAIProvider:
 def _patch_ai(monkeypatch, explain_result=None, explain_exc=None, available=True):
     fake = _FakeAIProvider(explain_result=explain_result, explain_exc=explain_exc, available=available)
     monkeypatch.setattr("routes.explain.ai_provider", fake)
+    monkeypatch.setattr("routes.explain.Config.ENABLE_EXTERNAL_EXPLAINER", True)
     return fake
 
 
@@ -224,6 +225,19 @@ def test_status_available_true(client, monkeypatch):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data == {"available": True}
+
+
+def test_paid_ai_key_never_enables_provider_without_explicit_flag(client, monkeypatch):
+    _patch_ai(monkeypatch, explain_result=FAKE_EXPLANATION)
+    monkeypatch.setattr("routes.explain.Config.ENABLE_EXTERNAL_EXPLAINER", False)
+    response = client.post(
+        "/api/explain",
+        headers=SESSION_HEADERS,
+        json={"kind": "medication", "value": "Aspirin"},
+    )
+    assert response.status_code == 503
+    assert response.json["code"] == "AI_DISABLED"
+    assert client.get("/api/explain/status").json == {"available": False}
 
 
 def test_status_available_false(client, monkeypatch):

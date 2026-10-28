@@ -8,6 +8,8 @@ export interface FieldValue {
 }
 
 export interface Medication {
+  id?: string;
+  source_occurrence_id?: string;
   name: string;
   dose: string;
   route: string;
@@ -65,6 +67,13 @@ export interface NoteDetail {
   created_at: string;
   extracted_json: ExtractionResult | null;
   pipeline_version: string | null;
+  review_head?: {
+    event_id: string;
+    derived_outcome: string;
+    event_kind: string;
+    reviewed_snapshot: ExtractionResult;
+    item_decisions?: Record<string, any>;
+  } | null;
   validation: {
     status: string;
     validated_json: ExtractionResult;
@@ -86,6 +95,12 @@ export interface MetricsResponse {
     correction_rates?: {
       by_category: Record<string, { reviewed: number; corrected: number; rate: number }>;
       by_field: Record<string, { reviewed: number; corrected: number; rate: number }>;
+    };
+    issues_summary?: {
+      total: number;
+      open_blockers: number;
+      open_warnings: number;
+      resolved: number;
     };
   };
 }

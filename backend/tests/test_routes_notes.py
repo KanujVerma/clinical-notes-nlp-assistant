@@ -65,22 +65,32 @@ def test_put_note_text_updates_raw_text(client):
     resp = client.post("/api/notes", json={"text": "BP: 120/80."},
                        headers={"X-Session-ID": SID})
     note_id = resp.get_json()["note_id"]
-    resp2 = client.put(f"/api/notes/{note_id}/text", json={"text": "BP: 130/85. HR: 60."},
-                       headers={"X-Session-ID": SID})
-    assert resp2.status_code == 200
+    rev_id = resp.get_json()["revision_id"]
+    resp2 = client.put(f"/api/notes/{note_id}/text", json={
+        "text": "BP: 130/85. HR: 60.",
+        "expected_source_revision_id": rev_id,
+        "expected_lock_version": 0,
+    }, headers={"X-Session-ID": SID})
+    assert resp2.status_code == 201
     data = resp2.get_json()
     assert data["note_id"] == note_id
-    assert "extracted_json" in data
+    detail = client.get(f"/api/notes/{note_id}", headers={"X-Session-ID": SID}).get_json()
+    assert detail["raw_text"] == "BP: 130/85. HR: 60."
 
 def test_put_note_text_reruns_extraction(client):
     resp = client.post("/api/notes", json={"text": "BP: 120/80."},
                        headers={"X-Session-ID": SID})
     note_id = resp.get_json()["note_id"]
+    rev_id = resp.get_json()["revision_id"]
     original_bp = resp.get_json()["extracted_json"]["vitals"].get("blood_pressure", {}).get("value")
-    resp2 = client.put(f"/api/notes/{note_id}/text", json={"text": "HR: 55. Temp: 98.6F."},
-                       headers={"X-Session-ID": SID})
-    assert resp2.status_code == 200
-    new_extracted = resp2.get_json()["extracted_json"]
+    resp2 = client.put(f"/api/notes/{note_id}/text", json={
+        "text": "HR: 55. Temp: 98.6F.",
+        "expected_source_revision_id": rev_id,
+        "expected_lock_version": 0,
+    }, headers={"X-Session-ID": SID})
+    assert resp2.status_code == 201
+    detail = client.get(f"/api/notes/{note_id}", headers={"X-Session-ID": SID}).get_json()
+    new_extracted = detail["extracted_json"]
     assert "pipeline_version" in new_extracted
     new_bp = new_extracted["vitals"].get("blood_pressure", {}).get("value")
     assert new_bp != original_bp
@@ -91,34 +101,45 @@ def test_put_note_text_404_on_unknown_note(client):
     assert resp.status_code == 404
     assert resp.get_json()["code"] == "NOT_FOUND"
 
-def test_put_note_text_400_on_empty_text(client):
+def test_put_note_text_422_on_empty_text(client):
     resp = client.post("/api/notes", json={"text": "BP: 120/80."},
                        headers={"X-Session-ID": SID})
     note_id = resp.get_json()["note_id"]
-    resp2 = client.put(f"/api/notes/{note_id}/text", json={"text": ""},
-                       headers={"X-Session-ID": SID})
-    assert resp2.status_code == 400
-    assert resp2.get_json()["code"] == "TEXT_REQUIRED"
+    rev_id = resp.get_json()["revision_id"]
+    resp2 = client.put(f"/api/notes/{note_id}/text", json={
+        "text": "",
+        "expected_source_revision_id": rev_id,
+        "expected_lock_version": 0,
+    }, headers={"X-Session-ID": SID})
+    assert resp2.status_code == 422
+    assert resp2.get_json()["code"] == "EMPTY_TEXT"
 
-def test_put_note_text_400_on_missing_text_field(client):
+def test_put_note_text_422_on_missing_text_field(client):
     resp = client.post("/api/notes", json={"text": "BP: 120/80."},
                        headers={"X-Session-ID": SID})
     note_id = resp.get_json()["note_id"]
-    resp2 = client.put(f"/api/notes/{note_id}/text", json={},
-                       headers={"X-Session-ID": SID})
-    assert resp2.status_code == 400
-    assert resp2.get_json()["code"] == "TEXT_REQUIRED"
+    rev_id = resp.get_json()["revision_id"]
+    resp2 = client.put(f"/api/notes/{note_id}/text", json={
+        "expected_source_revision_id": rev_id,
+        "expected_lock_version": 0,
+    }, headers={"X-Session-ID": SID})
+    assert resp2.status_code == 422
+    assert resp2.get_json()["code"] == "EMPTY_TEXT"
 
-def test_put_note_text_deletes_old_extraction_and_creates_new(client):
+def test_put_note_text_preserves_old_extraction_and_creates_new(client):
     resp = client.post("/api/notes", json={"text": "BP: 120/80."},
                        headers={"X-Session-ID": SID})
     note_id = resp.get_json()["note_id"]
+    rev_id = resp.get_json()["revision_id"]
     hist = client.get(f"/api/history/{note_id}", headers={"X-Session-ID": SID}).get_json()
     assert hist["extracted_json"] is not None
     first_pipeline_version = hist["extracted_json"]["pipeline_version"]
-    resp2 = client.put(f"/api/notes/{note_id}/text", json={"text": "HR: 72. Temp: 99F."},
-                       headers={"X-Session-ID": SID})
-    assert resp2.status_code == 200
+    resp2 = client.put(f"/api/notes/{note_id}/text", json={
+        "text": "HR: 72. Temp: 99F.",
+        "expected_source_revision_id": rev_id,
+        "expected_lock_version": 0,
+    }, headers={"X-Session-ID": SID})
+    assert resp2.status_code == 201
     hist2 = client.get(f"/api/history/{note_id}", headers={"X-Session-ID": SID}).get_json()
     assert hist2["extracted_json"] is not None
     assert hist2["extracted_json"]["pipeline_version"] == first_pipeline_version

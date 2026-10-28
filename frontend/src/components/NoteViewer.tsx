@@ -48,9 +48,10 @@ function collectSpans(extracted: ExtractionResult): Span[] {
   });
 
   extracted.medications.forEach((m, i) => {
+    const medId = (m as any).id || (m as any).source_occurrence_id || `med_${i}`;
     if (m?.span) spans.push({
       start: m.span[0], end: m.span[1],
-      category: "medications", fieldKey: `med.${i}.name`, label: m.name,
+      category: "medications", fieldKey: `med.${medId}.name`, label: m.name,
     });
   });
 

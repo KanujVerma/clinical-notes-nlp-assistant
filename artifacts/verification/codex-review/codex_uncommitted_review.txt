@@ -1,0 +1,90 @@
+Reproduced authorization, review-state, export, and evaluation failures make this patch incorrect. The 15 focused backend tests and TypeScript check passed; full disk-backed and browser suites were not run under the read-only restriction.
+
+Full review comments:
+
+- [P1] Use a PostgreSQL-compatible timestamp type during migration — backend/utils/db.py:49-49
+  When upgrading an existing PostgreSQL database, `ALTER TABLE notes ADD COLUMN updated_at DATETIME` fails because PostgreSQL has no `DATETIME` type. The resulting `ProgrammingError` is not caught here, so initialization stops before migrating extractions, and subsequent note queries fail against the incomplete schema. Use dialect-compatible migration types.
+
+- [P1] Scope embedded issue dispositions to the reviewed workspace — backend/services/review_service.py:194-197
+  A review request can include an issue ID belonging to another workspace, and this lookup updates that issue without checking its workspace, note, or revision. I reproduced resolving a foreign workspace's blocker by submitting a draft against an owned note. Apply the same ownership checks used by the dedicated issue-disposition endpoint.
+
+- [P1] Validate note ownership before accepting background jobs — backend/routes/jobs.py:40-45
+  A caller can enqueue an extraction job using another workspace's numeric note ID. The worker subsequently loads the note by ID alone and replaces its current extraction. I reproduced a job submitted as one workspace changing another workspace's note. Validate both note ownership and revision ownership when accepting and executing jobs.
+
+- [P1] Verify capabilities for newly provisioned workspaces — backend/utils/session.py:4-7
+  For workspaces created through `/api/workspaces`, this function trusts the workspace ID without verifying the issued token, expiration, or workspace state. A request containing only a revoked workspace's ID still reads its notes successfully. Authenticate newly provisioned workspace records rather than treating their IDs as sufficient authorization.
+
+- [P1] Stop saving when the immutable review endpoint rejects a mutation — frontend/src/pages/Review.tsx:484-489
+  If submission fails because of blockers, invalid provenance, or schema errors, this catch falls through to `/api/validate`, which saves successfully without those checks. Even the actual `Stale review mutation rejected` message misses the lowercase substring check. I reproduced a rejected review displaying `Review saved!`; propagate the rejection instead of silently using the legacy endpoint.
+
+- [P1] Reconcile reviewed snapshots with validated item decisions — backend/services/review_service.py:179-180
+  A completion request can supply empty or accepting decisions alongside an arbitrarily changed snapshot, and the server records that content as `reviewed_unchanged`. Omitting the snapshot also stores `{}` for an otherwise accepted extraction. Validate decision coverage and construct or verify the snapshot against the bound extraction before deriving the outcome.
+
+- [P1] Refresh all provenance fields after a transcription revision — frontend/src/pages/Review.tsx:926-930
+  After creating a revision, this callback refreshes text and lock version but leaves `currentExtractionId` and `currentSourceHash` unchanged. I reproduced the next save submitting revision `rev2` against extraction `ext1` and hash `hash1`. Refresh the extraction ID and source hash together with the new revision before allowing another review submission.
+
+- [P2] Validate the field shape actually emitted by the pipeline — backend/validation/checker.py:153-155
+  `run_pipeline` emits `span` arrays, not `evidence` objects, so normal medication, vital, instruction, and metadata spans bypass evidence verification. Instructions also store their text under `value`, which the contradiction check does not read. I reproduced both an out-of-bounds pipeline-shaped span and contradictory pipeline output producing no relevant issues. Adapt the checker or pipeline to one shared representation.
+
+- [P2] Restrict review event kinds to supported states — backend/schemas/review.py:27-27
+  `event_kind` accepts any string, but completion checks run only for exactly `review_completed`, while every unknown value falls into the completed-outcome branch. A request with `event_kind: "typo"` receives 201 and marks a blocked, unacknowledged note reviewed. Reject unsupported event kinds during schema validation.
+
+- [P2] Include the expected head when submitting a subsequent review — frontend/src/pages/Review.tsx:473-475
+  When a note already has a review event, this payload omits `expected_head_event_id`. The service interprets the omitted value as requiring a null current head, so every subsequent review is rejected as stale even with the correct lock version. Send the loaded review-head ID alongside the expected lock version.
+
+- [P2] Include provenance state in the save callback dependencies — frontend/src/pages/Review.tsx:465-467
+  `handleSave` captures the provenance fields, but its dependency array does not include them. If note details and fields load before the separate state/source requests finish, the callback retains null IDs and skips immutable review creation. I reproduced this request ordering producing only a legacy validation write after all metadata had loaded. Include every captured provenance value in the callback dependencies.
+
+- [P2] Translate field statuses into valid review decisions — frontend/src/pages/Review.tsx:459-461
+  Accepted and removed fields are sent as `accepted` and `removed`, but the service recognizes `accept` and `remove`. Consequently, a review that only removes extracted content is classified as `reviewed_unchanged`; I reproduced that outcome. Explicitly map all UI statuses to the review decision vocabulary, including reviewer-added fields.
+
+- [P2] Preserve source assets through the normal upload path — backend/routes/upload.py:98-105
+  The upload route still uses the old text-extraction helpers and creates revisions without a source asset, acquisition run, or page metadata. The new `acquire_document` helper is never called. Uploaded notes therefore always return `NO_ASSET` from `/source-file` and empty page data, making the new source retrieval and pagewise acquisition features unavailable through normal ingestion.
+
+- [P2] Send workspace credentials when downloading exports — frontend/src/pages/Review.tsx:871-873
+  Clicking this anchor makes a normal browser request without the `X-Session-ID` or `X-Workspace-ID` headers. The export endpoint requires those headers, so the displayed download link always receives 400 instead of a ZIP. Download through an authenticated fetch and expose the returned blob as the download.
+
+- [P2] Handle dictionary-shaped vitals in the export renderer — backend/routes/export.py:94-96
+  The frontend submits the pipeline's dictionary-shaped `vitals`, but this loop treats it as a list of objects. For any snapshot containing a vital, `v` is a string key and `v.get(...)` raises `AttributeError`, returning 500 instead of the archive. Normalize the snapshot representation before rendering the HTML.
+
+- [P2] Make legacy review views respect source invalidation — backend/routes/revisions.py:85-92
+  After reviewing a note and appending a source revision, only the new note status is invalidated; the old `Validation` remains authoritative to queue, history, and review loading. I reproduced a `needs_review` note still listed as accepted and absent from the queue. Make those paths revision-aware so old validations cannot mark new source content reviewed or restore obsolete corrections.
+
+- [P2] Guard transcription updates with optimistic concurrency — backend/routes/revisions.py:86-91
+  If two tabs edit the same note, a stale tab can overwrite the current text because this endpoint accepts no expected revision or lock version and performs an unconditional ORM update. Incrementing `lock_version` afterward does not reject stale writes. Require an expected source version and condition the pointer update on it.
+
+- [P2] Reset the transcription editor when the note changes — frontend/src/components/TranscriptionEditModal.tsx:18-18
+  `useState(currentText)` initializes only once, while this modal remains mounted across navigation between review notes. I reproduced opening note 2's editor and seeing note 1's text; saving would replace note 2's transcription with that stale content. Reset the editor on note changes or remount it with the note identity.
+
+- [P2] Refresh issues when the active source revision changes — frontend/src/components/OperationalIssuesDrawer.tsx:20-27
+  Creating a transcription revision keeps the same note ID, so this effect does not reload the issues generated for the new extraction. Reopening the drawer does not refresh them either, leaving reviewers with old issues and no view of new blockers until a full reload. Bind issue loading and filtering to the active revision, not just the note.
+
+- [P2] Penalize incorrect medication attributes in strict scoring — backend/evaluation/strict_evaluator.py:100-103
+  After exact matching fails, matching name and dose alone still awards a full true positive, ignoring incorrect route and frequency. Action, duration, and qualifier differences also do not affect the score. For example, IV/hourly versus PO/daily currently returns TP=1, FP=0, FN=0. Include the required attributes in strict matching and its reported metrics.
+
+- [P2] Reject substring-only instruction matches — backend/evaluation/strict_evaluator.py:200-200
+  The purported strict evaluator accepts either instruction as a substring of the other. As a result, `Do not continue aspirin` scores as a true positive against `continue aspirin`, and an empty instruction matches any text. Compare normalized instruction content without accepting contradictory or empty substring matches.
+
+- [P2] Read baseline scores from the existing results schema — backend/routes/eval_runs.py:51-55
+  The committed results use `overall`, `by_category`, and `run_at`, not `overall_f1`, `category_f1`, and `timestamp`. These lookups therefore display hard-coded substitute measurements rather than the recorded baseline. For example, the API serves medication F1 as 0.70 although the actual artifact records 0.4773. Read the real values and preserve unavailable measurements as unavailable.
+
+- [P2] Deduplicate legacy and event-backed review measurements — backend/routes/metrics.py:119-123
+  The frontend writes both a `ReviewEvent` and a legacy `Validation` for one save, but this endpoint counts both and appends both extraction/snapshot pairs. A single completed review therefore produces two activity entries and doubles its field support. Use legacy validations only as a fallback for reviews not represented by authoritative completed events.
+
+- [P2] Calculate event averages from recorded review data — backend/routes/metrics.py:136-140
+  For event-backed reviews, average review time is always reported as zero and average corrections is fixed at either zero or one, regardless of `review_duration_ms` and the actual decisions. Reviews submitted directly through the new API consequently display fabricated averages. Aggregate durations and correction counts from the events rather than assigning constants.
+
+- [P2] Claim worker leases atomically on SQLite — backend/worker.py:39-41
+  SQLite ignores `FOR UPDATE`, so two workers can select the same queued job before either commits its lease. I reproduced both calls returning the same job by interleaving them before the first commit. Use a conditional atomic claim that verifies the queued/expired state, rather than relying on row locking unavailable in the default database.
+
+- [P2] Account for supplied dispositions before rejecting blockers — backend/services/review_service.py:138-140
+  When a completion request includes valid dispositions for its open blockers, this check rejects it before those dispositions are applied later in the transaction. Consequently, the combined review/disposition payload supported by the API cannot complete a blocked review. Validate the proposed dispositions and evaluate the resulting issue state atomically before deciding whether completion is allowed.
+
+- [P2] Initialize provenance for notes created by demo seeding — backend/utils/db.py:81-83
+  `seed_notes` still creates notes and extractions without workspace or revision bindings after application initialization. This startup-only backfill therefore leaves freshly seeded demo notes without provenance until the server restarts. I reproduced all 60 seeded notes lacking those bindings, causing the reviewer to skip immutable submission and preventing the new checker workflow from running. Initialize provenance during seeding.
+
+- [P2] Load hosted mode before applying sandbox restrictions — backend/routes/upload.py:25-27
+  `Config` never defines or reads `APP_MODE`, so this guard always defaults to local mode, including when the process starts with `APP_MODE=hosted_demo`. Workspace capabilities and the AI-candidate guard have the same problem. Configure the mode explicitly so a hosted deployment actually disables arbitrary uploads and live inference.
+
+- [P2] Escape untrusted content in exported HTML — backend/routes/export.py:101-102
+  If pasted or uploaded note text contains HTML, it is inserted directly into the standalone report. A note containing `</pre><script>...</script>` therefore executes code when the downloaded summary is opened; medication fields are interpolated similarly. HTML-escape all note and snapshot values before including them in the report.

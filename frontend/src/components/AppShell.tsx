@@ -96,11 +96,12 @@ export default function AppShell() {
           {/* Data group */}
           <div>
             <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-              Data
+              Data & Validation
             </p>
             <div className="space-y-0.5">
               <NavItem to="/history" label="History" />
               <NavItem to="/metrics" label="Metrics" />
+              <NavItem to="/validation-lab" label="Validation Lab" />
             </div>
           </div>
 

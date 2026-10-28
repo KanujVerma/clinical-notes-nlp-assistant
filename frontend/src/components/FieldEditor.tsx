@@ -14,6 +14,7 @@ interface Props {
   isActive: boolean;
   onActivate: () => void;
   onChange: (value: string, status: FieldStatus) => void;
+  allowEdit?: boolean; // Hosted curated sandbox is accept/remove only
   triggerEdit?: boolean;  // when true, auto-open edit mode
   onEditTriggered?: () => void; // called after edit mode opens
   explainerKind?: 'medication' | 'abbreviation';
@@ -44,14 +45,14 @@ const CAT_LABEL_ACTIVE: Record<FieldCategory, string> = {
 
 export default function FieldEditor({
   label, value, originalValue, status, category, isActive, onActivate, onChange,
-  triggerEdit, onEditTriggered, explainerKind,
+  allowEdit = true, triggerEdit, onEditTriggered, explainerKind,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
 
   // Handle external edit trigger (E key shortcut)
   useEffect(() => {
-    if (triggerEdit && !editing) {
+    if (allowEdit && triggerEdit && !editing) {
       setEditing(true);
       onEditTriggered?.();
     }
@@ -146,14 +147,14 @@ export default function FieldEditor({
         ) : (
           !showDiff && (
             <>
-              <p className="mt-1 text-sm text-slate-700 cursor-pointer hover:opacity-80" onClick={() => setEditing(true)}
+              <p className="mt-1 text-sm text-slate-700" onClick={() => { if (allowEdit) setEditing(true); }}
                 data-testid="field-value">{draft}</p>
               {explainerKind && <ExplainerTrigger value={draft} kind={explainerKind} />}
             </>
           )
         )}
         {/* Click-to-edit when showing diff — value is displayed in the diff row above */}
-        {showDiff && !editing && (
+        {showDiff && !editing && allowEdit && (
           <p className="mt-0.5 text-[10px] text-slate-400 cursor-pointer hover:text-slate-600" onClick={() => setEditing(true)}>
             click to re-edit
           </p>
@@ -186,10 +187,12 @@ export default function FieldEditor({
             className="text-[10px] px-2 py-0.5 bg-white text-green-600 border border-green-200 rounded hover:bg-green-50">
             ✓ Accept
           </button>
-          <button onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-            className="text-[10px] px-2 py-0.5 bg-white text-slate-500 border border-slate-200 rounded hover:bg-slate-50">
-            Edit
-          </button>
+          {allowEdit && (
+            <button onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+              className="text-[10px] px-2 py-0.5 bg-white text-slate-500 border border-slate-200 rounded hover:bg-slate-50">
+              Edit
+            </button>
+          )}
           <button onClick={(e) => { e.stopPropagation(); onChange(value, "removed"); }}
             className="text-[10px] px-2 py-0.5 bg-white text-red-500 border border-red-100 rounded hover:bg-red-50">
             ✕

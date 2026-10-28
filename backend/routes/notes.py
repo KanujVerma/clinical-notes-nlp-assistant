@@ -1,8 +1,9 @@
 import json
+import hashlib
 from flask import Blueprint, request, jsonify, g
-from models.note import Note
-from models.extraction import Extraction
+from models import Note, Extraction, NoteRevision, OperationalIssue, ReviewEvent
 from extractors.pipeline import run_pipeline
+from validation.checker import check_extraction
 from config import Config
 from utils.session import require_session
 
@@ -11,6 +12,9 @@ bp = Blueprint("notes", __name__)
 
 @bp.post("/api/notes")
 def create_note():
+    # Public demo may only import server-curated synthetic fixtures.
+    if Config.APP_MODE == "hosted_demo":
+        return jsonify({"error": "Free-text source creation is disabled in the public sandbox", "code": "FEATURE_RESTRICTED"}), 403
     sid = require_session()
     body = request.get_json(silent=True) or {}
     text = body.get("text", "").strip()
@@ -18,48 +22,163 @@ def create_note():
         return jsonify({"error": "text is required", "code": "MISSING_TEXT"}), 400
 
     extracted = run_pipeline(text)
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-    note = Note(raw_text=text, source="paste", session_id=sid)
+    note = Note(
+        raw_text=text,
+        source=body.get("source", "paste"),
+        session_id=sid,
+        workspace_id=sid,
+        lock_version=0,
+        status="needs_review",
+    )
     g.db.add(note)
     g.db.flush()
 
-    extraction = Extraction(
+    rev = NoteRevision(
         note_id=note.id,
+        workspace_id=sid,
+        revision_number=1,
+        raw_text=text,
+        normalized_text=text,
+        sha256=text_hash,
+        creation_reason="acquisition",
+    )
+    g.db.add(rev)
+    g.db.flush()
+
+    note.current_source_revision_id = rev.id
+
+    ext = Extraction(
+        note_id=note.id,
+        workspace_id=sid,
+        source_revision_id=rev.id,
+        source_text_hash=text_hash,
         extracted_json=json.dumps(extracted),
         pipeline_version=Config.PIPELINE_VERSION,
     )
-    g.db.add(extraction)
+    g.db.add(ext)
+    g.db.flush()
+
+    note.current_extraction_id = ext.public_id
+
+    # Run independent validation checker
+    issues = check_extraction(rev, ext)
+    for iss in issues:
+        op_iss = OperationalIssue(
+            workspace_id=sid,
+            note_id=note.id,
+            source_revision_id=rev.id,
+            extraction_id=ext.public_id,
+            issue_code=iss.issue_code,
+            severity=iss.severity,
+            category=iss.category,
+            item_id=iss.item_id,
+            field_path=iss.field_path,
+            evidence_span_json=json.dumps(iss.evidence_span) if iss.evidence_span else None,
+            safe_explanation=iss.safe_explanation,
+            check_policy_version=iss.check_policy_version,
+        )
+        g.db.add(op_iss)
+
     g.db.commit()
 
-    return jsonify({"note_id": note.id, "extracted_json": extracted}), 201
+    return jsonify({
+        "note_id": note.id,
+        "revision_id": rev.id,
+        "extraction_id": ext.public_id,
+        "extracted_json": extracted,
+        "status": note.status,
+        "lock_version": note.lock_version,
+        "issues_count": len(issues),
+    }), 201
 
 
-@bp.put("/api/notes/<int:note_id>/text")
-def update_note_text(note_id: int):
+@bp.get("/api/notes/<int:note_id>")
+def get_note(note_id: int):
     sid = require_session()
     note = g.db.get(Note, note_id)
     if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
-    if note.session_id != sid:
+    if note.session_id != sid and note.workspace_id != sid:
         return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
 
-    body = request.get_json(silent=True) or {}
-    text = body.get("text", "").strip()
-    if not text:
-        return jsonify({"error": "Text is required", "code": "TEXT_REQUIRED"}), 400
+    # Current extraction
+    ext = None
+    if note.current_extraction_id:
+        ext = g.db.query(Extraction).filter(Extraction.public_id == note.current_extraction_id).first()
+    if not ext:
+        ext = (
+            g.db.query(Extraction)
+            .filter(Extraction.note_id == note.id)
+            .order_by(Extraction.extracted_at.desc())
+            .first()
+        )
 
-    note.raw_text = text
+    extracted_data = json.loads(ext.extracted_json) if (ext and ext.extracted_json) else {}
 
-    g.db.query(Extraction).filter_by(note_id=note_id).delete()
-
-    # Re-run pipeline and create new extraction
-    extracted = run_pipeline(text)
-    extraction = Extraction(
-        note_id=note_id,
-        extracted_json=json.dumps(extracted),
-        pipeline_version=Config.PIPELINE_VERSION,
+    # Open issues for current revision
+    issues = (
+        g.db.query(OperationalIssue)
+        .filter(
+            OperationalIssue.note_id == note.id,
+            OperationalIssue.source_revision_id == note.current_source_revision_id,
+        )
+        .all()
     )
-    g.db.add(extraction)
-    g.db.commit()
 
-    return jsonify({"note_id": note_id, "extracted_json": extracted}), 200
+    review_head = None
+    if note.review_head_event_id:
+        rev_event = g.db.query(ReviewEvent).filter(ReviewEvent.id == note.review_head_event_id).first()
+        if rev_event:
+            review_head = {
+                "event_id": rev_event.id,
+                "derived_outcome": rev_event.derived_outcome,
+                "event_kind": rev_event.event_kind,
+                "reviewed_snapshot": json.loads(rev_event.reviewed_snapshot_json or "{}"),
+                "item_decisions": json.loads(rev_event.item_decisions_json or "{}"),
+            }
+
+    rev = (
+        g.db.query(NoteRevision)
+        .filter(NoteRevision.id == note.current_source_revision_id)
+        .first()
+    ) if note.current_source_revision_id else None
+    source_hash = rev.sha256 if rev else hashlib.sha256((note.raw_text or "").encode("utf-8")).hexdigest()
+
+    return jsonify({
+        "id": note.id,
+        "filename": note.filename,
+        "raw_text": note.raw_text,
+        "source": note.source,
+        "ocr_confidence": note.ocr_confidence,
+        "status": note.status,
+        "lock_version": note.lock_version,
+        "current_source_revision_id": note.current_source_revision_id,
+        "source_hash": source_hash,
+        "current_extraction_id": ext.public_id if ext else None,
+        "review_head": review_head,
+        "extracted_json": extracted_data,
+        "issues": [
+            {
+                "id": i.id,
+                "issue_code": i.issue_code,
+                "severity": i.severity,
+                "category": i.category,
+                "safe_explanation": i.safe_explanation,
+                "status": i.status,
+            }
+            for i in issues
+        ],
+    })
+
+
+@bp.put("/api/notes/<int:note_id>/text")
+def update_note_text(note_id: int):
+    """Legacy route adapter: use the same append-only bound revision service.
+
+    Unlike the old implementation this never deletes an existing extraction.
+    Callers must send expected_source_revision_id and expected_lock_version.
+    """
+    from routes.revisions import append_revision
+    return append_revision(note_id)

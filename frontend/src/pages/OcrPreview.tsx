@@ -38,22 +38,35 @@ export default function OcrPreview() {
   const [confidence] = useState<number | null>(state.ocrConfidence ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expectedRevisionId, setExpectedRevisionId] = useState<string | null>(null);
+  const [expectedLockVersion, setExpectedLockVersion] = useState<number | null>(null);
 
-  // If arrived without state (e.g., direct URL), load from API
+  // Capture revision and lock version when loading the preview
   useEffect(() => {
-    if (!state.rawText && noteId) {
-      api.getNoteDetail(Number(noteId))
-        .then((d: any) => setText(d.raw_text ?? ""))
-        .catch(() => setError("Failed to load note text."));
+    if (noteId) {
+      const nid = Number(noteId);
+      api.getNoteState(nid)
+        .then((st: any) => {
+          if (!state.rawText && st.raw_text) setText(st.raw_text);
+          setExpectedRevisionId(st.current_source_revision_id ?? null);
+          setExpectedLockVersion(st.lock_version ?? 0);
+        })
+        .catch(() => {
+          setError("Failed to load note source binding. Please reload before saving.");
+        });
     }
   }, [noteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleProceed() {
     if (!noteId || !text.trim()) return;
+    if (!expectedRevisionId || typeof expectedLockVersion !== "number") {
+      setError("Source binding is unavailable. Please reload the note.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      await api.updateNoteText(Number(noteId), text.trim());
+      await api.updateNoteText(Number(noteId), text.trim(), expectedRevisionId, expectedLockVersion);
       navigate(`/review/${noteId}`);
     } catch (e: any) {
       setError(e.message ?? "Failed to update text.");
@@ -124,7 +137,7 @@ export default function OcrPreview() {
         <div className="flex gap-3">
           <button
             onClick={handleProceed}
-            disabled={saving || !text.trim()}
+            disabled={saving || !text.trim() || !expectedRevisionId}
             className="px-5 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700 disabled:opacity-50"
           >
             {saving ? "Re-extracting..." : "Proceed to Extraction →"}

@@ -1,9 +1,10 @@
 import json
 from flask import Blueprint, request, jsonify, g
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_
 from models.note import Note
 from models.extraction import Extraction
 from models.validation import Validation
+from models.review_event import ReviewEvent
 from utils.session import require_session
 
 bp = Blueprint("history", __name__)
@@ -18,7 +19,7 @@ def list_history():
 
     notes = g.db.execute(
         select(Note)
-        .where(Note.session_id == sid)
+        .where(or_(Note.session_id == sid, Note.workspace_id == sid))
         .order_by(desc(Note.created_at))
         .limit(per_page)
         .offset(offset)
@@ -26,16 +27,34 @@ def list_history():
 
     result = []
     for note in notes:
-        val = g.db.execute(
-            select(Validation).where(Validation.note_id == note.id)
-        ).scalar_one_or_none()
+        val = (
+            g.db.query(Validation)
+            .filter(Validation.note_id == note.id)
+            .first()
+        )
+        corr_count = None if val else 0
+        if note.review_head_event_id:
+            event = (
+                g.db.query(ReviewEvent)
+                .filter(ReviewEvent.id == note.review_head_event_id)
+                .first()
+            )
+            if event:
+                decisions = json.loads(event.item_decisions_json or "{}")
+                corr_count = sum(
+                    1
+                    for action in decisions.values()
+                    if (action.get("decision") if isinstance(action, dict) else action)
+                    in ("edit", "remove", "add")
+                )
+
         result.append({
             "id": note.id,
             "filename": note.filename,
             "source": note.source,
             "created_at": note.created_at.isoformat() if note.created_at else None,
-            "status": val.status if val else "pending",
-            "correction_count": val.correction_count if val else 0,
+            "status": note.status or ("legacy_unverified" if val else "needs_review"),
+            "correction_count": corr_count,
         })
 
     return jsonify({"notes": result, "page": page, "per_page": per_page})
@@ -47,16 +66,69 @@ def get_history_detail(note_id: int):
     note = g.db.get(Note, note_id)
     if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
-    if note.session_id != sid:
+    if note.session_id != sid and note.workspace_id != sid:
         return jsonify({"error": "Forbidden", "code": "FORBIDDEN"}), 403
 
-    extraction = g.db.execute(
-        select(Extraction).where(Extraction.note_id == note_id)
-    ).scalar_one_or_none()
+    extraction = None
+    if note.current_extraction_id:
+        extraction = (
+            g.db.query(Extraction)
+            .filter(
+                Extraction.note_id == note_id,
+                or_(
+                    Extraction.public_id == note.current_extraction_id,
+                    Extraction.id == int(note.current_extraction_id) if note.current_extraction_id.isdigit() else False,
+                ),
+            )
+            .first()
+        )
+    if not extraction:
+        extraction = (
+            g.db.query(Extraction)
+            .filter(Extraction.note_id == note_id)
+            .order_by(desc(Extraction.id))
+            .first()
+        )
 
-    validation = g.db.execute(
-        select(Validation).where(Validation.note_id == note_id)
-    ).scalar_one_or_none()
+    current_review = None
+    review_head = None
+    if note.review_head_event_id:
+        event = (
+            g.db.query(ReviewEvent)
+            .filter(
+                ReviewEvent.id == note.review_head_event_id,
+                ReviewEvent.workspace_id == sid,
+                ReviewEvent.note_id == note_id,
+                ReviewEvent.source_revision_id == note.current_source_revision_id,
+                ReviewEvent.extraction_id == note.current_extraction_id,
+            )
+            .first()
+        )
+        if event:
+            decisions = json.loads(event.item_decisions_json or "{}")
+            current_review = {
+                "status": event.derived_outcome,
+                "validated_json": json.loads(event.reviewed_snapshot_json or "{}"),
+                "correction_count": sum(
+                    1
+                    for action in decisions.values()
+                    if (action.get("decision") if isinstance(action, dict) else action)
+                    in ("edit", "remove", "add")
+                ),
+                "review_duration_ms": event.review_duration_ms,
+                "review_event_id": event.id,
+                "source_revision_id": event.source_revision_id,
+                "extraction_id": event.extraction_id,
+            }
+            review_head = {
+                "event_id": event.id,
+                "derived_outcome": event.derived_outcome,
+                "event_kind": event.event_kind,
+                "reviewed_snapshot": json.loads(event.reviewed_snapshot_json or "{}"),
+                "item_decisions": decisions,
+            }
+    # Legacy note-ID-only validations remain historical and unverified; do
+    # not pass them to the editor as if they were a current completed review.
 
     return jsonify({
         "id": note.id,
@@ -66,10 +138,6 @@ def get_history_detail(note_id: int):
         "created_at": note.created_at.isoformat() if note.created_at else None,
         "extracted_json": json.loads(extraction.extracted_json) if extraction else None,
         "pipeline_version": extraction.pipeline_version if extraction else None,
-        "validation": {
-            "status": validation.status,
-            "validated_json": json.loads(validation.validated_json),
-            "correction_count": validation.correction_count,
-            "review_duration_ms": validation.review_duration_ms,
-        } if validation else None,
+        "validation": current_review,
+        "review_head": review_head,
     })

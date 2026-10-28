@@ -4,7 +4,10 @@ import { useLocation, useParams, useNavigate, useBlocker } from "react-router-do
 import { api } from "../api/client";
 import { ExtractionResult, NoteDetail } from "../types";
 import NoteViewer from "../components/NoteViewer";
+import DocumentSourceViewer, { PageMetadata } from "../components/DocumentSourceViewer";
 import FieldEditor, { FieldStatus, FieldCategory } from "../components/FieldEditor";
+import TranscriptionEditModal from "../components/TranscriptionEditModal";
+import OperationalIssuesDrawer from "../components/OperationalIssuesDrawer";
 import { useQueue } from "../context/QueueContext";
 
 type FieldState = { value: string; originalValue: string; status: FieldStatus };
@@ -76,14 +79,11 @@ function AddFieldRow({
   function handleAdd() {
     if (category === "med") {
       if (!medName.trim()) return;
-      const medIndices = existingKeys
-        .filter((k) => k.startsWith("med.") && /^med\.\d+\.name$/.test(k))
-        .map((k) => parseInt(k.split(".")[1]));
-      const nextIdx = medIndices.length > 0 ? Math.max(...medIndices) + 1 : 0;
-      onAdd(`med.${nextIdx}.name`, medName.trim());
-      if (medDose.trim()) onAdd(`med.${nextIdx}.dose`, medDose.trim());
-      if (medRoute.trim()) onAdd(`med.${nextIdx}.route`, medRoute.trim());
-      if (medFreq.trim()) onAdd(`med.${nextIdx}.frequency`, medFreq.trim());
+      const addMedId = `med_add_${crypto.randomUUID()}`;
+      onAdd(`med.${addMedId}.name`, medName.trim());
+      if (medDose.trim()) onAdd(`med.${addMedId}.dose`, medDose.trim());
+      if (medRoute.trim()) onAdd(`med.${addMedId}.route`, medRoute.trim());
+      if (medFreq.trim()) onAdd(`med.${addMedId}.frequency`, medFreq.trim());
       setMedName(""); setMedDose(""); setMedRoute(""); setMedFreq("");
     } else {
       if (!value.trim()) return;
@@ -168,13 +168,14 @@ function flattenExtracted(
     }
   });
   extracted.medications.forEach((med, i) => {
+    const medId = med.id || med.source_occurrence_id || `med_${i}`;
     const entries: [string, string][] = [
-      [`med.${i}.name`, med.name],
-      ...(med.dose ? [[`med.${i}.dose`, med.dose] as [string, string]] : []),
-      ...(med.route ? [[`med.${i}.route`, med.route] as [string, string]] : []),
-      ...(med.frequency ? [[`med.${i}.frequency`, med.frequency] as [string, string]] : []),
-      ...(med.duration ? [[`med.${i}.duration`, med.duration] as [string, string]] : []),
-      ...(med.qualifier ? [[`med.${i}.qualifier`, med.qualifier] as [string, string]] : []),
+      [`med.${medId}.name`, med.name],
+      ...(med.dose ? [[`med.${medId}.dose`, med.dose] as [string, string]] : []),
+      ...(med.route ? [[`med.${medId}.route`, med.route] as [string, string]] : []),
+      ...(med.frequency ? [[`med.${medId}.frequency`, med.frequency] as [string, string]] : []),
+      ...(med.duration ? [[`med.${medId}.duration`, med.duration] as [string, string]] : []),
+      ...(med.qualifier ? [[`med.${medId}.qualifier`, med.qualifier] as [string, string]] : []),
     ];
     entries.forEach(([key, val]) => {
       m[key] = { value: val, originalValue: val, status: overrides?.[key]?.status ?? "pending" };
@@ -206,6 +207,7 @@ export default function Review() {
   const startTime = useRef(Date.now());
   const { bumpQueue } = useQueue();
 
+  const [isHosted, setIsHosted] = useState(false);
   const [rawText, setRawText] = useState("");
   const [extracted, setExtracted] = useState<ExtractionResult | null>(null);
   const [noteIdState, setNoteIdState] = useState<number | null>(null);
@@ -219,9 +221,39 @@ export default function Review() {
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [reReviewBanner, setReReviewBanner] = useState(false);
+  const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
+  const [isIssuesDrawerOpen, setIsIssuesDrawerOpen] = useState(false);
+  const [currentRevisionId, setCurrentRevisionId] = useState<string | null>(null);
+  const [currentRevisionNumber, setCurrentRevisionNumber] = useState<number>(1);
+  const [currentExtractionId, setCurrentExtractionId] = useState<string | null>(null);
+  const [currentSourceHash, setCurrentSourceHash] = useState<string | null>(null);
+  const [lockVersion, setLockVersion] = useState<number>(0);
+  const [reviewEventId, setReviewEventId] = useState<string | null>(null);
+  const [openBlockersCount, setOpenBlockersCount] = useState<number>(0);
+  const [categoryAck, setCategoryAck] = useState<Record<string, boolean>>({
+    metadata: false,
+    vitals: false,
+    medications: false,
+    instructions: false,
+  });
+  const [pages, setPages] = useState<PageMetadata[]>([]);
+  const [leftPaneMode, setLeftPaneMode] = useState<"document" | "transcript">("document");
 
   const deactivateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const hasLoadedReviewRef = useRef<boolean>(false);
+  const pendingSubmissionRef = useRef<{
+    idempotencyKey: string;
+    reviewDurationMs: number;
+    expectedHeadEventId: string | null;
+    expectedLockVersion: number;
+  } | null>(null);
+
+  useEffect(() => {
+    api.getCapabilities()
+      .then((caps) => setIsHosted(caps.mode === "hosted_demo"))
+      .catch(() => setError("Cannot verify server capabilities."));
+  }, []);
 
   // Timer
   useEffect(() => {
@@ -243,6 +275,16 @@ export default function Review() {
     setFields({});
     setActiveKey(null);
     setEditingKey(null);
+    setCurrentRevisionId(null);
+    setCurrentExtractionId(null);
+    setCurrentSourceHash(null);
+    setLockVersion(0);
+    setReviewEventId(null);
+    hasLoadedReviewRef.current = false;
+    pendingSubmissionRef.current = null;
+    setCategoryAck({
+      metadata: false, vitals: false, medications: false, instructions: false,
+    });
     startTime.current = Date.now();
   }, [noteId]);
 
@@ -256,8 +298,38 @@ export default function Review() {
       setExtracted(state.extracted_json);
       setNoteIdState(state.note_id ?? null);
       setSource(state.source ?? "");
+      if (noteId) {
+        const nid = Number(noteId);
+        Promise.all([api.getNoteState(nid), api.getNoteSource(nid)])
+          .then(([st, src]) => {
+            if (st.raw_text) setRawText(st.raw_text);
+            if (st.extracted_json) setExtracted(st.extracted_json);
+            setCurrentRevisionId(st.current_source_revision_id ?? null);
+            setCurrentExtractionId(st.current_extraction_id ?? null);
+            setLockVersion(st.lock_version ?? 0);
+            setReviewEventId(st.review_head?.event_id ?? null);
+            setCurrentRevisionNumber(src.revision_number ?? 1);
+            setCurrentSourceHash(src.sha256 ?? null);
+            if (src.pages) setPages(src.pages);
+          })
+          .catch(() => setError("Cannot verify current source/extraction binding."));
+      }
     } else if (noteId) {
-      api.getNoteDetail(Number(noteId)).then((d: NoteDetail) => {
+      const nid = Number(noteId);
+      api.getNoteState(nid).then((st) => {
+        setCurrentRevisionId(st.current_source_revision_id ?? null);
+        setCurrentExtractionId(st.current_extraction_id ?? null);
+        if (st.lock_version !== undefined) setLockVersion(st.lock_version);
+        setReviewEventId(st.review_head?.event_id ?? null);
+      }).catch(() => {});
+
+      api.getNoteSource(nid).then((src) => {
+        if (src.revision_number) setCurrentRevisionNumber(src.revision_number);
+        if (src.sha256) setCurrentSourceHash(src.sha256);
+        if (src.pages) setPages(src.pages);
+      }).catch(() => {});
+
+      api.getNoteDetail(nid).then((d: NoteDetail) => {
         setRawText(d.raw_text);
         setExtracted(d.extracted_json);
         setNoteIdState(d.id);
@@ -270,48 +342,64 @@ export default function Review() {
         }
 
         // G: Re-review awareness
-        if (d.validation && d.extracted_json) {
-          setReReviewBanner(true);
+        const valSnapshot = d.review_head?.reviewed_snapshot || d.validation?.validated_json;
+        if (valSnapshot && d.extracted_json) {
+          const isDraft = d.review_head?.event_kind === "draft_saved";
+          const itemDecs = d.review_head?.item_decisions || {};
+          if (!isDraft) {
+            setReReviewBanner(true);
+          }
           // Offset timer by previous review duration
-          if (d.validation.review_duration_ms) {
+          if (d.validation?.review_duration_ms) {
             startTime.current = Date.now() - d.validation.review_duration_ms;
           }
           // Reconstruct per-field statuses
           const ext = d.extracted_json;
-          const val = d.validation.validated_json;
+          const val = valSnapshot;
           const overrides: Record<string, { value: string; status: FieldStatus }> = {};
 
           // Build a flat map of validated fields
           const valFlat: Record<string, string> = {};
-          Object.entries(val.vitals ?? {}).forEach(([k, v]) => { if (v) valFlat[`vitals.${k}`] = (v as { value: string }).value; });
-          (val.medications ?? []).forEach((med: { name: string; dose?: string; route?: string; frequency?: string; duration?: string; qualifier?: string }, i: number) => {
-            valFlat[`med.${i}.name`] = med.name;
-            if (med.dose) valFlat[`med.${i}.dose`] = med.dose;
-            if (med.route) valFlat[`med.${i}.route`] = med.route;
-            if (med.frequency) valFlat[`med.${i}.frequency`] = med.frequency;
-            if (med.duration) valFlat[`med.${i}.duration`] = med.duration;
-            if (med.qualifier) valFlat[`med.${i}.qualifier`] = med.qualifier;
+          Object.entries(val.vitals ?? {}).forEach(([k, v]) => { if (v) valFlat[`vitals.${k}`] = (v as any).value ?? v; });
+          (val.medications ?? []).forEach((med: any, i: number) => {
+            const medId = med.id || med.source_occurrence_id || `med_${i}`;
+            valFlat[`med.${medId}.name`] = med.name;
+            if (med.dose) valFlat[`med.${medId}.dose`] = med.dose;
+            if (med.route) valFlat[`med.${medId}.route`] = med.route;
+            if (med.frequency) valFlat[`med.${medId}.frequency`] = med.frequency;
+            if (med.duration) valFlat[`med.${medId}.duration`] = med.duration;
+            if (med.qualifier) valFlat[`med.${medId}.qualifier`] = med.qualifier;
           });
-          Object.entries(val.instructions ?? {}).forEach(([k, v]) => { if (v) valFlat[`instr.${k}`] = (v as { value: string }).value; });
-          Object.entries(val.metadata ?? {}).forEach(([k, v]) => { if (v) valFlat[`meta.${k}`] = (v as { value: string }).value; });
+          Object.entries(val.instructions ?? {}).forEach(([k, v]) => { if (v) valFlat[`instr.${k}`] = (v as any).value ?? v; });
+          Object.entries(val.metadata ?? {}).forEach(([k, v]) => { if (v) valFlat[`meta.${k}`] = (v as any).value ?? v; });
 
           // Build flat map of extracted fields
           const extFlat: Record<string, string> = {};
-          Object.entries(ext.vitals ?? {}).forEach(([k, v]) => { if (v) extFlat[`vitals.${k}`] = (v as { value: string }).value; });
-          (ext.medications ?? []).forEach((med: { name: string; dose?: string; route?: string; frequency?: string; duration?: string; qualifier?: string }, i: number) => {
-            extFlat[`med.${i}.name`] = med.name;
-            if (med.dose) extFlat[`med.${i}.dose`] = med.dose;
-            if (med.route) extFlat[`med.${i}.route`] = med.route;
-            if (med.frequency) extFlat[`med.${i}.frequency`] = med.frequency;
-            if (med.duration) extFlat[`med.${i}.duration`] = med.duration;
-            if (med.qualifier) extFlat[`med.${i}.qualifier`] = med.qualifier;
+          Object.entries(ext.vitals ?? {}).forEach(([k, v]) => { if (v) extFlat[`vitals.${k}`] = (v as any).value ?? v; });
+          (ext.medications ?? []).forEach((med: any, i: number) => {
+            const medId = med.id || med.source_occurrence_id || `med_${i}`;
+            extFlat[`med.${medId}.name`] = med.name;
+            if (med.dose) extFlat[`med.${medId}.dose`] = med.dose;
+            if (med.route) extFlat[`med.${medId}.route`] = med.route;
+            if (med.frequency) extFlat[`med.${medId}.frequency`] = med.frequency;
+            if (med.duration) extFlat[`med.${medId}.duration`] = med.duration;
+            if (med.qualifier) extFlat[`med.${medId}.qualifier`] = med.qualifier;
           });
-          Object.entries(ext.instructions ?? {}).forEach(([k, v]) => { if (v) extFlat[`instr.${k}`] = (v as { value: string }).value; });
-          Object.entries(ext.metadata ?? {}).forEach(([k, v]) => { if (v) extFlat[`meta.${k}`] = (v as { value: string }).value; });
+          Object.entries(ext.instructions ?? {}).forEach(([k, v]) => { if (v) extFlat[`instr.${k}`] = (v as any).value ?? v; });
+          Object.entries(ext.metadata ?? {}).forEach(([k, v]) => { if (v) extFlat[`meta.${k}`] = (v as any).value ?? v; });
 
           // Diff extracted vs validated
           Object.keys(extFlat).forEach((key) => {
-            if (!(key in valFlat)) {
+            const decObj = itemDecs[key];
+            const explicitDec = typeof decObj === "string" ? decObj : decObj?.decision;
+            if (explicitDec) {
+              if (explicitDec === "accept") overrides[key] = { value: valFlat[key] ?? extFlat[key], status: "accepted" };
+              else if (explicitDec === "edit") overrides[key] = { value: valFlat[key] ?? extFlat[key], status: "corrected" };
+              else if (explicitDec === "remove") overrides[key] = { value: extFlat[key], status: "removed" };
+              else overrides[key] = { value: extFlat[key], status: "pending" };
+            } else if (isDraft) {
+              overrides[key] = { value: extFlat[key], status: "pending" };
+            } else if (!(key in valFlat)) {
               // In extracted but not in validated → removed
               overrides[key] = { value: extFlat[key], status: "removed" };
             } else if (extFlat[key] === valFlat[key]) {
@@ -342,18 +430,26 @@ export default function Review() {
               m[key].originalValue = "";
             }
           });
+          // Historical review additions are not present in the original
+          // extraction, so flattenExtracted alone would silently lose them.
+          for (const [key, value] of Object.entries(valFlat)) {
+            if (!(key in extFlat)) {
+              m[key] = { value, originalValue: "", status: "corrected" };
+            }
+          }
+          hasLoadedReviewRef.current = true;
           setFields(m);
-          // reReviewBanner is set to true above; the flatten useEffect guards on it,
-          // so setExtracted won't overwrite these statuses.
+          // reReviewBanner or hasLoadedReviewRef guards the flatten useEffect below,
+          // so setExtracted won't overwrite these restored draft or review statuses.
           setExtracted(ext);
         }
       });
     }
   }, [noteId, location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Flatten extracted JSON into FieldMap (only for fresh loads without validation)
+  // Flatten extracted JSON into FieldMap (only for fresh loads without prior validation or draft)
   useEffect(() => {
-    if (!extracted || reReviewBanner) return;
+    if (!extracted || reReviewBanner || hasLoadedReviewRef.current) return;
     const m = flattenExtracted(extracted);
     setFields(m);
   }, [extracted, reReviewBanner]);
@@ -371,72 +467,221 @@ export default function Review() {
     setActiveKey(key);
   }, []);
 
-  // Deactivate after 200ms debounce (prevents flicker when moving cursor to a button)
+  // Deactivate handler (preserves active key for keyboard navigation and popover interaction)
   const handleDeactivate = useCallback(() => {
-    deactivateTimeout.current = setTimeout(() => setActiveKey(null), 200);
+    // no-op: preserve activeKey until another card is activated or Escape is pressed
   }, []);
 
   const handleFieldChange = useCallback((key: string, value: string, status: FieldStatus) => {
-    setFields((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], value, status },
-    }));
+    pendingSubmissionRef.current = null;
+    setFields((prev) => {
+      const previous = prev[key];
+      if (status === "removed" && previous?.originalValue === "") {
+        // Removing a not-yet-saved addition is an undo, not a removal of an
+        // existing extracted field. Avoid submitting an invalid unknown ID.
+        const next = { ...prev };
+        if (key.startsWith("med.") && key.endsWith(".name")) {
+          const prefix = `med.${key.split(".")[1]}.`;
+          Object.keys(next).forEach((candidate) => {
+            if (candidate.startsWith(prefix)) delete next[candidate];
+          });
+        } else {
+          delete next[key];
+        }
+        return next;
+      }
+      const effectiveStatus =
+        status === "accepted" &&
+        previous?.originalValue !== undefined &&
+        previous.originalValue !== "" &&
+        value !== previous.originalValue
+          ? "corrected"
+          : status;
+      return { ...prev, [key]: { ...previous, value, status: effectiveStatus } };
+    });
   }, []);
 
   function handleAddField(key: string, value: string) {
+    if (isHosted) {
+      setError("Public demo permits curated review actions only.");
+      return;
+    }
+    pendingSubmissionRef.current = null;
     setFields((prev) => ({ ...prev, [key]: { value, originalValue: "", status: "corrected" } }));
   }
 
-  const handleSave = useCallback(async (overallStatus: "accepted" | "corrected") => {
+  const handleSave = useCallback(async (_overallStatus: "accepted" | "corrected", fieldsOverride?: FieldMap) => {
     if (!noteIdState || !extracted) return;
     setSaving(true); setError(null);
     try {
-      const validated = JSON.parse(JSON.stringify(extracted));
-      const removedMedIndices = new Set<number>();
-      Object.entries(fields).forEach(([key, { status }]) => {
+      const effectiveFields = fieldsOverride || fields;
+      const validated: ExtractionResult = JSON.parse(JSON.stringify(extracted));
+      const medMap: Record<string, any> = {};
+      (validated.medications || []).forEach((m: any, idx: number) => {
+        const mid = m.id || m.source_occurrence_id || `med_${idx}`;
+        m.id = mid;
+        m.source_occurrence_id = mid;
+        medMap[mid] = { ...m };
+      });
+
+      // Find medications whose name was removed (meaning the medication itself is removed)
+      const removedMedIds = new Set<string>();
+      Object.entries(effectiveFields).forEach(([key, { status }]) => {
         if (key.startsWith("med.") && status === "removed") {
-          removedMedIndices.add(parseInt(key.split(".")[1]));
+          const parts = key.split(".");
+          if (parts[2] === "name" || parts.length === 2) {
+            removedMedIds.add(parts[1]);
+          }
         }
       });
-      Object.entries(fields).forEach(([key, { value, status }]) => {
+
+      // Handle additions for new medications
+      Object.entries(effectiveFields).forEach(([key, { status }]) => {
+        if (key.startsWith("med.") && (status === "accepted" || status === "corrected")) {
+          const parts = key.split(".");
+          const mid = parts[1];
+          if (!medMap[mid] && !removedMedIds.has(mid)) {
+            medMap[mid] = { id: mid, source_occurrence_id: mid, name: "" };
+          }
+        }
+      });
+
+      // Apply field updates
+      Object.entries(effectiveFields).forEach(([key, { value, status }]) => {
         const [section, ...rest] = key.split(".");
         if (status === "removed") {
-          if (section === "vitals") delete validated.vitals[rest[0]];
-          else if (section === "instr") delete validated.instructions[rest[0]];
-          else if (section === "meta") delete validated.metadata[rest[0]];
+          if (section === "vitals") delete (validated.vitals as any)[rest[0]];
+          else if (section === "instr") delete (validated.instructions as any)[rest[0]];
+          else if (section === "meta") delete (validated.metadata as any)[rest[0]];
+          else if (section === "med") {
+            const mid = rest[0];
+            const attr = rest[1];
+            if (attr && attr !== "name" && medMap[mid]) {
+              // Child attribute removal removes only that attribute, not the medication!
+              delete medMap[mid][attr];
+            }
+          }
         } else {
-          if (section === "vitals" && validated.vitals[rest[0]]) {
-            validated.vitals[rest[0]].value = value;
-          } else if (section === "instr" && validated.instructions[rest[0]]) {
-            validated.instructions[rest[0]].value = value;
-          } else if (section === "meta" && validated.metadata[rest[0]]) {
-            validated.metadata[rest[0]].value = value;
+          if (section === "vitals") {
+            if (!(validated.vitals as any)[rest[0]]) (validated.vitals as any)[rest[0]] = { value };
+            else (validated.vitals as any)[rest[0]].value = value;
+          } else if (section === "instr") {
+            if (!(validated.instructions as any)[rest[0]]) (validated.instructions as any)[rest[0]] = { value };
+            else (validated.instructions as any)[rest[0]].value = value;
+          } else if (section === "meta") {
+            if (!(validated.metadata as any)[rest[0]]) (validated.metadata as any)[rest[0]] = { value };
+            else (validated.metadata as any)[rest[0]].value = value;
           } else if (section === "med") {
-            const idx = parseInt(rest[0]);
-            const field = rest[1] as string;
-            if (!removedMedIndices.has(idx) && validated.medications[idx]) {
-              (validated.medications[idx] as Record<string, string>)[field] = value;
+            const mid = rest[0];
+            const attr = rest[1];
+            if (!removedMedIds.has(mid) && medMap[mid]) {
+              medMap[mid][attr] = value;
             }
           }
         }
       });
-      validated.medications = validated.medications.filter(
-        (_: unknown, i: number) => !removedMedIndices.has(i)
-      );
-      const result = await api.validate({
-        note_id: noteIdState,
-        validated_json: validated,
-        status: overallStatus,
-        review_duration_ms: Date.now() - startTime.current,
+      validated.medications = Object.values(medMap).filter((m: any) => !removedMedIds.has(m.id));
+
+      const itemDecisions: Record<string, any> = {};
+      const pendingFields: string[] = [];
+      Object.entries(effectiveFields).forEach(([k, f]) => {
+        if (f.status === "pending") {
+          pendingFields.push(k);
+        } else {
+          let dec = "accept";
+          if (f.originalValue === "") {
+            dec = f.status === "removed" ? "remove" : "add";
+          } else if (f.status === "corrected") {
+            dec = "edit";
+          } else if (f.status === "removed") {
+            dec = "remove";
+          } else if (f.status === "accepted") {
+            dec = "accept";
+          }
+          const decObj: Record<string, any> = { decision: dec };
+          if (dec === "edit" || dec === "add") {
+            decObj.value = f.value;
+          }
+          if (dec === "add") {
+            decObj.reason = "Reviewer clinical entry";
+          }
+          itemDecisions[k] = decObj;
+        }
       });
+
+      if (pendingFields.length > 0) {
+        throw new Error(
+          `Please resolve all pending fields before completing review. (${pendingFields.length} pending: ${pendingFields.slice(0, 3).join(", ")}${pendingFields.length > 3 ? "..." : ""})`
+        );
+      }
+
+      // Rule A15: Check all 4 category completeness acknowledgments
+      const missingAcks = (["metadata", "vitals", "medications", "instructions"] as const).filter(
+        (cat) => !categoryAck[cat]
+      );
+      if (missingAcks.length > 0) {
+        throw new Error(`Completeness must be acknowledged for all categories: ${missingAcks.join(", ")}`);
+      }
+
+      if (!currentExtractionId || !currentRevisionId || !currentSourceHash) {
+        throw new Error("Source/extraction binding has not loaded. Retry when note details are available.");
+      }
+
+      let idempotencyKey: string;
+      let reviewDurationMs: number;
+
+      if (
+        pendingSubmissionRef.current &&
+        pendingSubmissionRef.current.expectedHeadEventId === (reviewEventId ?? null) &&
+        pendingSubmissionRef.current.expectedLockVersion === lockVersion
+      ) {
+        idempotencyKey = pendingSubmissionRef.current.idempotencyKey;
+        reviewDurationMs = pendingSubmissionRef.current.reviewDurationMs;
+      } else {
+        idempotencyKey = crypto.randomUUID();
+        reviewDurationMs = Date.now() - startTime.current;
+        pendingSubmissionRef.current = {
+          idempotencyKey,
+          reviewDurationMs,
+          expectedHeadEventId: reviewEventId ?? null,
+          expectedLockVersion: lockVersion,
+        };
+      }
+
+      // A review must have exactly ONE authoritative write. Never follow an
+      // immutable ReviewEvent with the old mutable /api/validate API.
+      const revRes = await api.submitReview(currentExtractionId, {
+        schema_version: "2.0.0",
+        note_id: noteIdState,
+        source_revision_id: currentRevisionId,
+        extraction_id: currentExtractionId,
+        source_hash: currentSourceHash,
+        expected_lock_version: lockVersion,
+        expected_head_event_id: reviewEventId ?? null,
+        event_kind: "review_completed",
+        item_decisions: itemDecisions,
+        category_acknowledgments: categoryAck,
+        reviewed_snapshot: validated,
+        review_duration_ms: reviewDurationMs,
+        idempotency_key: idempotencyKey,
+      });
+
+      if (!revRes?.event_id) {
+        throw new Error("The server did not confirm a review event.");
+      }
+      pendingSubmissionRef.current = null;
+      setReviewEventId(revRes.event_id);
+      setLockVersion((v) => v + 1);
+      const pendingQueue = await api.getQueue().catch(() => null);
+      const nextPendingId = pendingQueue?.notes?.find((n) => n.id !== noteIdState)?.id ?? null;
       setSaved(true);
       bumpQueue();
 
       // F: Save & Next
-      if (result.next_pending_id !== null) {
+      if (nextPendingId !== null) {
         setSaveFlash("Saved — loading next note…");
         setTimeout(() => {
-          navigate(`/review/${result.next_pending_id}`, { state: { _loadedFrom: "saveNext" } });
+          navigate(`/review/${nextPendingId}`, { state: { _loadedFrom: "saveNext" } });
         }, 800);
       } else {
         setSaveFlash(null);
@@ -446,7 +691,19 @@ export default function Review() {
     } finally {
       setSaving(false);
     }
-  }, [noteIdState, extracted, fields, bumpQueue, navigate]);
+  }, [
+    noteIdState,
+    extracted,
+    fields,
+    bumpQueue,
+    navigate,
+    currentExtractionId,
+    currentRevisionId,
+    currentSourceHash,
+    lockVersion,
+    reviewEventId,
+    categoryAck,
+  ]);
 
   // E: Keyboard shortcuts
   useEffect(() => {
@@ -461,7 +718,7 @@ export default function Review() {
         }
       }
       if (e.key === "e" || e.key === "E") {
-        if (activeKey) {
+        if (activeKey && !isHosted) {
           setEditingKey(activeKey);
         }
       }
@@ -473,16 +730,39 @@ export default function Review() {
       if (e.key === "Escape") {
         setActiveKey(null);
       }
+      if (e.key === "c" || e.key === "C") {
+        setCategoryAck((prev) => {
+          const allChecked = Object.values(prev).every(Boolean);
+          const nextVal = !allChecked;
+          return { metadata: nextVal, vitals: nextVal, medications: nextVal, instructions: nextVal };
+        });
+      }
       if (e.key === "Tab") {
-        e.preventDefault();
         const keys = Object.keys(fields);
-        if (keys.length === 0) return;
-        if (!activeKey) {
-          handleActivate(keys[0]);
-        } else {
-          const idx = keys.indexOf(activeKey);
-          const next = e.shiftKey ? keys[idx - 1] : keys[idx + 1];
-          if (next) handleActivate(next);
+        if (keys.length > 0) {
+          if (!activeKey) {
+            e.preventDefault();
+            handleActivate(keys[0]);
+          } else {
+            const idx = keys.indexOf(activeKey);
+            if (e.shiftKey) {
+              if (idx > 0) {
+                e.preventDefault();
+                handleActivate(keys[idx - 1]);
+              } else {
+                setActiveKey(null);
+              }
+            } else {
+              if (idx < keys.length - 1) {
+                e.preventDefault();
+                handleActivate(keys[idx + 1]);
+              } else {
+                e.preventDefault();
+                setActiveKey(null);
+                document.getElementById("ack-metadata")?.focus();
+              }
+            }
+          }
         }
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
@@ -492,7 +772,7 @@ export default function Review() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [activeKey, fields, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
+  }, [activeKey, fields, isHosted, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
 
   // H: Unsaved changes warning — blocks both in-app nav and browser-level unload
   const isDirty = Object.values(fields).some((f) => f.status !== "pending") && !saved;
@@ -564,6 +844,32 @@ export default function Review() {
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs">
+          <button
+            onClick={() => setIsIssuesDrawerOpen((o) => !o)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold transition-colors"
+          >
+            <span>Issues</span>
+            {openBlockersCount > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500 text-white">
+                {openBlockersCount}
+              </span>
+            ) : null}
+          </button>
+          {reviewEventId && (
+            <button
+              onClick={async () => {
+                try {
+                  await api.downloadExport(reviewEventId);
+                } catch (err: any) {
+                  setError(err.message || "Failed to download export");
+                }
+              }}
+              title="Download verified review bundle ZIP"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-800 hover:bg-emerald-700 text-emerald-100 text-xs font-semibold transition-colors"
+            >
+              <span>Export ZIP</span>
+            </button>
+          )}
           <span className="text-slate-500">&#x23F1; {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}</span>
           {source && (
             <span className={`px-2 py-0.5 rounded border text-[10px] uppercase tracking-wider font-medium
@@ -604,28 +910,82 @@ export default function Review() {
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: NoteViewer */}
-        <div className="w-1/2 border-r border-slate-200 flex flex-col overflow-hidden bg-white">
-          {/* Legend */}
-          <div className="px-4 py-1.5 border-b border-slate-100 bg-slate-50 flex gap-4 flex-shrink-0">
-            {[
-              { label: "vitals", color: "bg-blue-400" },
-              { label: "meds", color: "bg-green-400" },
-              { label: "instructions", color: "bg-amber-400" },
-              { label: "metadata", color: "bg-violet-400" },
-            ].map(({ label, color }) => (
-              <span key={label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                <span className={`w-2 h-2 rounded-sm ${color} opacity-70`} />
-                {label}
-              </span>
-            ))}
+        {/* Left: Document Source & Evidence Viewer */}
+        <div className="w-1/2 border-r border-slate-200 flex flex-col overflow-hidden bg-slate-900">
+          {/* Header controls for Document vs Transcript view */}
+          <div className="px-3 py-1.5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between gap-2 flex-shrink-0">
+            <div className="inline-flex rounded-lg p-0.5 bg-slate-950 border border-slate-700">
+              <button
+                type="button"
+                onClick={() => setLeftPaneMode("document")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                  leftPaneMode === "document"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                data-testid="leftpane-mode-document"
+              >
+                Document Viewer (PDF/Image)
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeftPaneMode("transcript")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                  leftPaneMode === "transcript"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                data-testid="leftpane-mode-transcript"
+              >
+                Transcript Spans
+              </button>
+            </div>
+
+            <button
+              onClick={() => setIsTranscriptionModalOpen(true)}
+              className="text-[11px] font-medium text-cyan-400 hover:text-cyan-300 underline"
+            >
+              Update Transcription (Rev {currentRevisionNumber})
+            </button>
           </div>
-          <NoteViewer
-            rawText={rawText}
-            extracted={extracted}
-            activeKey={activeKey}
-            onSpanClick={handleActivate}
-          />
+
+          {leftPaneMode === "document" && noteIdState && extracted ? (
+            <DocumentSourceViewer
+              key={currentRevisionId || noteIdState}
+              noteId={noteIdState}
+              revisionId={currentRevisionId}
+              rawText={rawText}
+              extracted={extracted}
+              pages={pages}
+              activeKey={activeKey}
+              onSpanClick={handleActivate}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden bg-white">
+              {/* Legend */}
+              <div className="px-4 py-1.5 border-b border-slate-100 bg-slate-50 flex items-center gap-4 flex-shrink-0">
+                {[
+                  { label: "vitals", color: "bg-blue-400" },
+                  { label: "meds", color: "bg-green-400" },
+                  { label: "instructions", color: "bg-amber-400" },
+                  { label: "metadata", color: "bg-violet-400" },
+                ].map(({ label, color }) => (
+                  <span key={label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                    <span className={`w-2 h-2 rounded-sm ${color} opacity-70`} />
+                    {label}
+                  </span>
+                ))}
+              </div>
+              {extracted && (
+                <NoteViewer
+                  rawText={rawText}
+                  extracted={extracted}
+                  activeKey={activeKey}
+                  onSpanClick={handleActivate}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: Field cards */}
@@ -635,11 +995,11 @@ export default function Review() {
               const prefix = CATEGORY_PREFIX[cat];
               const catFields = Object.entries(fields).filter(([k]) => k.startsWith(prefix));
 
-              // Medications: group fields by drug index into visual containers
+              // Medications: group fields by drug ID into visual containers
               if (cat === "med") {
-                const drugIndices = Array.from(
-                  new Set(catFields.map(([k]) => parseInt(k.split(".")[1])))
-                ).sort((a, b) => a - b);
+                const drugIds = Array.from(
+                  new Set(catFields.map(([k]) => k.split(".")[1]))
+                );
 
                 return (
                   <section key={cat}>
@@ -647,14 +1007,13 @@ export default function Review() {
                       {CATEGORY_DISPLAY[cat]}
                     </h3>
                     <div className="space-y-2">
-                      {drugIndices.map((idx) => {
-                        const drugFields = catFields.filter(([k]) => parseInt(k.split(".")[1]) === idx);
+                      {drugIds.map((medId) => {
+                        const drugFields = catFields.filter(([k]) => k.split(".")[1] === medId);
                         const nameEntry = drugFields.find(([k]) => k.endsWith(".name"));
                         const otherFields = drugFields.filter(([k]) => !k.endsWith(".name"));
-                        // Mention-only: extracted med with no sig fields at all
-                        const isMentionOnly = otherFields.length === 0 && extracted?.medications[idx] !== undefined;
+                        const isMentionOnly = otherFields.length === 0;
                         return (
-                          <div key={idx} className={`rounded-lg border overflow-hidden bg-white ${isMentionOnly ? "border-slate-200" : "border-green-100"}`}>
+                          <div key={medId} className={`rounded-lg border overflow-hidden bg-white ${isMentionOnly ? "border-slate-200" : "border-green-100"}`}>
                             {/* Name row */}
                             {nameEntry && (
                               <div
@@ -664,6 +1023,8 @@ export default function Review() {
                                 className={otherFields.length > 0 ? "border-b border-green-100" : ""}
                               >
                                 <FieldEditor
+                                  allowEdit={!isHosted}
+                                  key={`${currentRevisionId ?? "rev"}-${nameEntry[0]}`}
                                   label="name"
                                   value={nameEntry[1].value}
                                   originalValue={nameEntry[1].originalValue}
@@ -689,6 +1050,8 @@ export default function Review() {
                                     onMouseLeave={handleDeactivate}
                                   >
                                     <FieldEditor
+                                  allowEdit={!isHosted}
+                                      key={`${currentRevisionId ?? "rev"}-${k}`}
                                       label={k.split(".")[2]}
                                       value={f.value}
                                       originalValue={f.originalValue}
@@ -718,11 +1081,13 @@ export default function Review() {
                           </div>
                         );
                       })}
+                      {!isHosted && (
                       <AddFieldRow
                         category={cat}
                         existingKeys={Object.keys(fields)}
                         onAdd={handleAddField}
                       />
+                    )}
                     </div>
                   </section>
                 );
@@ -742,6 +1107,8 @@ export default function Review() {
                         onMouseLeave={handleDeactivate}
                       >
                         <FieldEditor
+                                  allowEdit={!isHosted}
+                          key={`${currentRevisionId ?? "rev"}-${k}`}
                           label={k.replace(prefix, "").replace(/^\d+\./, "")}
                           value={f.value}
                           originalValue={f.originalValue}
@@ -755,15 +1122,37 @@ export default function Review() {
                         />
                       </div>
                     ))}
-                    <AddFieldRow
+                    {!isHosted && (
+                      <AddFieldRow
                       category={cat}
                       existingKeys={Object.keys(fields)}
                       onAdd={handleAddField}
                     />
+                    )}
                   </div>
                 </section>
               );
             })}
+          </div>
+
+          {/* Category Completeness Acknowledgments Bar */}
+          <div className="border-t border-slate-200 px-4 py-2 bg-slate-100 flex items-center justify-between flex-shrink-0 text-xs">
+            <span className="font-semibold text-slate-700">Category Completeness:</span>
+            <div className="flex items-center gap-4">
+              {(["metadata", "vitals", "medications", "instructions"] as const).map((cat) => (
+                <label key={cat} className="flex items-center gap-1.5 cursor-pointer text-slate-700 select-none">
+                  <input
+                    type="checkbox"
+                    id={`ack-${cat}`}
+                    data-testid={`ack-${cat}`}
+                    checked={!!categoryAck[cat]}
+                    onChange={(e) => setCategoryAck((prev) => ({ ...prev, [cat]: e.target.checked }))}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className="capitalize">{cat}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Footer */}
@@ -781,14 +1170,51 @@ export default function Review() {
               {/* F: All notes reviewed state */}
               {saved && !saveFlash ? (
                 <div className="flex items-center gap-3">
-                  <p className="text-green-600 text-xs">All notes reviewed!</p>
+                  <p className="text-green-600 text-xs font-semibold">Review saved!</p>
+                  {reviewEventId && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await api.downloadExport(reviewEventId);
+                        } catch (e: any) {
+                          setError(e.message || "Failed to download export");
+                        }
+                      }}
+                      className="px-3 py-1 bg-emerald-600 text-white rounded text-xs font-semibold hover:bg-emerald-500 shadow-sm transition-colors"
+                    >
+                      Export ZIP
+                    </button>
+                  )}
                   <a href="/history" className="text-xs text-blue-600 hover:underline">History</a>
                   <a href="/metrics" className="text-xs text-blue-600 hover:underline">Metrics</a>
                 </div>
               ) : (
                 <>
+                  {reviewEventId && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await api.downloadExport(reviewEventId);
+                        } catch (e: any) {
+                          setError(e.message || "Failed to download export");
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-md text-xs font-bold hover:bg-emerald-500 shadow-sm transition-colors"
+                    >
+                      Export ZIP
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleSave("accepted")}
+                    onClick={() => {
+                      const next: FieldMap = {};
+                      Object.entries(fields).forEach(([k, f]) => {
+                        next[k] = f.status === "pending" ? { ...f, status: "accepted" } : f;
+                      });
+                      setFields(next);
+                      handleSave("accepted", next);
+                    }}
                     disabled={saving || saved}
                     className="px-4 py-1.5 border border-green-200 text-green-700 bg-green-50 rounded-md text-sm font-medium hover:bg-green-100 disabled:opacity-50"
                   >
@@ -807,6 +1233,57 @@ export default function Review() {
           </div>
         </div>
       </div>
+
+      {/* Transcription Edit Modal */}
+      {noteIdState && !isHosted && (
+        <TranscriptionEditModal
+          isOpen={isTranscriptionModalOpen}
+          onClose={() => setIsTranscriptionModalOpen(false)}
+          noteId={noteIdState}
+          currentText={rawText}
+          expectedRevisionId={currentRevisionId}
+          expectedLockVersion={lockVersion}
+          onRevisionCreated={(newRevId) => {
+            setCurrentRevisionId(newRevId);
+            setCurrentRevisionNumber((n) => n + 1);
+            setReReviewBanner(false);
+            hasLoadedReviewRef.current = false;
+            setSaved(false);
+            setCategoryAck({
+              metadata: false, vitals: false, medications: false, instructions: false,
+            });
+            api.getNoteState(noteIdState).then((st) => {
+              setRawText(st.raw_text);
+              setExtracted(st.extracted_json);
+              if (st.extracted_json) {
+                setFields(flattenExtracted(st.extracted_json));
+              }
+              setLockVersion(st.lock_version);
+              if (st.current_source_revision_id) setCurrentRevisionId(st.current_source_revision_id);
+              if (st.current_extraction_id) setCurrentExtractionId(st.current_extraction_id);
+              if (st.source_hash) setCurrentSourceHash(st.source_hash);
+              setReviewEventId(null);
+            });
+            api.getNoteSource(noteIdState).then((src) => {
+              if (src.sha256) setCurrentSourceHash(src.sha256);
+              if (src.revision_number) setCurrentRevisionNumber(src.revision_number);
+              if (src.pages) setPages(src.pages);
+            }).catch(() => {});
+          }}
+        />
+      )}
+
+      {/* Operational Issues Drawer */}
+      {noteIdState && (
+        <OperationalIssuesDrawer
+          noteId={noteIdState}
+          revisionId={currentRevisionId}
+          extractionId={currentExtractionId}
+          isOpen={isIssuesDrawerOpen}
+          onToggle={() => setIsIssuesDrawerOpen((o) => !o)}
+          onIssuesUpdated={(blockers) => setOpenBlockersCount(blockers)}
+        />
+      )}
     </div>
   );
 }

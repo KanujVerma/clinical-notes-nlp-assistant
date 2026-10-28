@@ -1,5 +1,5 @@
 // frontend/src/pages/Upload.tsx
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
@@ -39,6 +39,9 @@ export default function Upload() {
   const navigate = useNavigate();
   const { bumpQueue } = useQueue();
 
+  const [isHosted, setIsHosted] = useState(false);
+  const [scenarios, setScenarios] = useState<Array<{ filename: string; title: string; sha256: string; has_issues: boolean; issues_count: number; snippet: string }>>([]);
+
   const [text, setText] = useState("");
   const [textLoading, setTextLoading] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
@@ -51,6 +54,18 @@ export default function Upload() {
 
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    api.getCapabilities()
+      .then((caps) => {
+        const hosted = caps.mode === "hosted_demo" || Boolean(caps.hosted_sandbox);
+        setIsHosted(hosted);
+        if (hosted) {
+          api.getScenarios().then((res) => setScenarios(res.scenarios || [])).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -176,20 +191,39 @@ export default function Upload() {
       )}
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6 max-w-3xl mx-auto w-full">
+        {isHosted && (
+          <div className="w-full bg-amber-50 border border-amber-300 rounded-lg p-3.5 text-sm text-amber-900">
+            <div className="font-semibold mb-1 flex items-center gap-1.5">
+              <span>Public Hosted Sandbox</span>
+              <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-mono uppercase font-bold tracking-wider">
+                Curated Fixtures
+              </span>
+            </div>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              Live arbitrary file uploads and free-text NLP runs are disabled to preserve resource boundaries. Explore the curated precomputed scenarios below or seed the demonstration dataset.
+            </p>
+          </div>
+        )}
+
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-slate-800">
             Extract structured data from a clinical note
           </h2>
           <p className="text-slate-500 mt-1">
-            Paste note text, upload files (txt, pdf, or images), or load a sample note.
+            {isHosted
+              ? "Select a curated clinical scenario or seed the showcase dataset."
+              : "Paste note text, upload files (txt, pdf, or images), or load a sample note."}
           </p>
         </div>
 
         {/* Text area */}
         <textarea
-          className="w-full h-48 border border-slate-300 rounded-lg p-3 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-400 text-slate-900 leading-relaxed"
-          placeholder="Paste clinical note text here..."
+          className={`w-full h-48 border border-slate-300 rounded-lg p-3 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-400 text-slate-900 leading-relaxed ${
+            isHosted ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""
+          }`}
+          placeholder={isHosted ? "Free-text input is restricted in hosted demo mode." : "Paste clinical note text here..."}
           value={text}
+          disabled={isHosted}
           onChange={(e) => setText(e.target.value)}
         />
 
@@ -198,27 +232,58 @@ export default function Upload() {
         <div className="flex gap-3 flex-wrap justify-center w-full">
           <button
             onClick={handleSubmitText}
-            disabled={!text.trim() || textLoading}
+            disabled={!text.trim() || textLoading || isHosted}
+            title={isHosted ? "Free-text extraction is disabled in the public sandbox" : undefined}
             className="px-6 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700 disabled:opacity-50"
           >
             {textLoading ? "Processing..." : "Extract & Review →"}
           </button>
-          <button
-            onClick={() => setText(SAMPLE_NOTE)}
-            className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-100"
-          >
-            Load sample note
-          </button>
+          {!isHosted && (
+            <button
+              onClick={() => setText(SAMPLE_NOTE)}
+              className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-100"
+            >
+              Load sample note
+            </button>
+          )}
           <button
             onClick={handleSeedDemo}
             disabled={textLoading}
-            className="px-4 py-2 border border-slate-300 text-slate-500 rounded-lg text-sm hover:bg-slate-100"
+            className="px-4 py-2 bg-slate-800 text-white font-medium rounded-lg text-sm hover:bg-slate-700 disabled:opacity-50"
           >
-            Seed demo data
+            {isHosted ? "Seed Showcase Scenarios (10 Notes)" : "Seed demo data"}
           </button>
         </div>
 
-        {/* Batch file drop zone */}
+        {/* Precomputed scenarios cards for hosted mode */}
+        {isHosted && scenarios.length > 0 && (
+          <div className="w-full bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-800 mb-2">
+              Curated Showcase Scenarios ({scenarios.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+              {scenarios.map((sc) => (
+                <div
+                  key={sc.filename}
+                  className="p-2.5 border border-slate-200 rounded text-xs bg-slate-50 flex flex-col justify-between"
+                >
+                  <div className="font-semibold text-slate-800 mb-1 flex items-center justify-between">
+                    <span>{sc.title}</span>
+                    {sc.has_issues && (
+                      <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium">
+                        {sc.issues_count} canary flag{sc.issues_count > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-500 line-clamp-2 leading-relaxed">{sc.snippet}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Batch file drop zone (disabled in hosted mode) */}
+        {!isHosted && (
         <div className="w-full">
           <div
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -342,6 +407,7 @@ export default function Upload() {
             </div>
           )}
         </div>
+        )}
       </main>
     </div>
   );

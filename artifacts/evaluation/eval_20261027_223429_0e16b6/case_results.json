@@ -1,0 +1,4502 @@
+[
+  {
+    "note_id": "eval_001",
+    "medications": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "lisinopril",
+            "dose": "10 mg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              164,
+              189
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "lisinopril",
+            "dose": "10 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "metformin",
+            "dose": "500 mg",
+            "route": "PO",
+            "frequency": "BID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              190,
+              213
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "metformin",
+            "dose": "500 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 3,
+      "fp": 3,
+      "fn": 3,
+      "mismatches": [
+        {
+          "key": "heart_rate",
+          "pred": [
+            "82 bpm",
+            null
+          ],
+          "label": [
+            "82",
+            ""
+          ]
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "97%",
+            null
+          ],
+          "label": [
+            "97",
+            ""
+          ]
+        },
+        {
+          "key": "temperature",
+          "pred": [
+            "98.8 F",
+            null
+          ],
+          "label": [
+            "98.8",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    },
+    "metadata": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_002",
+    "medications": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "atorvastatin",
+            "dose": "20mg",
+            "route": "po",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              134,
+              146
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "atorvastatin",
+            "dose": "20 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "20mg",
+              "20 mg"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "amlodipine",
+            "dose": "5 mg",
+            "route": "oral",
+            "frequency": "qd",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              162,
+              172
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "amlodipine",
+            "dose": "5 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "route": [
+              "oral",
+              "PO"
+            ],
+            "frequency": [
+              "qd",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 3,
+      "fp": 2,
+      "fn": 3,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": null,
+          "label": "155/95"
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "96%",
+            null
+          ],
+          "label": [
+            "96",
+            ""
+          ]
+        },
+        {
+          "key": "weight",
+          "pred": [
+            "198",
+            null
+          ],
+          "label": [
+            "198 lbs",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 3,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "return_precautions",
+            "text": "precautions: call if chest tightness or leg swelling."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "low fat diet, exercise 30 min 3x/wk."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "see dr pham in 4 wks."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "call if chest tightness or leg swelling."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_003",
+    "medications": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "metoprolol",
+            "dose": "50 mg",
+            "route": "",
+            "frequency": "twice daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              235,
+              245
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "metoprolol",
+            "dose": "50 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "route": [
+              "",
+              "PO"
+            ],
+            "frequency": [
+              "twice daily",
+              "BID"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "lisinopril",
+            "dose": "20mg",
+            "route": "",
+            "frequency": "once daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              277,
+              287
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "lisinopril",
+            "dose": "20 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "20mg",
+              "20 mg"
+            ],
+            "route": [
+              "",
+              "PO"
+            ],
+            "frequency": [
+              "once daily",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 4,
+      "fp": 2,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": [
+            "148/92 mmHg",
+            null
+          ],
+          "label": [
+            "148/92",
+            ""
+          ]
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "99%",
+            null
+          ],
+          "label": [
+            "99",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 1,
+      "fp": 1,
+      "fn": 1,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "follow_up",
+            "text": "Plan: follow up in 6 weeks."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "follow up in 6 weeks."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_004",
+    "medications": {
+      "tp": 0,
+      "fp": 3,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "omeprazole",
+            "dose": "40mg",
+            "route": "PO",
+            "frequency": "QHS",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              136,
+              146
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "omeprazole",
+            "dose": "40 mg",
+            "route": "PO",
+            "frequency": "QHS"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "40mg",
+              "40 mg"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "sertraline",
+            "dose": "100mg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              160,
+              170
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "sertraline",
+            "dose": "100 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "100mg",
+              "100 mg"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [
+        {
+          "name": "omeprazole",
+          "dose": "",
+          "route": "",
+          "frequency": "",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            216,
+            226
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        }
+      ],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [
+        {
+          "name": "omeprazole",
+          "reason": "duplicate occurrence assignment",
+          "source_evidence_available": false
+        }
+      ],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 5,
+      "fp": 1,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "100%",
+            null
+          ],
+          "label": [
+            "100",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 3,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "discharge_instructions",
+            "text": "Avoid caffeine and spicy foods."
+          },
+          "label": null
+        },
+        {
+          "pred": {
+            "category": "follow_up",
+            "text": "FOLLOW UP: Follow up with gastroenterology in 3 weeks. RETURN PRECAUTIONS: Return if vomiting blood or severe abdominal pain."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "Take omeprazole 30 min before breakfast. Continue sertraline as directed. Avoid caffeine and spicy foods."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "Follow up with gastroenterology in 3 weeks."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "Return if vomiting blood or severe abdominal pain."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_005",
+    "medications": {
+      "tp": 1,
+      "fp": 1,
+      "fn": 1,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "albuterol",
+            "dose": "",
+            "route": "",
+            "frequency": "",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              115,
+              124
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "albuterol",
+            "dose": "2.5 mg",
+            "route": "inhaled",
+            "frequency": "PRN"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "",
+              "2.5 mg"
+            ],
+            "route": [
+              "",
+              "inhaled"
+            ],
+            "frequency": [
+              "",
+              "PRN"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "fluticasone",
+            "dose": "110 mcg",
+            "route": "inhaled",
+            "frequency": "BID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              147,
+              158
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "fluticasone",
+            "dose": "110 mcg",
+            "route": "inhaled",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 4,
+      "fp": 1,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "98%",
+            null
+          ],
+          "label": [
+            "98",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "mismatches": [
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "Follow patient in 1 month."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "Call clinic if wheezing worsens."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_006",
+    "medications": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "gabapentin",
+            "dose": "300 mg",
+            "route": "PO",
+            "frequency": "TID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              153,
+              179
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "gabapentin",
+            "dose": "300 mg",
+            "route": "PO",
+            "frequency": "TID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "amoxicillin",
+            "dose": "875 mg",
+            "route": "PO",
+            "frequency": "BID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              180,
+              216
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "amoxicillin",
+            "dose": "875 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 3,
+      "fp": 3,
+      "fn": 3,
+      "mismatches": [
+        {
+          "key": "heart_rate",
+          "pred": [
+            "88 bpm",
+            null
+          ],
+          "label": [
+            "88",
+            ""
+          ]
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "97%",
+            null
+          ],
+          "label": [
+            "97",
+            ""
+          ]
+        },
+        {
+          "key": "temperature",
+          "pred": [
+            "98.6 F",
+            null
+          ],
+          "label": [
+            "98.6",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    },
+    "metadata": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_007",
+    "medications": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 1,
+          "pred": {
+            "name": "hydrochlorothiazide",
+            "dose": "25mg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              238,
+              257
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "hydrochlorothiazide",
+            "dose": "25 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "25mg",
+              "25 mg"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [
+        {
+          "name": "losartan",
+          "dose": "50 mg",
+          "route": "PO",
+          "frequency": "daily"
+        }
+      ],
+      "attribute_counts": {
+        "dose": {
+          "tp": 0,
+          "fp": 1,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 4,
+      "fp": 2,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "99%",
+            null
+          ],
+          "label": [
+            "99",
+            ""
+          ]
+        },
+        {
+          "key": "temperature",
+          "pred": [
+            "98.2 F",
+            null
+          ],
+          "label": [
+            "98.2",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    },
+    "metadata": {
+      "tp": 1,
+      "fp": 1,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "patient_name",
+          "pred": [
+            "Fiona Wells  Date: 2024-06-18  MD: Dr. Carl Wong",
+            null
+          ],
+          "label": [
+            "Fiona Wells",
+            ""
+          ]
+        },
+        {
+          "key": "provider_name",
+          "pred": null,
+          "label": "Dr. Carl Wong"
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_008",
+    "medications": {
+      "tp": 2,
+      "fp": 1,
+      "fn": 1,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "furosemide",
+            "dose": "40 mg",
+            "route": "oral",
+            "frequency": "once daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              254,
+              286
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "furosemide",
+            "dose": "40 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "route": [
+              "oral",
+              "PO"
+            ],
+            "frequency": [
+              "once daily",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "spironolactone",
+            "dose": "25 mg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              287,
+              316
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "spironolactone",
+            "dose": "25 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 2,
+          "label_idx": 2,
+          "pred": {
+            "name": "carvedilol",
+            "dose": "12.5 mg",
+            "route": "PO",
+            "frequency": "BID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              317,
+              342
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "carvedilol",
+            "dose": "12.5 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 2,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 2,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 4,
+      "fp": 1,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "98"
+        },
+        {
+          "key": "temperature",
+          "pred": [
+            "98.4 F",
+            null
+          ],
+          "label": [
+            "98.4",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    },
+    "metadata": {
+      "tp": 1,
+      "fp": 2,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "date_of_service",
+          "pred": {
+            "value": "2024-07-02",
+            "span": [
+              47,
+              63
+            ],
+            "source": "regex",
+            "confidence": 0.9
+          },
+          "label": null
+        },
+        {
+          "key": "patient_name",
+          "pred": [
+            "George Hill     Admit Date: 2024-07-02     Discharge Date: 2024-07-04",
+            null
+          ],
+          "label": [
+            "George Hill",
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_009",
+    "medications": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "escitalopram",
+            "dose": "10 mg",
+            "route": "po",
+            "frequency": "qd",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              207,
+              219
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "escitalopram",
+            "dose": "10 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "frequency": [
+              "qd",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "amlodipine",
+            "dose": "10mg",
+            "route": "",
+            "frequency": "once daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              232,
+              242
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "amlodipine",
+            "dose": "10 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "10mg",
+              "10 mg"
+            ],
+            "route": [
+              "",
+              "PO"
+            ],
+            "frequency": [
+              "once daily",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 5,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": null,
+          "label": "165/100"
+        },
+        {
+          "key": "heart_rate",
+          "pred": null,
+          "label": "95"
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "95"
+        },
+        {
+          "key": "respiratory_rate",
+          "pred": null,
+          "label": "20"
+        },
+        {
+          "key": "weight",
+          "pred": null,
+          "label": "220 lbs"
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "mismatches": [
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "Continue medications. Reduce salt intake."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "Return to see me in 2 weeks."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "Call immediately if BP is above 180 or you feel confused."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_010",
+    "medications": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "metformin",
+            "dose": "1000mg",
+            "route": "po",
+            "frequency": "bid",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              164,
+              173
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "metformin",
+            "dose": "1000 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "1000mg",
+              "1000 mg"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "glipizide",
+            "dose": "5 mg",
+            "route": "oral",
+            "frequency": "once daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              189,
+              198
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "glipizide",
+            "dose": "5 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "route": [
+              "oral",
+              "PO"
+            ],
+            "frequency": [
+              "once daily",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 3,
+      "fp": 1,
+      "fn": 3,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": null,
+          "label": "126/80"
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "100"
+        },
+        {
+          "key": "weight",
+          "pred": [
+            "190 pounds",
+            null
+          ],
+          "label": [
+            "190 lbs",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    },
+    "metadata": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_011",
+    "medications": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "pantoprazole",
+            "dose": "40mg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              226,
+              238
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "pantoprazole",
+            "dose": "40 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "40mg",
+              "40 mg"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "cetirizine",
+            "dose": "10mg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              257,
+              267
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "cetirizine",
+            "dose": "10 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "10mg",
+              "10 mg"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 5,
+      "fp": 1,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "100%",
+            null
+          ],
+          "label": [
+            "100",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "mismatches": [
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "Return for annual exam in 12 months."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 1,
+      "fp": 1,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "patient_name",
+          "pred": [
+            "Julia Kim   DOS: 2024-09-03   MD: Dr. Anne Foster",
+            null
+          ],
+          "label": [
+            "Julia Kim",
+            ""
+          ]
+        },
+        {
+          "key": "provider_name",
+          "pred": null,
+          "label": "Dr. Anne Foster"
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_012",
+    "medications": {
+      "tp": 1,
+      "fp": 2,
+      "fn": 1,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "ciprofloxacin",
+            "dose": "500 mg",
+            "route": "oral",
+            "frequency": "BID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              205,
+              218
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "ciprofloxacin",
+            "dose": "500 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "route": [
+              "oral",
+              "PO"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "ibuprofen",
+            "dose": "400 mg",
+            "route": "PO",
+            "frequency": "TID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              244,
+              253
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "ibuprofen",
+            "dose": "400 mg",
+            "route": "PO",
+            "frequency": "TID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [
+        {
+          "name": "ciprofloxacin",
+          "dose": "",
+          "route": "",
+          "frequency": "",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            307,
+            320
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        }
+      ],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [
+        {
+          "name": "ciprofloxacin",
+          "reason": "duplicate occurrence assignment",
+          "source_evidence_available": false
+        }
+      ],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 2,
+      "fp": 3,
+      "fn": 3,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": [
+            "135/85 mmHg",
+            null
+          ],
+          "label": [
+            "135/85",
+            ""
+          ]
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "96%",
+            null
+          ],
+          "label": [
+            "96",
+            ""
+          ]
+        },
+        {
+          "key": "temperature",
+          "pred": [
+            "99.5 F",
+            null
+          ],
+          "label": [
+            "99.5",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 3,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "discharge_instructions",
+            "text": "Avoid if stomach upset."
+          },
+          "label": null
+        },
+        {
+          "pred": {
+            "category": "follow_up",
+            "text": "FOLLOW UP: Follow up with your primary care doctor in 3-5 days. RETURN TO ED IF: fever worsens, unable to keep fluids down, or symptoms not improving in 48 hours."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "Take ciprofloxacin with food and water. Complete the full course. Ibuprofen for pain as needed, not to exceed 1200 mg/day. Avoid if stomach upset."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "Follow up with your primary care doctor in 3-5 days."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "fever worsens, unable to keep fluids down, or symptoms not improving in 48 hours."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "mismatches": []
+    }
+  },
+  {
+    "note_id": "eval_013",
+    "medications": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "levothyroxine",
+            "dose": "75 mcg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              182,
+              195
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "levothyroxine",
+            "dose": "75 mcg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [
+        {
+          "name": "simvastatin",
+          "dose": "40 mg",
+          "route": "PO",
+          "frequency": "QHS"
+        }
+      ],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 6,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": null,
+          "label": "124/78"
+        },
+        {
+          "key": "heart_rate",
+          "pred": null,
+          "label": "74"
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "99"
+        },
+        {
+          "key": "respiratory_rate",
+          "pred": [
+            "14 breaths/min",
+            null
+          ],
+          "label": [
+            "14",
+            ""
+          ]
+        },
+        {
+          "key": "temperature",
+          "pred": null,
+          "label": "98.4"
+        },
+        {
+          "key": "weight",
+          "pred": null,
+          "label": "155 lbs"
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "mismatches": [
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "refills provided, labs in 6 months, return PRN."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 3,
+      "mismatches": [
+        {
+          "key": "date_of_service",
+          "pred": null,
+          "label": "2024-11-01"
+        },
+        {
+          "key": "patient_name",
+          "pred": [
+            "Laura Chen       Provider: Dr. Raj Kapoor      Visit: 2024-11-01",
+            null
+          ],
+          "label": [
+            "Laura Chen",
+            ""
+          ]
+        },
+        {
+          "key": "provider_name",
+          "pred": [
+            "Dr. Raj Kapoor      Visit: 2024-11-01",
+            null
+          ],
+          "label": [
+            "Dr. Raj Kapoor",
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_014",
+    "medications": {
+      "tp": 0,
+      "fp": 4,
+      "fn": 3,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "metformin",
+            "dose": "500mg",
+            "route": "",
+            "frequency": "twice daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              193,
+              241
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "metformin",
+            "dose": "500 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "500mg",
+              "500 mg"
+            ],
+            "route": [
+              "",
+              "PO"
+            ],
+            "frequency": [
+              "twice daily",
+              "BID"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "enalapril",
+            "dose": "5mg",
+            "route": "PO",
+            "frequency": "once daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              242,
+              272
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "enalapril",
+            "dose": "5 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "5mg",
+              "5 mg"
+            ],
+            "frequency": [
+              "once daily",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 2,
+          "label_idx": 2,
+          "pred": {
+            "name": "aspirin",
+            "dose": "81 mg",
+            "route": "oral",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              273,
+              300
+            ],
+            "source": "section",
+            "confidence": 0.85
+          },
+          "label": {
+            "name": "aspirin",
+            "dose": "81 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "route": [
+              "oral",
+              "PO"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [
+        {
+          "name": "instructions: continue metformin with meals. take enalapril in the morning. aspirin",
+          "dose": "",
+          "route": "",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            302,
+            443
+          ],
+          "source": "section",
+          "confidence": 0.85
+        }
+      ],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 3,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 3,
+      "fp": 1,
+      "fn": 3,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "95"
+        },
+        {
+          "key": "respiratory_rate",
+          "pred": null,
+          "label": "16"
+        },
+        {
+          "key": "temperature",
+          "pred": [
+            "99.0 F",
+            null
+          ],
+          "label": [
+            "99.0",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 1,
+      "mismatches": [
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "Continue metformin with meals. Take enalapril in the morning. Aspirin daily for heart protection. Monitor blood sugars at home."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "date_of_service",
+          "pred": null,
+          "label": "11/15/2024"
+        },
+        {
+          "key": "patient_name",
+          "pred": null,
+          "label": "Mike Torres"
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_015",
+    "medications": {
+      "tp": 1,
+      "fp": 1,
+      "fn": 1,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "allopurinol",
+            "dose": "300 mg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              170,
+              181
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "allopurinol",
+            "dose": "300 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "colchicine",
+            "dose": "",
+            "route": "",
+            "frequency": "",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              202,
+              212
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "colchicine",
+            "dose": "0.6 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "",
+              "0.6 mg"
+            ],
+            "route": [
+              "",
+              "PO"
+            ],
+            "frequency": [
+              "",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 4,
+      "fp": 2,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "100%",
+            null
+          ],
+          "label": [
+            "100",
+            ""
+          ]
+        },
+        {
+          "key": "temperature",
+          "pred": [
+            "97.5 F",
+            null
+          ],
+          "label": [
+            "97.5",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 3,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "discharge_instructions",
+            "text": "Avoid high-purine foods (red meat, shellfish, beer). See Dr. Farouk in 4 weeks."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "Stay well hydrated. Avoid high-purine foods (red meat, shellfish, beer)."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "See Dr. Farouk in 4 weeks."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "Come to ER if sudden severe joint pain, fever, or confusion."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "date_of_service",
+          "pred": null,
+          "label": "December 2, 2024"
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_016",
+    "medications": {
+      "tp": 0,
+      "fp": 3,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "warfarin",
+            "dose": "5mg",
+            "route": "po",
+            "frequency": "qd",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              110,
+              118
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "warfarin",
+            "dose": "5 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "5mg",
+              "5 mg"
+            ],
+            "frequency": [
+              "qd",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "furosemide",
+            "dose": "20mg",
+            "route": "oral",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              130,
+              140
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "furosemide",
+            "dose": "20 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "20mg",
+              "20 mg"
+            ],
+            "route": [
+              "oral",
+              "PO"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [
+        {
+          "name": "warfarin",
+          "dose": "",
+          "route": "",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            243,
+            251
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        }
+      ],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [
+        {
+          "name": "warfarin",
+          "reason": "duplicate occurrence assignment",
+          "source_evidence_available": false
+        }
+      ],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 6,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": null,
+          "label": "132/82"
+        },
+        {
+          "key": "heart_rate",
+          "pred": null,
+          "label": "78"
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "97"
+        },
+        {
+          "key": "respiratory_rate",
+          "pred": null,
+          "label": "15"
+        },
+        {
+          "key": "temperature",
+          "pred": null,
+          "label": "98.6"
+        },
+        {
+          "key": "weight",
+          "pred": null,
+          "label": "176 lbs"
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 3,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "discharge_instructions",
+            "text": "Avoid alcohol. Soft diet. FOLLOW UP: INR check and clinic visit in 1 week."
+          },
+          "label": null
+        },
+        {
+          "pred": {
+            "category": "return_precautions",
+            "text": "RETURN: Call if bleeding gums, blood in urine, or bruising increases."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "Continue warfarin daily. No grapefruit. Avoid alcohol. Soft diet."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "INR check and clinic visit in 1 week."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "Call if bleeding gums, blood in urine, or bruising increases."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "date_of_service",
+          "pred": null,
+          "label": "2024-12-10"
+        },
+        {
+          "key": "provider_name",
+          "pred": null,
+          "label": "Dr. Tina Shore"
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_017",
+    "medications": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 1,
+          "pred": {
+            "name": "metformin",
+            "dose": "1000 mg",
+            "route": "PO",
+            "frequency": "BID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              212,
+              221
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "metformin",
+            "dose": "1000 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [
+        {
+          "name": "ramipril",
+          "dose": "5 mg",
+          "route": "PO",
+          "frequency": "daily"
+        }
+      ],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 4,
+      "fp": 2,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": [
+            "100%",
+            null
+          ],
+          "label": [
+            "100",
+            ""
+          ]
+        },
+        {
+          "key": "temperature",
+          "pred": [
+            "98.1 F",
+            null
+          ],
+          "label": [
+            "98.1",
+            ""
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "mismatches": [
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "patient to return in 1 month for repeat urine microalbumin."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "ER if sudden swelling of face or throat (angioedema)."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 2,
+      "fp": 1,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "date_of_service",
+          "pred": [
+            "January",
+            null
+          ],
+          "label": [
+            "January 5, 2025",
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_018",
+    "medications": {
+      "tp": 0,
+      "fp": 3,
+      "fn": 2,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "doxycycline",
+            "dose": "100mg",
+            "route": "oral",
+            "frequency": "bid",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              136,
+              147
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "doxycycline",
+            "dose": "100 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "100mg",
+              "100 mg"
+            ],
+            "route": [
+              "oral",
+              "PO"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "montelukast",
+            "dose": "10mg",
+            "route": "PO",
+            "frequency": "qd",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              167,
+              178
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "montelukast",
+            "dose": "10 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "10mg",
+              "10 mg"
+            ],
+            "frequency": [
+              "qd",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [
+        {
+          "name": "doxycycline",
+          "dose": "",
+          "route": "",
+          "frequency": "",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            248,
+            259
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        }
+      ],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 2,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 2
+        }
+      },
+      "matching_ambiguities": [
+        {
+          "name": "doxycycline",
+          "reason": "duplicate occurrence assignment",
+          "source_evidence_available": false
+        }
+      ],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 6,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": null,
+          "label": "136/86"
+        },
+        {
+          "key": "heart_rate",
+          "pred": null,
+          "label": "84"
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "95"
+        },
+        {
+          "key": "respiratory_rate",
+          "pred": null,
+          "label": "18"
+        },
+        {
+          "key": "temperature",
+          "pred": null,
+          "label": "99.1"
+        },
+        {
+          "key": "weight",
+          "pred": null,
+          "label": "215 lbs"
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 3,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "discharge_instructions",
+            "text": "Instructions: take doxycycline with full glass of water, avoid lying down for 30 min. Stay out of direct sunlight. F/U: return in 3 weeks or sooner if rash appears."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "take doxycycline with full glass of water, avoid lying down for 30 min. Stay out of direct sunlight."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "return in 3 weeks or sooner if rash appears."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "if difficulty breathing, throat tightness, or severe skin reaction."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 2,
+      "fp": 1,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "patient_name",
+          "pred": [
+            "Quinn Adams     Date: 02/12/2025     Provider: Dr. Sam Patel",
+            null
+          ],
+          "label": [
+            "Quinn Adams",
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_019",
+    "medications": {
+      "tp": 2,
+      "fp": 1,
+      "fn": 1,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "tiotropium",
+            "dose": "18 mcg",
+            "route": "inhaled",
+            "frequency": "once daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              178,
+              188
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "tiotropium",
+            "dose": "18 mcg",
+            "route": "inhaled",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "frequency": [
+              "once daily",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "budesonide",
+            "dose": "160 mcg",
+            "route": "inhaled",
+            "frequency": "BID",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              217,
+              227
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "budesonide",
+            "dose": "160 mcg",
+            "route": "inhaled",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 2,
+          "label_idx": 2,
+          "pred": {
+            "name": "albuterol",
+            "dose": "90 mcg",
+            "route": "inhaled",
+            "frequency": "PRN",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              250,
+              259
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "albuterol",
+            "dose": "90 mcg",
+            "route": "inhaled",
+            "frequency": "PRN"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "attribute_mismatches": {},
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 2,
+          "fp": 1,
+          "fn": 1,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 3
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 6,
+      "mismatches": [
+        {
+          "key": "blood_pressure",
+          "pred": null,
+          "label": "118/72"
+        },
+        {
+          "key": "heart_rate",
+          "pred": null,
+          "label": "66"
+        },
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "99"
+        },
+        {
+          "key": "respiratory_rate",
+          "pred": null,
+          "label": "12"
+        },
+        {
+          "key": "temperature",
+          "pred": null,
+          "label": "98.0"
+        },
+        {
+          "key": "weight",
+          "pred": null,
+          "label": "158 lbs"
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 2,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "follow_up",
+            "text": "Follow up in pulmonary clinic 6 weeks. Call clinic if rescue inhaler needed more than 2x per week."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "Follow up in pulmonary clinic 6 weeks."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "Call clinic if rescue inhaler needed more than 2x per week."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 1,
+      "fp": 1,
+      "fn": 2,
+      "mismatches": [
+        {
+          "key": "date_of_service",
+          "pred": null,
+          "label": "3/1/2025"
+        },
+        {
+          "key": "patient_name",
+          "pred": [
+            "Rosa Mendez   Attending: Dr. Felix Grant",
+            null
+          ],
+          "label": [
+            "Rosa Mendez",
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "note_id": "eval_020",
+    "medications": {
+      "tp": 0,
+      "fp": 4,
+      "fn": 4,
+      "pairs": [
+        {
+          "pred_idx": 0,
+          "label_idx": 0,
+          "pred": {
+            "name": "clopidogrel",
+            "dose": "75 mg",
+            "route": "",
+            "frequency": "once daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              270,
+              281
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "clopidogrel",
+            "dose": "75 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "route": [
+              "",
+              "PO"
+            ],
+            "frequency": [
+              "once daily",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 1,
+          "label_idx": 1,
+          "pred": {
+            "name": "aspirin",
+            "dose": "81mg",
+            "route": "PO",
+            "frequency": "daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              308,
+              315
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "aspirin",
+            "dose": "81 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "81mg",
+              "81 mg"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 2,
+          "label_idx": 2,
+          "pred": {
+            "name": "atorvastatin",
+            "dose": "40mg",
+            "route": "oral",
+            "frequency": "at bedtime",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              330,
+              342
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "atorvastatin",
+            "dose": "40 mg",
+            "route": "PO",
+            "frequency": "daily"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "40mg",
+              "40 mg"
+            ],
+            "route": [
+              "oral",
+              "PO"
+            ],
+            "frequency": [
+              "at bedtime",
+              "daily"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        },
+        {
+          "pred_idx": 3,
+          "label_idx": 3,
+          "pred": {
+            "name": "metoprolol",
+            "dose": "100mg",
+            "route": "",
+            "frequency": "twice daily",
+            "duration": "",
+            "qualifier": "",
+            "span": [
+              364,
+              374
+            ],
+            "source": "medspacy",
+            "confidence": 0.9
+          },
+          "label": {
+            "name": "metoprolol",
+            "dose": "100 mg",
+            "route": "PO",
+            "frequency": "BID"
+          },
+          "match_type": "source_overlap_or_order",
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "attribute_mismatches": {
+            "dose": [
+              "100mg",
+              "100 mg"
+            ],
+            "route": [
+              "",
+              "PO"
+            ],
+            "frequency": [
+              "twice daily",
+              "BID"
+            ]
+          },
+          "unannotated_attributes": [
+            "duration",
+            "qualifier",
+            "prn",
+            "action",
+            "temporal_status"
+          ]
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "attribute_counts": {
+        "dose": {
+          "tp": 1,
+          "fp": 3,
+          "fn": 3,
+          "excluded_unannotated": 0
+        },
+        "route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 3,
+          "excluded_unannotated": 0
+        },
+        "frequency": {
+          "tp": 1,
+          "fp": 3,
+          "fn": 3,
+          "excluded_unannotated": 0
+        },
+        "duration": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 4
+        },
+        "qualifier": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 4
+        },
+        "prn": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 4
+        },
+        "action": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 4
+        },
+        "temporal_status": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "excluded_unannotated": 4
+        }
+      },
+      "matching_ambiguities": [],
+      "contract": "strict_annotated_record_source_first_v3"
+    },
+    "vitals": {
+      "tp": 5,
+      "fp": 0,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "oxygen_saturation",
+          "pred": null,
+          "label": "94"
+        }
+      ]
+    },
+    "instructions": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 3,
+      "mismatches": [
+        {
+          "pred": {
+            "category": "discharge_instructions",
+            "text": "Denies chest pain at rest. Discharge instructions: Continue all medications."
+          },
+          "label": null
+        },
+        {
+          "pred": {
+            "category": "follow_up",
+            "text": "Follow up with cardiologist. Follow up appointment: see cardiologist in 2 weeks. Return precautions: Return to ED for chest pain, jaw pain, left arm pain, or sudden severe headache."
+          },
+          "label": null
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "discharge_instructions",
+            "text": "Continue all medications. Follow up with cardiologist."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "follow_up",
+            "text": "see cardiologist in 2 weeks."
+          }
+        },
+        {
+          "pred": null,
+          "label": {
+            "category": "return_precautions",
+            "text": "Return to ED for chest pain, jaw pain, left arm pain, or sudden severe headache."
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 1,
+      "mismatches": [
+        {
+          "key": "date_of_service",
+          "pred": null,
+          "label": "April 1, 2025"
+        }
+      ]
+    }
+  }
+]

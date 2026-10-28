@@ -5,6 +5,7 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
+*.bak
 # backend/evaluation/results.json  -- committed so production has eval metrics
 node_modules/
 frontend/node_modules/
@@ -15,5 +16,12 @@ frontend/dist/
 *.egg-info/
 .DS_Store
 .claude-flow/
+**/.claude-flow/
 .superpowers/
 .vercel
+.pytest_cache/
+test-results/
+frontend/test-results/
+backend/data/storage/
+*.lock
+data/vision_gold/
