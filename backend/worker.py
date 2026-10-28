@@ -243,7 +243,10 @@ def process_single_job(job: Job, session: Session) -> bool:
                     Note.workspace_id == snapshot["workspace_id"],
                     Note.current_source_revision_id == snapshot["source_revision_id"],
                     Note.current_extraction_id == snapshot["extraction_id"],
-                ).values(lock_version=Note.lock_version)
+                ).values(
+                    lock_version=Note.lock_version,
+                    updated_at=Note.updated_at,
+                )
                 .execution_options(synchronize_session=False)
             )
             if note_cas.rowcount != 1:
