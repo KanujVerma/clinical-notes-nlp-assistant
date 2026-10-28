@@ -111,7 +111,7 @@ def test_source_image_agreement_and_disagreement():
         page_height=page_h,
     )
     assert res["agreement"] is True
-    assert res["status"] == "verified"
+    assert res["status"] == "ocr_consistent_unverified"
     assert "Metformin 500mg" in res["ocr_text"]
 
     # Disagreement case: transcript claims Warfarin, but OCR contains Lisinopril
