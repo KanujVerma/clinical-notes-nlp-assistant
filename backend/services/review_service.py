@@ -565,6 +565,10 @@ def process_review_mutation(
         )
     if not ext:
         raise ValueError(f"Extraction {req.extraction_id} not bound to revision {rev.id}")
+    if ext.status != "completed":
+        # Legacy extraction payloads may be useful for history but lack
+        # independently verifiable source provenance. Re-extract first.
+        raise StaleReviewError("Current extraction is not a verified completed run")
 
     # A historical source or extraction may be inspected, but must never be
     # completed as the current note. Verify this before checking dispositions.
