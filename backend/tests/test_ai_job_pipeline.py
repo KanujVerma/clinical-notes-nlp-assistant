@@ -74,6 +74,14 @@ def test_ai_endpoint_enqueues_without_calling_model_then_worker_persists_result(
         return _fake_model(snapshot)
 
     monkeypatch.setattr("services.inference_pipeline.run_local_inference", mocked_model)
+    # A model proposal must not even update the note's modified timestamp.
+    import datetime
+    frozen_updated_at = datetime.datetime(2020, 1, 1, 0, 0, 0)
+    with get_session(client.application.config["ENGINE"]) as session:
+        note_row = session.query(Note).filter_by(id=note["note_id"]).one()
+        note_row.updated_at = frozen_updated_at
+        session.commit()
+
     queued = client.post(
         f'/api/notes/{note["note_id"]}/ai-candidates',
         headers=headers,
@@ -113,6 +121,10 @@ def test_ai_endpoint_enqueues_without_calling_model_then_worker_persists_result(
     assert state.json["status"] == "needs_review"
     assert state.json["review_head"] is None
     assert state.json["current_extraction_id"] == note["extraction_id"]
+
+    with get_session(client.application.config["ENGINE"]) as session:
+        note_row = session.query(Note).filter_by(id=note["note_id"]).one()
+        assert note_row.updated_at == frozen_updated_at
 
     with get_session(client.application.config["ENGINE"]) as session:
         assert session.query(ReviewEvent).filter_by(note_id=note["note_id"]).count() == 0
