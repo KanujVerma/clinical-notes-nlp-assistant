@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import time
 from typing import Any
+from urllib.request import Request, urlopen
 
 import fitz
 from PIL import Image
@@ -215,9 +216,34 @@ def prepare_inference(session: Session, job: Job) -> dict[str, Any]:
     }
 
 
+def get_installed_model_digest(model_name: str) -> str:
+    """Record the digest actually installed on this local Ollama daemon."""
+    vision._ensure_local_ollama_endpoint()
+    request = Request(
+        f"{vision.OLLAMA_BASE_URL}/api/tags",
+        headers={"User-Agent": "ClinicalNLP/2.0"},
+    )
+    try:
+        with urlopen(request, timeout=5.0) as response:
+            metadata = response.read(256 * 1024 + 1)
+        if len(metadata) > 256 * 1024:
+            raise InferenceBindingError("MODEL_REGISTRY_TOO_LARGE")
+        models = json.loads(metadata.decode("utf-8")).get("models", [])
+        for item in models:
+            if item.get("name") == model_name and isinstance(item.get("digest"), str):
+                if item["digest"]:
+                    return item["digest"]
+    except InferenceBindingError:
+        raise
+    except Exception as exc:
+        raise InferenceBindingError("LOCAL_MODEL_UNAVAILABLE") from exc
+    raise InferenceBindingError("MODEL_NOT_INSTALLED")
+
+
 def run_local_inference(input_snapshot: dict[str, Any]) -> dict[str, Any]:
     """Call only the configured local model; never alter authoritative state."""
     adapter = input_snapshot["adapter"]
+    digest = get_installed_model_digest(input_snapshot["model"])
     start = time.monotonic()
     if adapter == "glm_ocr":
         output = vision.glm_ocr_infer(
@@ -255,7 +281,7 @@ def run_local_inference(input_snapshot: dict[str, Any]) -> dict[str, Any]:
     return {
         "task_type": task_type,
         "model": input_snapshot["model"],
-        "model_digest": None,  # Must be populated only from a real installed model registry.
+        "model_digest": digest,
         "candidates": candidates,
         "discrepancies": discrepancies,
         "duration_ms": max(0, int((time.monotonic() - start) * 1000)),
