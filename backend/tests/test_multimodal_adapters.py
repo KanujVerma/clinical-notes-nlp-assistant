@@ -43,6 +43,11 @@ def test_levenshtein_distance_and_cer_wer():
     assert m_high["cer"] > 0.50
     assert m_high["wer"] > 0.50
 
+    # Insertion-heavy error rate exceeds 1.0 (unclamped)
+    m_insert = calculate_cer_wer("a", "a b c d")
+    assert m_insert["cer"] == 6.0
+    assert m_insert["wer"] == 3.0
+
 
 def test_glm_ocr_offline_graceful_fallback(monkeypatch):
     # When Ollama is offline, adapter must gracefully return status="disabled"

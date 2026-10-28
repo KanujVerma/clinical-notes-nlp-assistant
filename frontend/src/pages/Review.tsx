@@ -598,11 +598,14 @@ export default function Review() {
           } else if (f.status === "accepted") {
             dec = "accept";
           }
-          itemDecisions[k] = {
-            decision: dec,
-            value: f.value,
-            reason: dec === "add" ? "Reviewer clinical entry" : undefined,
-          };
+          const decObj: Record<string, any> = { decision: dec };
+          if (dec === "edit" || dec === "add") {
+            decObj.value = f.value;
+          }
+          if (dec === "add") {
+            decObj.reason = "Reviewer clinical entry";
+          }
+          itemDecisions[k] = decObj;
         }
       });
 
@@ -948,7 +951,9 @@ export default function Review() {
 
           {leftPaneMode === "document" && noteIdState && extracted ? (
             <DocumentSourceViewer
+              key={currentRevisionId || noteIdState}
               noteId={noteIdState}
+              revisionId={currentRevisionId}
               rawText={rawText}
               extracted={extracted}
               pages={pages}

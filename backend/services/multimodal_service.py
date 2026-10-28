@@ -271,7 +271,7 @@ def calculate_cer_wer(reference: str, hypothesis: str) -> Dict[str, float]:
     # CER
     ref_len = len(ref_clean) or 1
     char_dist = _levenshtein_distance(ref_clean, hyp_clean)
-    cer = round(min(1.0, char_dist / ref_len), 4)
+    cer = round(char_dist / ref_len, 4)
 
     # WER
     ref_words = ref_clean.split()
@@ -291,7 +291,7 @@ def calculate_cer_wer(reference: str, hypothesis: str) -> Dict[str, float]:
                 dp[i][j] = dp[i - 1][j - 1]
             else:
                 dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
-    wer = round(min(1.0, dp[len(ref_words)][len(hyp_words)] / word_len), 4)
+    wer = round(dp[len(ref_words)][len(hyp_words)] / word_len, 4)
 
     return {
         "cer": cer,

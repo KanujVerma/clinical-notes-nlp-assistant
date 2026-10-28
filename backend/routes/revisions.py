@@ -62,6 +62,33 @@ def append_revision(note_id: int):
     next_rev_num = (latest_rev.revision_number + 1) if latest_rev else 1
     new_sha256 = hashlib.sha256(new_text.encode("utf-8")).hexdigest()
 
+    # Retain binary page inventory and dimensions when editing text of an acquired asset
+    inherited_pages_json = None
+    if latest_rev and latest_rev.source_asset_id:
+        raw_pages_str = latest_rev.pages_json
+        if not raw_pages_str and latest_rev.acquisition_run_id:
+            from models import AcquisitionRun
+            acq = g.db.query(AcquisitionRun).filter(AcquisitionRun.id == latest_rev.acquisition_run_id).first()
+            if acq and acq.pages_json:
+                raw_pages_str = acq.pages_json
+        if raw_pages_str:
+            try:
+                raw_pages = json.loads(raw_pages_str)
+                clean_pages = [
+                    {
+                        "page_number": p.get("page_number", idx + 1),
+                        "width": p.get("width", 800),
+                        "height": p.get("height", 1100),
+                        "acquisition_method": p.get("acquisition_method", "binary_asset"),
+                        "confidence": p.get("confidence", 1.0),
+                        "boxes": [],
+                    }
+                    for idx, p in enumerate(raw_pages)
+                ]
+                inherited_pages_json = json.dumps(clean_pages)
+            except Exception:
+                inherited_pages_json = None
+
     new_rev = NoteRevision(
         note_id=note.id,
         workspace_id=sid,
@@ -71,6 +98,7 @@ def append_revision(note_id: int):
         raw_text=new_text,
         normalized_text=new_text,
         sha256=new_sha256,
+        pages_json=inherited_pages_json,
         creation_reason=body.get("reason", "human_edit"),
     )
     g.db.add(new_rev)
@@ -214,6 +242,30 @@ def get_note_source(note_id: int):
             if acq and acq.pages_json:
                 try:
                     pages = json.loads(acq.pages_json)
+                except Exception:
+                    pages = []
+        elif rev.source_asset_id:
+            from models import AcquisitionRun
+            acq = (
+                g.db.query(AcquisitionRun)
+                .filter(AcquisitionRun.source_asset_id == rev.source_asset_id)
+                .order_by(AcquisitionRun.id.desc())
+                .first()
+            )
+            if acq and acq.pages_json:
+                try:
+                    raw_pages = json.loads(acq.pages_json)
+                    pages = [
+                        {
+                            "page_number": p.get("page_number", idx + 1),
+                            "width": p.get("width", 800),
+                            "height": p.get("height", 1100),
+                            "acquisition_method": p.get("acquisition_method", "binary_asset"),
+                            "confidence": p.get("confidence", 1.0),
+                            "boxes": [],
+                        }
+                        for idx, p in enumerate(raw_pages)
+                    ]
                 except Exception:
                     pages = []
 

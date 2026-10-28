@@ -17,6 +17,7 @@ export interface PageMetadata {
 
 export interface Props {
   noteId: number;
+  revisionId?: string | null;
   rawText: string;
   extracted: ExtractionResult;
   pages?: PageMetadata[];
@@ -43,6 +44,7 @@ const CAT_COLORS: Record<string, { bg: string; border: string; ring: string }> =
 
 export default function DocumentSourceViewer({
   noteId,
+  revisionId,
   rawText,
   extracted,
   pages = [],
@@ -57,14 +59,14 @@ export default function DocumentSourceViewer({
   const [imageError, setImageError] = useState<string | null>(null);
   const prevActiveKey = useRef<string | null>(null);
 
-  // Reset viewer state when changing notes
+  // Reset viewer state when changing notes or revisions
   useEffect(() => {
     setCurrentPage(1);
     setRotation(0);
     setImageLoading(true);
     setImageError(null);
     prevActiveKey.current = null;
-  }, [noteId]);
+  }, [noteId, revisionId]);
 
   // Source binaries require authenticated API requests. Fetch a temporary
   // image blob, never encode the capability token in a URL or query string.
@@ -96,7 +98,7 @@ export default function DocumentSourceViewer({
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [noteId, currentPage, rotation, viewMode]);
+  }, [noteId, currentPage, rotation, viewMode, revisionId, rawText]);
 
   const totalPages = Math.max(1, pages.length);
 

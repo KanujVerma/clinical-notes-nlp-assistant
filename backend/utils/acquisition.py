@@ -12,22 +12,45 @@ from PIL import Image, ImageOps, ImageFilter
 from models import SourceAsset, AcquisitionRun, NoteRevision
 
 
-def _preprocess_image_for_ocr(img: Image.Image) -> Image.Image:
+def _preprocess_image_for_ocr(img: Image.Image) -> Tuple[Image.Image, int]:
     out = img.convert("L")
     out = ImageOps.autocontrast(out)
     out = out.point(lambda p: 255 if p >= 128 else 0)
+    angle = 0
     try:
         osd = pytesseract.image_to_osd(out, config="--psm 0 -c min_characters_to_try=5")
         for line in osd.splitlines():
             if "Rotate:" in line:
-                angle = int(line.split(":")[-1].strip())
-                if angle != 0:
+                val = int(line.split(":")[-1].strip())
+                if val in (90, 180, 270):
+                    angle = val
                     out = out.rotate(-angle, expand=True)
                 break
     except Exception:
         pass
     out = out.filter(ImageFilter.MedianFilter(size=3))
-    return out
+    return out, angle
+
+
+def _invert_box(bbox: List[float], angle: int, rot_w: float, rot_h: float) -> List[float]:
+    """Inverts bounding box coordinates from rotated OCR space back to original unrotated image space."""
+    if angle == 0:
+        return bbox
+    x0, y0, x1, y1 = bbox
+    corners = [(x0, y0), (x1, y0), (x0, y1), (x1, y1)]
+    orig_corners = []
+    for xr, yr in corners:
+        if angle == 90:
+            orig_corners.append((yr, rot_w - xr))
+        elif angle == 180:
+            orig_corners.append((rot_w - xr, rot_h - yr))
+        elif angle == 270:
+            orig_corners.append((rot_h - yr, xr))
+        else:
+            orig_corners.append((xr, yr))
+    xs = [c[0] for c in orig_corners]
+    ys = [c[1] for c in orig_corners]
+    return [round(min(xs), 2), round(min(ys), 2), round(max(xs), 2), round(max(ys), 2)]
 
 
 def acquire_document(
@@ -112,7 +135,7 @@ def acquire_document(
                     raise ValueError("PDF page exceeds decoded pixel limit")
                 pix = page.get_pixmap(dpi=200)
                 img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                preproc = _preprocess_image_for_ocr(img)
+                preproc, angle = _preprocess_image_for_ocr(img)
                 tess_data = pytesseract.image_to_data(
                     preproc,
                     config="--psm 6 -l eng",
@@ -121,18 +144,25 @@ def acquire_document(
                 confs = [c for c in tess_data["conf"] if c != -1]
                 conf = (sum(confs) / len(confs) / 100.0) if confs else 0.0
 
-                scale_x = width / float(preproc.width) if preproc.width > 0 else 1.0
-                scale_y = height / float(preproc.height) if preproc.height > 0 else 1.0
+                scale_x = width / float(pix.width) if pix.width > 0 else 1.0
+                scale_y = height / float(pix.height) if pix.height > 0 else 1.0
 
                 ocr_words = []
                 for i in range(len(tess_data["text"])):
                     txt = tess_data["text"][i].strip()
                     if txt:
                         ocr_words.append(txt)
-                        x0_scaled = round(tess_data["left"][i] * scale_x, 2)
-                        y0_scaled = round(tess_data["top"][i] * scale_y, 2)
-                        x1_scaled = round((tess_data["left"][i] + tess_data["width"][i]) * scale_x, 2)
-                        y1_scaled = round((tess_data["top"][i] + tess_data["height"][i]) * scale_y, 2)
+                        raw_box = [
+                            float(tess_data["left"][i]),
+                            float(tess_data["top"][i]),
+                            float(tess_data["left"][i] + tess_data["width"][i]),
+                            float(tess_data["top"][i] + tess_data["height"][i]),
+                        ]
+                        unrot_box = _invert_box(raw_box, angle, preproc.width, preproc.height)
+                        x0_scaled = round(unrot_box[0] * scale_x, 2)
+                        y0_scaled = round(unrot_box[1] * scale_y, 2)
+                        x1_scaled = round(unrot_box[2] * scale_x, 2)
+                        y1_scaled = round(unrot_box[3] * scale_y, 2)
                         char_boxes.append({
                             "text": txt,
                             "bbox": [x0_scaled, y0_scaled, x1_scaled, y1_scaled],
@@ -172,7 +202,7 @@ def acquire_document(
                     raise ValueError("Image exceeds decoded pixel limit")
                 if getattr(img, "n_frames", 1) != 1:
                     raise ValueError("Multi-frame image requires explicit framewise acquisition")
-                preproc = _preprocess_image_for_ocr(img)
+                preproc, angle = _preprocess_image_for_ocr(img)
                 tess_data = pytesseract.image_to_data(
                     preproc,
                     config="--psm 6 -l eng",
@@ -186,14 +216,16 @@ def acquire_document(
                     txt = tess_data["text"][i].strip()
                     if txt:
                         ocr_words.append(txt)
+                        raw_box = [
+                            float(tess_data["left"][i]),
+                            float(tess_data["top"][i]),
+                            float(tess_data["left"][i] + tess_data["width"][i]),
+                            float(tess_data["top"][i] + tess_data["height"][i]),
+                        ]
+                        unrot_box = _invert_box(raw_box, angle, preproc.width, preproc.height)
                         char_boxes.append({
                             "text": txt,
-                            "bbox": [
-                                tess_data["left"][i],
-                                tess_data["top"][i],
-                                tess_data["left"][i] + tess_data["width"][i],
-                                tess_data["top"][i] + tess_data["height"][i],
-                            ]
+                            "bbox": unrot_box,
                         })
                 page_text = " ".join(ocr_words)
                 pages_data.append({
