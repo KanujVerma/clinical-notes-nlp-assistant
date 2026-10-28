@@ -4,12 +4,22 @@ import base64
 import urllib.request
 import urllib.error
 import hashlib
+from urllib.parse import urlsplit
 from typing import Dict, Any, Optional, List, Tuple
 from services.ollama_service import is_ollama_available, detect_discrepancies
 
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 DEFAULT_OCR_MODEL = os.environ.get("OLLAMA_OCR_MODEL", "glm-ocr:q8_0")
 DEFAULT_VL_MODEL = os.environ.get("OLLAMA_VL_MODEL", "qwen3-vl:4b")
+
+
+def _ensure_local_ollama_endpoint() -> None:
+    """Reject accidental remote/cloud model endpoints and URLs with secrets."""
+    url = urlsplit(OLLAMA_BASE_URL)
+    if (url.scheme != "http" or url.hostname not in ("localhost", "127.0.0.1", "::1")
+            or url.username is not None or url.password is not None
+            or url.path not in ("", "/") or url.query or url.fragment):
+        raise ValueError("Ollama must use an HTTP loopback endpoint")
 
 
 def query_ollama_multimodal(
@@ -22,12 +32,21 @@ def query_ollama_multimodal(
     """
     Queries local Ollama instance with multimodal inputs (base64 images).
     """
+    _ensure_local_ollama_endpoint()
+    if model not in (DEFAULT_OCR_MODEL, DEFAULT_VL_MODEL):
+        raise ValueError("Model is not in the local vision allowlist")
+    if len(images_b64) != 1 or len(images_b64[0]) > 14 * 1024 * 1024:
+        raise ValueError("Only one bounded local image is allowed")
+    if not isinstance(prompt, str) or len(prompt) > 8192:
+        raise ValueError("Invalid bounded model prompt")
     payload = {
         "model": model,
         "prompt": prompt,
         "images": images_b64,
         "stream": False,
         "format": "json",
+        "keep_alive": 0,
+        "options": {"temperature": 0, "num_predict": 1024},
     }
     if system:
         payload["system"] = system
@@ -38,8 +57,14 @@ def query_ollama_multimodal(
         data=data,
         headers={"Content-Type": "application/json", "User-Agent": "ClinicalNLP/2.0"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    with urllib.request.urlopen(req, timeout=max(1.0, min(timeout, 90.0))) as resp:
+        response_bytes = resp.read(128 * 1024 + 1)
+        if len(response_bytes) > 128 * 1024:
+            raise ValueError("Vision model output exceeded the bounded response size")
+        response = json.loads(response_bytes.decode("utf-8"))
+        if not isinstance(response, dict):
+            raise ValueError("Vision model response must be an object")
+        return response
 
 
 def glm_ocr_infer(
@@ -83,23 +108,44 @@ def glm_ocr_infer(
         )
         raw_output = res.get("response", "{}")
         parsed = json.loads(raw_output)
-        if not isinstance(parsed, dict):
-            parsed = {"text": str(raw_output), "boxes": []}
+        if not isinstance(parsed, dict) or not isinstance(parsed.get("text"), str):
+            raise ValueError("Malformed visual transcription response")
+        transcript = parsed["text"].strip()
+        if len(transcript) > 32768:
+            raise ValueError("Vision transcription exceeds output limit")
+        raw_boxes = parsed.get("boxes", [])
+        if not isinstance(raw_boxes, list) or len(raw_boxes) > 1000:
+            raise ValueError("Unbounded visual evidence boxes")
+        valid_boxes = []
+        for box in raw_boxes:
+            if not isinstance(box, dict) or not isinstance(box.get("text"), str):
+                raise ValueError("Malformed visual evidence item")
+            geometry = box.get("bbox")
+            if (not isinstance(geometry, list) or len(geometry) != 4 or
+                    any(type(v) not in (int, float) for v in geometry) or
+                    not (0 <= geometry[0] < geometry[2] and 0 <= geometry[1] < geometry[3])):
+                raise ValueError("Invalid proposed image rectangle")
+            valid_boxes.append({
+                "text": box["text"][:256],
+                "bbox": geometry,
+                "source_verification": "model_proposed_unverified",
+            })
 
         return {
             "status": "completed",
             "model": active_model,
             "page_number": page_number,
-            "transcribed_text": str(parsed.get("text", "")).strip(),
-            "boxes": parsed.get("boxes", []) if isinstance(parsed.get("boxes"), list) else [],
-            "confidence": float(parsed.get("confidence", 0.9)),
+            "transcribed_text": transcript,
+            "boxes": valid_boxes,
+            "confidence": None,  # Never treat model self-report as calibrated accuracy
+            "source_verification": "model_proposed_unverified",
         }
     except Exception as e:
         return {
             "status": "failed",
             "model": active_model,
             "error_code": "INFERENCE_ERROR",
-            "message": str(e),
+            "message": "Local vision inference failed validation or execution",
             "transcribed_text": "",
             "boxes": [],
             "page_number": page_number,
@@ -146,19 +192,30 @@ def qwen3_vl_infer(
         )
         raw_output = res.get("response", "{}")
         parsed = json.loads(raw_output)
-        if not isinstance(parsed, dict):
-            parsed = {"medications": [], "vitals": []}
+        if not isinstance(parsed, dict) or not isinstance(parsed.get("medications"), list):
+            raise ValueError("Malformed structured vision candidates")
+        if len(parsed["medications"]) > 100:
+            raise ValueError("Too many model-proposed medications")
+        if not isinstance(parsed.get("vitals", []), list) or len(parsed.get("vitals", [])) > 100:
+            raise ValueError("Malformed or unbounded model-proposed vitals")
+        evidence = parsed.get("visual_evidence", [])
+        if not isinstance(evidence, list) or len(evidence) > 100:
+            raise ValueError("Unbounded proposed visual evidence")
+        parsed["visual_evidence"] = []  # Unverified model geometry is not exact source evidence.
 
         # Normalize medications
         meds = []
         for m in parsed.get("medications", []):
             if isinstance(m, dict) and m.get("name"):
-                meds.append({
+                candidate = {
                     "name": str(m["name"]).strip(),
                     "dose": str(m.get("dose", "")).strip(),
                     "route": str(m.get("route", "")).strip(),
                     "frequency": str(m.get("frequency", "")).strip(),
-                })
+                }
+                if any(len(v) > 160 for v in candidate.values()) or not candidate["name"]:
+                    raise ValueError("Malformed or oversized model medication field")
+                meds.append(candidate)
         parsed["medications"] = meds
 
         # Detect discrepancies against deterministic rule extraction
@@ -178,7 +235,7 @@ def qwen3_vl_infer(
             "status": "failed",
             "model": active_model,
             "error_code": "INFERENCE_ERROR",
-            "message": str(e),
+            "message": "Local vision inference failed validation or execution",
             "candidates": None,
             "discrepancies": [],
         }
