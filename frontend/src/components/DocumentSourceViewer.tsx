@@ -1,6 +1,7 @@
 // frontend/src/components/DocumentSourceViewer.tsx
 import { useState, useEffect, useMemo, useRef } from "react";
 import { ExtractionResult } from "../types";
+import { api } from "../api/client";
 import { transformBbox, validateBboxGeometry, checkSourceImageAgreement } from "../utils/coordinates";
 
 export interface PageMetadata {
@@ -52,6 +53,7 @@ export default function DocumentSourceViewer({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
   const [imageLoading, setImageLoading] = useState<boolean>(true);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const prevActiveKey = useRef<string | null>(null);
 
@@ -63,6 +65,38 @@ export default function DocumentSourceViewer({
     setImageError(null);
     prevActiveKey.current = null;
   }, [noteId]);
+
+  // Source binaries require authenticated API requests. Fetch a temporary
+  // image blob, never encode the capability token in a URL or query string.
+  // Cancel stale requests and revoke object URLs after page/rotation changes.
+  useEffect(() => {
+    if (viewMode !== "document") {
+      setImageLoading(false);
+      setImageUrl(null);
+      return;
+    }
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    setImageLoading(true);
+    setImageError(null);
+    setImageUrl(null);
+    api.getPageImageBlob(noteId, currentPage, rotation, controller.signal)
+      .then((blob) => {
+        if (controller.signal.aborted) return;
+        objectUrl = URL.createObjectURL(blob);
+        setImageUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setImageError("Unable to load the authorized document image.");
+          setImageLoading(false);
+        }
+      });
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [noteId, currentPage, rotation, viewMode]);
 
   const totalPages = Math.max(1, pages.length);
 
@@ -227,8 +261,6 @@ export default function DocumentSourceViewer({
     setRotation((prev) => (prev + 90) % 360);
   };
 
-  const imageUrl = `/api/notes/${noteId}/pages/${currentPage}/image?rotation=${rotation}`;
-
   return (
     <div className="flex flex-col h-full bg-slate-900 border border-slate-700/60 rounded-xl overflow-hidden shadow-sm" data-testid="document-source-viewer">
       {/* Top Toolbar */}
@@ -357,7 +389,7 @@ export default function DocumentSourceViewer({
                 {imageError}
               </div>
             )}
-            <img
+            {imageUrl && <img
               src={imageUrl}
               alt={`Note ${noteId} Page ${currentPage}`}
               className="block max-w-full max-h-[75vh] object-contain rounded select-none"
@@ -367,7 +399,7 @@ export default function DocumentSourceViewer({
                 setImageError("Unable to render document page image.");
               }}
               data-testid="document-page-image"
-            />
+            />}
 
             {/* Bounding Box Highlights Overlay */}
             {!imageLoading && !imageError && (
