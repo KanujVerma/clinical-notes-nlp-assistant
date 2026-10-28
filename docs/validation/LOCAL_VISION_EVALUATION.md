@@ -58,7 +58,9 @@ Run first:
   incompatible legacy F1 scores.
 - **Qwen3-VL**: extracts structured medication and vital fields, NOT a
   transcript. Report exact per-attribute/source-order whole-record
-  precision/recall/F1 and raw TP/FP/FN against explicit synthetic gold.
+  precision/recall/F1 and raw TP/FP/FN against explicit synthetic gold,
+  including hold/stop actions where explicitly annotated. Unannotated
+  attributes are excluded rather than counted as correct.
   It has **NO CER/WER** column because it was never asked to transcribe
   an entire note. Unit and decimal values must be retained exactly.
 - Duplicate-name medications pair by source occurrence/order, not by
