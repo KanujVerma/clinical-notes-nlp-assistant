@@ -106,12 +106,18 @@ def test_job_key_is_unique_in_database_and_body_changes_conflict(tmp_path):
     assert replay.status_code == 200
     assert replay.json["job_id"] == first.json["job_id"]
 
-    # A changed request may not reuse a previously committed job id.
+    # A *valid* but changed request must return the actual idempotency
+    # conflict, not merely a 404 for an unrelated nonexistent note.
+    note = client.post("/api/notes", json={"text": "Synthetic BP: 120/80."},
+                       headers=headers)
+    assert note.status_code == 201
     changed = client.post("/api/jobs", json={
-        "kind": "extraction", "note_id": 123,
-        "source_revision_id": "different", "idempotency_key": "same-job-key",
+        "kind": "extraction", "note_id": note.json["note_id"],
+        "source_revision_id": note.json["revision_id"],
+        "idempotency_key": "same-job-key",
     }, headers=headers)
-    assert changed.status_code != 200
+    assert changed.status_code == 409
+    assert changed.json["code"] == "IDEMPOTENCY_CONFLICT"
 
     engine = app.config["ENGINE"]
     with get_session(engine) as session:
