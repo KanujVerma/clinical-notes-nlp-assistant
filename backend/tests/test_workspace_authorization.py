@@ -141,3 +141,49 @@ def test_cross_workspace_isolation_reads_writes_exports_reset_metrics(client):
     # 6. Metrics isolation: Workspace 2 metrics show 0 notes
     w2_metrics = client.get("/api/metrics", headers=h2)
     assert w2_metrics.status_code == 200
+
+
+
+def test_hosted_requires_hosted_workspace_mode_and_rejects_arbitrary_edits(client, monkeypatch):
+    # A capability created in local mode is not a hosted-demo workspace,
+    # even when the bearer token itself is valid.
+    local = client.post("/api/workspaces").json
+    monkeypatch.setattr(Config, "APP_MODE", "hosted_demo")
+    old_headers = {
+        "X-Workspace-ID": local["workspace_id"],
+        "X-Workspace-Token": local["token"],
+    }
+    old_access = client.get("/api/queue", headers=old_headers)
+    assert old_access.status_code == 403
+    assert old_access.json["code"] == "INVALID_WORKSPACE_MODE"
+
+    demo = client.post("/api/workspaces").json
+    demo_headers = {
+        "X-Workspace-ID": demo["workspace_id"],
+        "X-Workspace-Token": demo["token"],
+    }
+    # The request is syntactically valid, but hosted mode must reject a
+    # reviewer-supplied new arbitrary value even before looking up the note.
+    payload = {
+        "schema_version": "2.0.0",
+        "note_id": 10,
+        "source_revision_id": "synthetic-rev",
+        "extraction_id": "synthetic-ext",
+        "source_hash": "0" * 64,
+        "expected_lock_version": 0,
+        "event_kind": "review_completed",
+        "item_decisions": {
+            "med.any.dose": {"decision": "edit", "value": "unrestricted input"},
+        },
+        "category_acknowledgments": {
+            "vitals": True, "medications": True,
+            "metadata": True, "instructions": True,
+        },
+    }
+    response = client.post(
+        "/api/extractions/synthetic-ext/reviews",
+        json=payload,
+        headers=demo_headers,
+    )
+    assert response.status_code == 422
+    assert response.json["code"] == "INVALID_REVIEW_PAYLOAD"
