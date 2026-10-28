@@ -138,16 +138,35 @@ def test_multimodal_ai_candidates_api_preserves_authoritative_state(client, monk
     note_id = up_res.json["note_id"]
     original_ext_id = up_res.json["extraction_id"]
 
-    # 2. Invoke multimodal candidates API
+    # 2. The request MUST enqueue, never execute the model inside Flask.
+    monkeypatch.setattr(
+        "services.inference_pipeline.get_installed_model_digest",
+        lambda model: "synthetic-installed-model-digest",
+    )
     ai_res = client.post(
         f"/api/notes/{note_id}/ai-candidates",
         headers=headers,
-        json={"adapter": "qwen3_vl", "model": "qwen3-vl:4b"},
+        json={
+            "adapter": "qwen3_vl", "model": "qwen3-vl:4b",
+            "source_revision_id": up_res.json["revision_id"],
+            "extraction_id": original_ext_id,
+            "idempotency_key": "model-test-job-1",
+        },
     )
-    assert ai_res.status_code == 201
+    assert ai_res.status_code == 202, ai_res.json
     data = ai_res.json
-    assert data["status"] == "completed"
-    assert "inference_run_id" in data
+    assert data["status"] == "queued"
+    assert "job_id" in data
+    # Worker performs actual (mocked transport) inference on the PDF raster.
+    from worker import run_worker_loop
+    run_worker_loop(client.application.config["ENGINE"], once=True)
+    job_state = client.get(f'/api/jobs/{data["job_id"]}', headers=headers)
+    assert job_state.status_code == 200
+    assert job_state.json["status"] == "succeeded", job_state.json
+    inf_id = job_state.json["result"]["inference_run_id"]
+    history = client.get(f"/api/notes/{note_id}/ai-candidates", headers=headers)
+    assert history.status_code == 200
+    assert any(item["id"] == inf_id and item["is_current"] for item in history.json)
 
     # 3. Check note state: authoritative extraction MUST NOT be altered
     st_res = client.get(f"/api/notes/{note_id}", headers=headers)
@@ -176,7 +195,11 @@ def test_vision_adapter_rejects_text_only_source_without_model_fallback(client, 
     res = client.post(
         f"/api/notes/{note_id}/ai-candidates",
         headers=headers,
-        json={"adapter": "qwen3_vl", "model": "qwen3-vl:4b"},
+        json={
+            "adapter": "qwen3_vl", "model": "qwen3-vl:4b",
+            "source_revision_id": created.json["revision_id"],
+            "extraction_id": created.json["extraction_id"],
+        },
     )
     assert res.status_code == 422
     assert res.json["code"] == "IMAGE_SOURCE_REQUIRED"
@@ -184,7 +207,11 @@ def test_vision_adapter_rejects_text_only_source_without_model_fallback(client, 
     assert client.post(
         f"/api/notes/{note_id}/ai-candidates",
         headers=headers,
-        json={"adapter": "qwen3_vl", "model": "unsupported-external-model"},
+        json={
+            "adapter": "qwen3_vl", "model": "unsupported-external-model",
+            "source_revision_id": created.json["revision_id"],
+            "extraction_id": created.json["extraction_id"],
+        },
     ).status_code == 422
 
 
@@ -272,13 +299,24 @@ def test_vision_rejects_tampered_original_asset_before_ollama(
         stored_path = Path(asset.storage_key)
 
     stored_path.write_bytes(b"tampered fixture bytes")
-    res = client.post(
+    queued = client.post(
         f'/api/notes/{uploaded.json["note_id"]}/ai-candidates',
         headers=headers,
-        json={"adapter": "qwen3_vl"},
+        json={
+            "adapter": "qwen3_vl",
+            "source_revision_id": uploaded.json["revision_id"],
+            "extraction_id": uploaded.json["extraction_id"],
+        },
     )
-    assert res.status_code == 409
-    assert res.json["code"] == "SOURCE_ASSET_INTEGRITY_FAILURE"
+    assert queued.status_code == 202, queued.json
+    from worker import run_worker_loop
+    run_worker_loop(client.application.config["ENGINE"], once=True)
+    job = client.get(f'/api/jobs/{queued.json["job_id"]}', headers=headers)
+    assert job.json["status"] == "failed"
+    assert job.json["error_code"] == "SOURCE_ASSET_INTEGRITY_FAILURE"
+    from utils.db import get_session
+    with get_session(client.application.config["ENGINE"]) as session:
+        assert session.query(InferenceRun).filter_by(note_id=uploaded.json["note_id"]).count() == 0
 
 
 def test_synthetic_handwriting_and_printed_benchmark():
