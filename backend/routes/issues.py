@@ -2,6 +2,7 @@ import json
 from flask import Blueprint, g, jsonify, request
 from models import OperationalIssue, IssueEvent
 from utils.session import require_session
+from config import Config
 
 bp = Blueprint("issues", __name__)
 
@@ -54,6 +55,13 @@ def list_issues():
 
 @bp.post("/api/issues/<string:issue_id>/disposition")
 def update_issue_disposition(issue_id: str):
+    # No free-form issue explanations from anonymous public visitors.
+    # The hosted demo can still display curated issue metadata.
+    if Config.APP_MODE == "hosted_demo":
+        return jsonify({
+            "error": "Issue dispositions are local-only until curated choices are available",
+            "code": "FEATURE_RESTRICTED",
+        }), 403
     sid = require_session()
     issue = g.db.query(OperationalIssue).filter(
         OperationalIssue.id == issue_id,
