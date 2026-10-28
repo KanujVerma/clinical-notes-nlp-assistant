@@ -1,6 +1,7 @@
 import json
 import os
 import io
+import hashlib
 import fitz
 from flask import Blueprint, g, jsonify, request
 from models import Note, NoteRevision, Extraction, InferenceRun, SourceAsset
@@ -55,7 +56,10 @@ def generate_ai_candidates(note_id: int):
         .filter(NoteRevision.id == note.current_source_revision_id)
         .first()
     )
-    raw_text = rev.raw_text if rev else note.raw_text
+    if not rev or rev.note_id != note.id or rev.workspace_id != sid:
+        return jsonify({"error": "Current source revision is unavailable",
+                        "code": "SOURCE_BINDING_REQUIRED"}), 409
+    raw_text = rev.raw_text
 
     # Get current rule extraction
     ext = (
@@ -63,14 +67,28 @@ def generate_ai_candidates(note_id: int):
         .filter(Extraction.public_id == note.current_extraction_id)
         .first()
     )
-    rule_data = json.loads(ext.extracted_json) if (ext and ext.extracted_json) else {}
+    if (not ext or ext.note_id != note.id
+            or ext.source_revision_id != rev.id
+            or ext.source_text_hash != rev.sha256
+            or ext.status != "completed"):
+        return jsonify({"error": "Current extraction must be source-bound",
+                        "code": "EXTRACTION_BINDING_REQUIRED"}), 409
+    rule_data = json.loads(ext.extracted_json or "{}")
 
     # Text-only proposals never require a page raster. Vision adapters must
     # operate on actual pixels: never silently fall back to text inference.
     image_bytes = None
     if adapter != "text" and rev and rev.source_asset_id:
         asset = g.db.query(SourceAsset).filter(SourceAsset.id == rev.source_asset_id).first()
-        if asset and os.path.exists(asset.storage_key):
+        if asset and asset.workspace_id == sid and os.path.isfile(asset.storage_key):
+            if os.path.getsize(asset.storage_key) > 10 * 1024 * 1024:
+                return jsonify({"error": "Source asset exceeds inference budget",
+                                "code": "IMAGE_TOO_LARGE"}), 413
+            with open(asset.storage_key, "rb") as source_stream:
+                original_bytes = source_stream.read(10 * 1024 * 1024 + 1)
+            if hashlib.sha256(original_bytes).hexdigest() != asset.sha256:
+                return jsonify({"error": "Original source asset checksum mismatch",
+                                "code": "SOURCE_ASSET_INTEGRITY_FAILURE"}), 409
             ext_name = os.path.splitext(asset.original_filename or "")[1].lower()
             if ext_name == ".pdf" or asset.mime_type == "application/pdf":
                 doc = fitz.open(asset.storage_key)
@@ -133,6 +151,9 @@ def generate_ai_candidates(note_id: int):
         source_revision_id=rev.id if rev else "rev_default",
         task_type=task_type,
         model_name=model_name,
+        input_hash=hashlib.sha256(
+            image_bytes if image_bytes is not None else raw_text.encode("utf-8")
+        ).hexdigest(),
         status=status,
         parsed_candidate_json=json.dumps(candidates),
         discrepancies_json=json.dumps(discrepancies),
