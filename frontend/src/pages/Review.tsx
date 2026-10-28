@@ -206,6 +206,7 @@ export default function Review() {
   const startTime = useRef(Date.now());
   const { bumpQueue } = useQueue();
 
+  const [isHosted, setIsHosted] = useState(false);
   const [rawText, setRawText] = useState("");
   const [extracted, setExtracted] = useState<ExtractionResult | null>(null);
   const [noteIdState, setNoteIdState] = useState<number | null>(null);
@@ -243,6 +244,12 @@ export default function Review() {
     expectedHeadEventId: string | null;
     expectedLockVersion: number;
   } | null>(null);
+
+  useEffect(() => {
+    api.getCapabilities()
+      .then((caps) => setIsHosted(caps.mode === "hosted_demo"))
+      .catch(() => setError("Cannot verify server capabilities."));
+  }, []);
 
   // Timer
   useEffect(() => {
@@ -487,6 +494,10 @@ export default function Review() {
   }, []);
 
   function handleAddField(key: string, value: string) {
+    if (isHosted) {
+      setError("Public demo permits curated review actions only.");
+      return;
+    }
     pendingSubmissionRef.current = null;
     setFields((prev) => ({ ...prev, [key]: { value, originalValue: "", status: "corrected" } }));
   }
@@ -696,7 +707,7 @@ export default function Review() {
         }
       }
       if (e.key === "e" || e.key === "E") {
-        if (activeKey) {
+        if (activeKey && !isHosted) {
           setEditingKey(activeKey);
         }
       }
@@ -955,6 +966,7 @@ export default function Review() {
                                 className={otherFields.length > 0 ? "border-b border-green-100" : ""}
                               >
                                 <FieldEditor
+                                  allowEdit={!isHosted}
                                   key={`${currentRevisionId ?? "rev"}-${nameEntry[0]}`}
                                   label="name"
                                   value={nameEntry[1].value}
@@ -981,6 +993,7 @@ export default function Review() {
                                     onMouseLeave={handleDeactivate}
                                   >
                                     <FieldEditor
+                                  allowEdit={!isHosted}
                                       key={`${currentRevisionId ?? "rev"}-${k}`}
                                       label={k.split(".")[2]}
                                       value={f.value}
@@ -1011,11 +1024,13 @@ export default function Review() {
                           </div>
                         );
                       })}
+                      {!isHosted && (
                       <AddFieldRow
                         category={cat}
                         existingKeys={Object.keys(fields)}
                         onAdd={handleAddField}
                       />
+                    )}
                     </div>
                   </section>
                 );
@@ -1035,6 +1050,7 @@ export default function Review() {
                         onMouseLeave={handleDeactivate}
                       >
                         <FieldEditor
+                                  allowEdit={!isHosted}
                           key={`${currentRevisionId ?? "rev"}-${k}`}
                           label={k.replace(prefix, "").replace(/^\d+\./, "")}
                           value={f.value}
@@ -1049,11 +1065,13 @@ export default function Review() {
                         />
                       </div>
                     ))}
-                    <AddFieldRow
+                    {!isHosted && (
+                      <AddFieldRow
                       category={cat}
                       existingKeys={Object.keys(fields)}
                       onAdd={handleAddField}
                     />
+                    )}
                   </div>
                 </section>
               );
@@ -1160,7 +1178,7 @@ export default function Review() {
       </div>
 
       {/* Transcription Edit Modal */}
-      {noteIdState && (
+      {noteIdState && !isHosted && (
         <TranscriptionEditModal
           isOpen={isTranscriptionModalOpen}
           onClose={() => setIsTranscriptionModalOpen(false)}
