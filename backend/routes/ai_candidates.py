@@ -169,10 +169,23 @@ def get_ai_candidates(note_id: int):
         InferenceRun.note_id == note_id,
     ).order_by(InferenceRun.created_at.desc()).all()
 
-    return jsonify([{
+    # Old proposals lacking immutable extraction provenance are historical.
+    # Never treat a same-text re-extraction's prior AI run as current.
+    def to_response(run):
+        try:
+            alignment = json.loads(run.alignment_results_json or "{}")
+        except (TypeError, ValueError):
+            alignment = {}
+        bound_extraction = alignment.get("extraction_id") if isinstance(alignment, dict) else None
+        is_current = (
+            run.source_revision_id == note.current_source_revision_id
+            and bound_extraction == note.current_extraction_id
+        )
+        return {
         "id": run.id,
         "source_revision_id": run.source_revision_id,
-        "is_current": run.source_revision_id == note.current_source_revision_id,
+        "extraction_id": bound_extraction,
+        "is_current": is_current,
         "task_type": run.task_type,
         "model_name": run.model_name,
         "model_digest": run.model_digest,
@@ -183,4 +196,6 @@ def get_ai_candidates(note_id: int):
         "discrepancies": json.loads(run.discrepancies_json or "[]"),
         "error_code": run.error_code,
         "created_at": run.created_at.isoformat() if run.created_at else None,
-    } for run in records])
+        }
+
+    return jsonify([to_response(run) for run in records])
