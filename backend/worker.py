@@ -32,7 +32,7 @@ def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job
 
     # Expired jobs that have consumed all attempts are terminal; do not
     # leave them running forever or retry expensive inference indefinitely.
-    session.execute(
+    exhausted = session.execute(
         update(Job).where(
             Job.status == "running",
             Job.lease_expiry < now,
@@ -44,7 +44,8 @@ def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job
             finished_at=now,
         )
     )
-    session.flush()
+    if exhausted.rowcount:
+        session.commit()
 
     # Find candidate job
     candidate = (
