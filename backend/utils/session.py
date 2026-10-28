@@ -43,6 +43,11 @@ def require_session() -> str:
         ws = g.db.query(Workspace).filter(Workspace.id == wid).first()
 
     if ws:
+        if is_hosted and ws.mode != "hosted_demo":
+            abort(make_response(
+                jsonify({"error": "Workspace is not a hosted synthetic sandbox", "code": "INVALID_WORKSPACE_MODE"}),
+                403,
+            ))
         # Check workspace state
         if ws.state != "active":
             abort(make_response(
