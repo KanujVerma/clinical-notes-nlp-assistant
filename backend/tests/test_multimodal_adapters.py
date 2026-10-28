@@ -188,6 +188,58 @@ def test_vision_adapter_rejects_text_only_source_without_model_fallback(client, 
     ).status_code == 422
 
 
+def test_multimodal_transport_rejects_remote_ollama_without_network(monkeypatch):
+    from services import multimodal_service as mm
+    monkeypatch.setattr(mm, "OLLAMA_BASE_URL", "https://external-provider.example")
+    with pytest.raises(ValueError, match="loopback"):
+        mm.query_ollama_multimodal(
+            model=mm.DEFAULT_OCR_MODEL,
+            prompt="Transcribe synthetic image",
+            images_b64=["AAAA"],
+        )
+
+
+def test_multimodal_transport_rejects_unlisted_model_without_network():
+    from services import multimodal_service as mm
+    with pytest.raises(ValueError, match="allowlist"):
+        mm.query_ollama_multimodal(
+            model="user-supplied-remote-model",
+            prompt="Transcribe synthetic image",
+            images_b64=["AAAA"],
+        )
+
+
+def test_inference_rejects_malformed_or_unbounded_model_response(monkeypatch):
+    monkeypatch.setattr("services.multimodal_service.is_ollama_available", lambda: True)
+    monkeypatch.setattr(
+        "services.multimodal_service.query_ollama_multimodal",
+        lambda **kwargs: {"response": "[]"},
+    )
+    glm = glm_ocr_infer(b"synthetic bytes")
+    qwen = qwen3_vl_infer(b"synthetic bytes")
+    assert glm["status"] == qwen["status"] == "failed"
+    assert glm["error_code"] == qwen["error_code"] == "INFERENCE_ERROR"
+
+
+def test_duplicate_same_name_proposals_flag_occurrence_ambiguity():
+    from services.ollama_service import detect_discrepancies
+    rule_data = {
+        "medications": [
+            {"name": "Metformin", "dose": "500 mg"},
+            {"name": "Metformin", "dose": "1000 mg"},
+        ],
+    }
+    ai_data = {
+        "medications": [
+            {"name": "Metformin", "dose": "1000 mg"},
+            {"name": "Metformin", "dose": "500 mg"},
+        ],
+    }
+    findings = detect_discrepancies(rule_data, ai_data)
+    assert any(item["type"] == "ambiguous_duplicate_occurrences" for item in findings)
+    assert not any(item["type"] == "dose_discrepancy" for item in findings)
+
+
 def test_synthetic_handwriting_and_printed_benchmark():
     """
     Deterministic error-metric fixture, NOT a live OCR model benchmark.
