@@ -20,6 +20,15 @@ export PYTHONUNBUFFERED=1
 
 "$PYTHON" backend/app.py &
 api_pid=$!
+
+# Wait for Flask API to initialize database and start serving
+for _ in {1..30}; do
+  if "$PYTHON" -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health', timeout=1)" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done
+
 "$PYTHON" backend/worker.py &
 worker_pid=$!
 (

@@ -280,15 +280,16 @@ def test_hosted_expiry_purge_removes_issue_events_and_acquisition_records(app):
         )
         session.add(asset)
         session.flush()
+        asset_id = asset.id
         acquisition = AcquisitionRun(
-            source_asset_id=asset.id,
+            source_asset_id=asset_id,
             engine="text_utf8", status="completed", canonical_text="Synthetic",
         )
         session.add(acquisition)
         session.flush()
         revision = NoteRevision(
             note_id=note.id, workspace_id=ws_id, revision_number=1,
-            source_asset_id=asset.id, acquisition_run_id=acquisition.id,
+            source_asset_id=asset_id, acquisition_run_id=acquisition.id,
             raw_text="Synthetic", normalized_text="Synthetic", sha256="1" * 64,
         )
         session.add(revision)
@@ -323,7 +324,7 @@ def test_hosted_expiry_purge_removes_issue_events_and_acquisition_records(app):
         assert session.query(Note).filter_by(workspace_id=ws_id).count() == 0
         assert session.query(OperationalIssue).filter_by(workspace_id=ws_id).count() == 0
         assert session.query(IssueEvent).count() == 0
-        assert session.query(AcquisitionRun).filter_by(source_asset_id=asset.id).count() == 0
+        assert session.query(AcquisitionRun).filter_by(source_asset_id=asset_id).count() == 0
         assert session.query(SourceAsset).filter_by(workspace_id=ws_id).count() == 0
 
 

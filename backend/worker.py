@@ -344,10 +344,16 @@ def process_single_job(job: Job, session: Session) -> bool:
 def run_worker_loop(engine, poll_interval: float = 1.0, once: bool = False):
     """Main worker processing loop."""
     while True:
-        with get_session(engine) as session:
-            job = claim_next_job(session)
-            if job:
-                process_single_job(job, session)
+        try:
+            with get_session(engine) as session:
+                job = claim_next_job(session)
+                if job:
+                    process_single_job(job, session)
+        except Exception:
+            if once:
+                raise
+            time.sleep(poll_interval)
+            continue
         if once:
             break
         time.sleep(poll_interval)
