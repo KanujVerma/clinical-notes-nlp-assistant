@@ -73,10 +73,10 @@ describe("checkSourceImageAgreement", () => {
     { bbox: [45, 10, 70, 25], text: "10mg" },
   ];
 
-  it("identifies matching text as verified agreement", () => {
+  it("identifies matching OCR text without asserting image truth", () => {
     const res = checkSourceImageAgreement("Lisinopril 10mg", [8, 8, 75, 28], pageBoxes, 100, 100);
     expect(res.agreement).toBe(true);
-    expect(res.status).toBe("verified");
+    expect(res.status).toBe("ocr_consistent_unverified");
   });
 
   it("identifies mismatching text as disagreement", () => {
