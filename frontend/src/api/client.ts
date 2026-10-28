@@ -2,7 +2,11 @@
 import { QueueResponse } from "../types";
 import { AiExplainRequest, AiExplainResponse, AiStatusResponse } from "../lib/aiExplain";
 
-const BASE = (import.meta.env.VITE_API_BASE_URL ?? "") + "/api";
+// Hosted Vercel builds need an explicit HTTPS Render backend origin.
+// The local Vite dev proxy is the only supported same-origin fallback.
+const configuredBackend = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/$/, "");
+const PRODUCTION_API_MISSING = import.meta.env.PROD && !configuredBackend;
+const BASE = configuredBackend + "/api";
 
 export type AiAdapter = "text" | "glm_ocr" | "qwen3_vl";
 export interface AiJobRequest {
@@ -60,6 +64,9 @@ let workspaceHeadersPromise: Promise<Record<string, string>> | null = null;
 let workspaceExpiresAt = 0;
 
 async function resolveWorkspaceHeaders(): Promise<Record<string, string>> {
+  if (PRODUCTION_API_MISSING) {
+    throw new Error("Production API backend origin is not configured.");
+  }
   const raw = localStorage.getItem(WORKSPACE_KEY);
   if (raw) {
     try {
