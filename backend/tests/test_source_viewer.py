@@ -203,6 +203,14 @@ def test_page_image_api_and_evidence_geometry_verification(client):
     assert img_res_rot.status_code == 200
     assert img_res_rot.content_type == "image/png"
 
+    # Unsupported angle must fail instead of rendering a page with
+    # geometry that the client does not know how to transform.
+    invalid_rotation = client.get(
+        f"/api/notes/{note_id}/pages/1/image?rotation=45", headers=headers
+    )
+    assert invalid_rotation.status_code == 422
+    assert invalid_rotation.json["code"] == "INVALID_ROTATION"
+
     # 4. Out of bounds page
     img_res_oob = client.get(f"/api/notes/{note_id}/pages/99/image", headers=headers)
     assert img_res_oob.status_code == 404
@@ -225,6 +233,14 @@ def test_page_image_api_and_evidence_geometry_verification(client):
     assert data["transformed_overlay"] is not None
     assert "left_pct" in data["transformed_overlay"]
     assert "top_pct" in data["transformed_overlay"]
+
+    unsupported_page = client.post(
+        f"/api/notes/{note_id}/verify-evidence-geometry",
+        headers=headers,
+        json={"page_number": 99, "span_text": "Metformin", "bbox": [10, 10, 50, 30]},
+    )
+    assert unsupported_page.status_code == 404
+    assert unsupported_page.json["code"] == "PAGE_OUT_OF_BOUNDS"
 
     # 6. Verify evidence geometry with missing bbox
     ver_missing = client.post(
