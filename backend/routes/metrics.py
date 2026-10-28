@@ -211,17 +211,31 @@ def metrics():
         if durs and s in status_counts:
             status_counts[s]["avg_review_ms"] = float(sum(durs) / len(durs))
 
-    # Issue counts for workspace
+    # Issue counts for workspace: bound open counts to each note's current revision/extraction
     issues = (
         g.db.query(OperationalIssue)
         .filter(OperationalIssue.workspace_id == sid)
         .all()
     )
+    current_notes = (
+        g.db.query(Note)
+        .filter(or_(Note.workspace_id == sid, Note.session_id == sid))
+        .all()
+    )
+    current_ext_keys = {
+        (n.id, n.current_extraction_id)
+        for n in current_notes
+        if n.current_extraction_id
+    }
+    current_issues = [
+        i for i in issues
+        if (i.note_id, i.extraction_id) in current_ext_keys or i.note_id is None
+    ]
     issues_summary = {
         "total": len(issues),
-        "open_blockers": sum(1 for i in issues if i.severity == "critical_blocker" and i.status == "open"),
-        "open_warnings": sum(1 for i in issues if i.severity == "warning" and i.status == "open"),
-        "resolved": sum(1 for i in issues if i.status == "resolved"),
+        "open_blockers": sum(1 for i in current_issues if i.severity == "critical_blocker" and i.status == "open"),
+        "open_warnings": sum(1 for i in current_issues if i.severity == "warning" and i.status == "open"),
+        "resolved": sum(1 for i in current_issues if i.status == "resolved"),
     }
 
     db_stats = {

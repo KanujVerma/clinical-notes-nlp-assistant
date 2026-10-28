@@ -193,9 +193,9 @@ def check_source_image_agreement(
 
     import re
 
-    # 1. Check exact numeric tokens (including decimals like 0.5 vs .5 vs 5)
+    # 1. Check exact numeric tokens (including compact units 5mg vs 50mg, decimals like 0.5 vs .5 vs 5)
     def _extract_numbers(text: str) -> List[float]:
-        raw = re.findall(r"(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?![\w.])", text)
+        raw = re.findall(r"(?<![0-9.])(?:\d+(?:\.\d+)?|\.\d+)(?![0-9.])", text)
         res = []
         for s in raw:
             try:
@@ -215,6 +215,16 @@ def check_source_image_agreement(
                 "ocr_text": ocr_text,
                 "span_text": span_text,
                 "reason": f"Disagreement: numeric value '{num}' in transcript does not match page OCR numbers ({ocr_numbers}).",
+            }
+    for o_num in ocr_numbers:
+        if not any(abs(o_num - num) < 1e-5 for num in span_numbers):
+            return {
+                "status": "disagreement",
+                "agreement": False,
+                "similarity": 0.0,
+                "ocr_text": ocr_text,
+                "span_text": span_text,
+                "reason": f"Disagreement: numeric value '{o_num}' in page OCR not found in transcript ({span_numbers}).",
             }
 
     # 2. Check clinical negation polarity

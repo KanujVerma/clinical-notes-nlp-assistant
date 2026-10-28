@@ -83,3 +83,24 @@ def test_generated_printed_fixtures_have_authentic_image_hashes(tmp_path):
     assert all(case["image_bytes"].startswith(b"\x89PNG") for case in cases)
     assert any("2.5 mg" in case["critical_tokens"] for case in cases)
     assert all("source_sha256" in case for case in cases)
+
+
+def test_critical_token_matching_excludes_decimal_suffixes():
+    import re
+
+    def check_token(token: str, actual: str) -> bool:
+        lead_bound = r"(?<![0-9.])" if (token and (token[0].isdigit() or token[0] == ".")) else r"(?<!\w)"
+        trail_bound = r"(?![0-9.])" if (token and (token[-1].isdigit() or token[-1] == ".")) else r"(?!\w)"
+        return re.search(
+            lead_bound + re.escape(token).replace(r"\ ", r"\s+") + trail_bound,
+            actual,
+        ) is not None
+
+    # '25 mg' must NOT match '0.25 mg'
+    assert check_token("25 mg", "Warfarin 25 mg PO daily") is True
+    assert check_token("25 mg", "Warfarin 0.25 mg PO daily") is False
+    assert check_token("25 mg", "Warfarin .25 mg PO daily") is False
+
+    # '0.5 mg' must NOT match '10.5 mg'
+    assert check_token("0.5 mg", "Warfarin 0.5 mg PO daily") is True
+    assert check_token("0.5 mg", "Warfarin 10.5 mg PO daily") is False

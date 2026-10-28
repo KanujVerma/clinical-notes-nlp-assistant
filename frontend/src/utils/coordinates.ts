@@ -212,9 +212,9 @@ export function checkSourceImageAgreement(
     };
   }
 
-  // 1. Check exact numeric tokens (including decimals like 0.5 vs .5 vs 5)
+  // 1. Check exact numeric tokens (including compact units 5mg vs 50mg, decimals like 0.5 vs .5 vs 5)
   const extractNumbers = (text: string): number[] => {
-    const matches = text.match(/(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?![\w.])/g) || [];
+    const matches = text.match(/(?<![0-9.])(?:\d+(?:\.\d+)?|\.\d+)(?![0-9.])/g) || [];
     return matches.map((s) => parseFloat(s)).filter((n) => !isNaN(n));
   };
   const spanNumbers = extractNumbers(spanText);
@@ -228,6 +228,18 @@ export function checkSourceImageAgreement(
         ocrText,
         spanText,
         reason: `Disagreement: numeric value '${num}' in transcript not found in page OCR (${ocrNumbers.join(", ")}).`,
+      };
+    }
+  }
+  for (const oNum of ocrNumbers) {
+    if (!spanNumbers.some((num) => Math.abs(num - oNum) < 1e-5)) {
+      return {
+        status: "disagreement",
+        agreement: false,
+        similarity: 0.0,
+        ocrText,
+        spanText,
+        reason: `Disagreement: numeric value '${oNum}' in page OCR not found in transcript (${spanNumbers.join(", ")}).`,
       };
     }
   }

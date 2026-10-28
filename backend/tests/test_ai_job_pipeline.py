@@ -252,3 +252,33 @@ def test_hosted_blocks_local_ai_jobs_at_server(client, monkeypatch):
     response = client.post("/api/notes/99/ai-candidates", json={})
     assert response.status_code == 403
     assert response.json["code"] == "FEATURE_RESTRICTED"
+
+
+def test_extraction_job_idempotent_retry_after_source_revision_change(client):
+    headers, note = _note(client)
+    job_req = {
+        "kind": "extraction",
+        "note_id": note["note_id"],
+        "source_revision_id": note["revision_id"],
+        "idempotency_key": "idem-extract-job-001",
+    }
+    # Initial job creation
+    res1 = client.post("/api/jobs", headers=headers, json=job_req)
+    assert res1.status_code == 202
+    job_id = res1.json["job_id"]
+
+    # Now change note source revision
+    client.post(
+        f'/api/notes/{note["note_id"]}/revisions',
+        headers=headers,
+        json={
+            "raw_text": "Updated source text BP 130/80.",
+            "expected_source_revision_id": note["revision_id"],
+            "expected_lock_version": 0,
+        },
+    )
+
+    # Idempotent retry of original job request must succeed with 200 replay
+    res2 = client.post("/api/jobs", headers=headers, json=job_req)
+    assert res2.status_code == 200
+    assert res2.json["job_id"] == job_id

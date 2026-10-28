@@ -56,20 +56,6 @@ def create_job():
 
     note_id = body.get("note_id")
     revision_id = body.get("source_revision_id")
-    if kind == "extraction":
-        if type(note_id) is not int or not isinstance(revision_id, str):
-            return jsonify({"error": "A bound note/revision is required", "code": "JOB_BINDING_REQUIRED"}), 422
-        note = g.db.query(Note).filter(
-            Note.id == note_id,
-            (Note.workspace_id == sid) | (Note.session_id == sid),
-        ).first()
-        if not note:
-            return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
-        if note.current_source_revision_id != revision_id:
-            return jsonify({"error": "Source revision changed", "code": "STALE_REVISION_BASE"}), 409
-    else:
-        if note_id is not None or revision_id is not None:
-            return jsonify({"error": "Benchmark jobs cannot reference workspace notes", "code": "INVALID_JOB_BINDING"}), 422
 
     idempotency_key = body.get("idempotency_key")
     if idempotency_key is not None and (
@@ -96,6 +82,7 @@ def create_job():
             "status": existing.status,
         }), 200
 
+    # Replay matching existing job before checking current source revision freshness
     if idempotency_key:
         existing = g.db.query(Job).filter(
             Job.workspace_id == sid,
@@ -103,6 +90,21 @@ def create_job():
         ).first()
         if existing:
             return replay_or_conflict(existing)
+
+    if kind == "extraction":
+        if type(note_id) is not int or not isinstance(revision_id, str):
+            return jsonify({"error": "A bound note/revision is required", "code": "JOB_BINDING_REQUIRED"}), 422
+        note = g.db.query(Note).filter(
+            Note.id == note_id,
+            (Note.workspace_id == sid) | (Note.session_id == sid),
+        ).first()
+        if not note:
+            return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
+        if note.current_source_revision_id != revision_id:
+            return jsonify({"error": "Source revision changed", "code": "STALE_REVISION_BASE"}), 409
+    else:
+        if note_id is not None or revision_id is not None:
+            return jsonify({"error": "Benchmark jobs cannot reference workspace notes", "code": "INVALID_JOB_BINDING"}), 422
 
     job = Job(
         workspace_id=sid,

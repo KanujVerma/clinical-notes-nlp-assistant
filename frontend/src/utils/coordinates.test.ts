@@ -109,6 +109,16 @@ describe("checkSourceImageAgreement", () => {
     expect(res.reason).toContain("0.5");
   });
 
+  it("flags compact dose mismatch (5mg vs 50mg)", () => {
+    const boxes = [
+      { bbox: [10, 10, 100, 25], text: "Take warfarin 50mg PO daily" },
+    ];
+    const res = checkSourceImageAgreement("Take warfarin 5mg PO daily", [8, 8, 105, 28], boxes, 200, 100);
+    expect(res.agreement).toBe(false);
+    expect(res.status).toBe("disagreement");
+    expect(res.reason).toContain("5");
+  });
+
   it("catches clinical polarity/negation difference", () => {
     const negBoxes = [
       { bbox: [10, 10, 40, 25], text: "Do" },

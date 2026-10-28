@@ -230,6 +230,24 @@ export default function ValidationLab() {
                             ))}
                           </div>
                         )}
+                        {c.medications?.pairs?.filter((p: any) => Object.keys(p.attribute_mismatches || {}).length > 0).length > 0 && (
+                          <div className="mt-1.5 text-xs text-rose-300">
+                            <span className="font-semibold text-rose-400">Attribute Mismatches: </span>
+                            {c.medications.pairs
+                              .filter((p: any) => Object.keys(p.attribute_mismatches || {}).length > 0)
+                              .map((p: any, idx: number) => {
+                                const medName = p.pred?.name || p.label?.name || "Medication";
+                                const diffs = Object.entries(p.attribute_mismatches || {})
+                                  .map(([attr, vals]: [string, any]) => `${attr}: "${Array.isArray(vals) ? vals[0] : vals}" ≠ "${Array.isArray(vals) ? vals[1] : ''}"`)
+                                  .join(", ");
+                                return (
+                                  <span key={idx} className="mr-3 inline-block">
+                                    <span className="font-medium text-slate-300">{medName}</span> ({diffs})
+                                  </span>
+                                );
+                              })}
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (

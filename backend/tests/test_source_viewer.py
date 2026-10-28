@@ -339,6 +339,18 @@ def test_decimal_dose_disagreement_detection():
     assert res["status"] == "disagreement"
     assert "numeric value '0.5'" in res["reason"] or "0.5" in res["reason"]
 
+    # Compact dose mismatch (5mg vs 50mg)
+    boxes_compact = [{"bbox": [50.0, 50.0, 200.0, 80.0], "text": "Take warfarin 50mg PO daily"}]
+    res_compact = check_source_image_agreement(
+        "Take warfarin 5mg PO daily",
+        [50.0, 50.0, 200.0, 80.0],
+        boxes_compact,
+        800.0,
+        1100.0,
+    )
+    assert not res_compact["agreement"]
+    assert res_compact["status"] == "disagreement"
+
 
 def test_text_note_multipage_pagination(client):
     headers = {"X-Session-ID": "test-text-pagination"}

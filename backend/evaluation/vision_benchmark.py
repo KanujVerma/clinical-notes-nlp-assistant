@@ -173,8 +173,10 @@ def run_benchmark(manifest_path: Path, output_root: Path) -> Path:
         for token in case["critical_tokens"]:
             if token not in case["reference_text"]:
                 raise ValueError(f"Critical token absent from gold reference: {case['id']}")
+            lead_bound = r"(?<![0-9.])" if (token and (token[0].isdigit() or token[0] == ".")) else r"(?<!\w)"
+            trail_bound = r"(?![0-9.])" if (token and (token[-1].isdigit() or token[-1] == ".")) else r"(?!\w)"
             present = re.search(
-                r"(?<!\w)" + re.escape(token).replace(r"\ ", r"\s+") + r"(?!\w)",
+                lead_bound + re.escape(token).replace(r"\ ", r"\s+") + trail_bound,
                 actual,
             ) is not None
             critical_failures += int(not present)
