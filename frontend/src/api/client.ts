@@ -197,6 +197,36 @@ export const api = {
   getNoteSource: (noteId: number) =>
     request<any>(`/notes/${noteId}/source`),
 
+  // Protected source images cannot use a bare <img src="/api/...">: the
+  // browser will not attach the workspace capability headers to that URL.
+  // Keep the capability out of the URL and let the viewer create a temporary
+  // revocable object URL from this authorized blob.
+  getPageImageBlob: async (
+    noteId: number,
+    pageNumber: number,
+    rotation: number,
+    signal?: AbortSignal,
+  ): Promise<Blob> => {
+    if (!Number.isSafeInteger(noteId) || noteId < 1 ||
+        !Number.isSafeInteger(pageNumber) || pageNumber < 1 ||
+        ![0, 90, 180, 270].includes(rotation)) {
+      throw new Error("Invalid source page request");
+    }
+    const authHeaders = await getWorkspaceHeaders();
+    const response = await fetch(
+      `${BASE}/notes/${noteId}/pages/${pageNumber}/image?rotation=${rotation}`,
+      { method: "GET", headers: authHeaders, signal, cache: "no-store" },
+    );
+    if (!response.ok) {
+      throw new Error(`Unable to load authorized source page (${response.status})`);
+    }
+    const mediaType = response.headers.get("Content-Type") || "";
+    if (!mediaType.startsWith("image/")) {
+      throw new Error("Unexpected source page content type");
+    }
+    return response.blob();
+  },
+
   appendNoteRevision: async (
     noteId: number,
     raw_text: string,
