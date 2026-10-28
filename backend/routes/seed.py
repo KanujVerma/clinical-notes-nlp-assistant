@@ -54,9 +54,19 @@ def seed_notes(db_session, session_id: str) -> dict:
             fpath = os.path.join(notes_dir, fname)
             if fname in precomputed:
                 item = precomputed[fname]
-                text = item["raw_text"]
-                extracted = item["extraction"]
+                text = item.get("raw_text")
+                extracted = item.get("extraction")
                 pre_issues = item.get("issues", [])
+                # Recorded deterministic outputs must be pinned to the exact
+                # synthetic source bytes. Do not silently serve stale results
+                # if an author edits the packaged source or fixture JSON.
+                if (not isinstance(text, str) or not text.strip()
+                        or item.get("sha256") != hashlib.sha256(text.encode("utf-8")).hexdigest()
+                        or not isinstance(extracted, dict)
+                        or any(category not in extracted for category in
+                               ("vitals", "medications", "instructions", "metadata"))
+                        or not isinstance(pre_issues, list)):
+                    raise ValueError(f"Curated synthetic fixture failed integrity verification: {fname}")
             else:
                 if is_hosted:
                     # In hosted mode, never execute unverified live pipeline runs
