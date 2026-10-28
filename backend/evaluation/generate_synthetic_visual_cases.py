@@ -46,7 +46,7 @@ CASES = [
         ],
         "critical_tokens": ["2.5 mg", "25 mg", "Hold", "Do not"],
         "expected_medications": [
-            {"name": "Warfarin", "dose": "2.5 mg", "route": "PO", "frequency": "daily"},
+            {"name": "Warfarin", "dose": "2.5 mg", "route": "PO", "frequency": "daily", "action": "hold"},
         ],
         "expected_vitals": [],
     },
@@ -62,7 +62,7 @@ CASES = [
         "critical_tokens": ["500 mg", "10 days", "Do not", "81 mg"],
         "expected_medications": [
             {"name": "Amoxicillin", "dose": "500 mg", "route": "PO", "frequency": "TID"},
-            {"name": "aspirin", "dose": "81 mg", "route": "", "frequency": ""},
+            {"name": "aspirin", "dose": "81 mg", "route": "", "frequency": "", "action": "stop"},
         ],
         "expected_vitals": [],
     },
