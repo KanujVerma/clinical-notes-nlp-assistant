@@ -212,24 +212,57 @@ export function checkSourceImageAgreement(
     };
   }
 
-  const cleanSpan = spanText.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const cleanOcr = ocrText.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // 1. Check exact numeric tokens (including decimals like 2.5 vs 25)
+  const spanNumbers: string[] = spanText.match(/\b\d+(?:\.\d+)?\b/g) || [];
+  const ocrNumbers: string[] = ocrText.match(/\b\d+(?:\.\d+)?\b/g) || [];
+  for (const num of spanNumbers) {
+    if (!ocrNumbers.includes(num)) {
+      return {
+        status: "disagreement",
+        agreement: false,
+        similarity: 0.0,
+        ocrText,
+        spanText,
+        reason: `Disagreement: numeric value '${num}' in transcript not found in page OCR (${ocrNumbers.join(", ")}).`,
+      };
+    }
+  }
+
+  // 2. Check clinical negation polarity
+  const negationTokens = new Set(["not", "no", "never", "discontinue", "discontinued", "stop", "stopped", "hold", "held"]);
+  const spanWords = new Set((spanText.toLowerCase().match(/\b[a-z]+\b/g) || []).filter((w) => negationTokens.has(w)));
+  const ocrWords = new Set((ocrText.toLowerCase().match(/\b[a-z]+\b/g) || []).filter((w) => negationTokens.has(w)));
+  const spanNegList = Array.from(spanWords).sort().join(",");
+  const ocrNegList = Array.from(ocrWords).sort().join(",");
+  if (spanNegList !== ocrNegList) {
+    return {
+      status: "disagreement",
+      agreement: false,
+      similarity: 0.0,
+      ocrText,
+      spanText,
+      reason: `Disagreement: clinical polarity mismatch (negation difference between transcript and page OCR).`,
+    };
+  }
+
+  const cleanSpan = (spanText.toLowerCase().match(/[a-z0-9.]+/g) || []).join(" ");
+  const cleanOcr = (ocrText.toLowerCase().match(/[a-z0-9.]+/g) || []).join(" ");
 
   let similarity = 0.0;
   if (cleanSpan === cleanOcr || cleanSpan.includes(cleanOcr) || cleanOcr.includes(cleanSpan)) {
     similarity = 1.0;
   } else {
-    const setA = new Set(cleanSpan);
-    const setB = new Set(cleanOcr);
+    const setA = new Set(cleanSpan.split(" "));
+    const setB = new Set(cleanOcr.split(" "));
     let intersection = 0;
-    setA.forEach((char) => {
-      if (setB.has(char)) intersection++;
+    setA.forEach((token) => {
+      if (setB.has(token)) intersection++;
     });
     const union = new Set([...setA, ...setB]).size || 1;
     similarity = Number((intersection / union).toFixed(3));
   }
 
-  const agreement = similarity >= 0.7;
+  const agreement = similarity >= 0.6;
   return {
     status: agreement ? "verified" : "disagreement",
     agreement,

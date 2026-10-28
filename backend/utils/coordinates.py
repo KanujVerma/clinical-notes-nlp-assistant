@@ -181,11 +181,7 @@ def check_source_image_agreement(
     matched_words.sort(key=lambda item: (round(item[0] / 8.0), item[1]))
     ocr_text = " ".join(item[2] for item in matched_words)
 
-    # Compute token/character overlap similarity
-    clean_span = "".join(c.lower() for c in span_text if c.isalnum())
-    clean_ocr = "".join(c.lower() for c in ocr_text if c.isalnum())
-
-    if not clean_ocr:
+    if not ocr_text:
         return {
             "status": "empty_box_ocr",
             "agreement": False,
@@ -194,17 +190,52 @@ def check_source_image_agreement(
             "ocr_text": "",
         }
 
+    import re
+
+    # 1. Check exact numeric tokens (including decimals like 2.5 vs 25)
+    span_numbers = re.findall(r"\b\d+(?:\.\d+)?\b", span_text)
+    ocr_numbers = re.findall(r"\b\d+(?:\.\d+)?\b", ocr_text)
+    for num in span_numbers:
+        if num not in ocr_numbers:
+            return {
+                "status": "disagreement",
+                "agreement": False,
+                "similarity": 0.0,
+                "ocr_text": ocr_text,
+                "span_text": span_text,
+                "reason": f"Disagreement: numeric value '{num}' in transcript does not match page OCR numbers ({ocr_numbers}).",
+            }
+
+    # 2. Check clinical negation polarity
+    negation_tokens = {"not", "no", "never", "discontinue", "discontinued", "stop", "stopped", "hold", "held"}
+    span_tokens = set(re.findall(r"\b[a-zA-Z]+\b", span_text.lower()))
+    ocr_tokens = set(re.findall(r"\b[a-zA-Z]+\b", ocr_text.lower()))
+    span_neg = span_tokens.intersection(negation_tokens)
+    ocr_neg = ocr_tokens.intersection(negation_tokens)
+    if span_neg != ocr_neg:
+        return {
+            "status": "disagreement",
+            "agreement": False,
+            "similarity": 0.0,
+            "ocr_text": ocr_text,
+            "span_text": span_text,
+            "reason": f"Disagreement: clinical polarity mismatch (negation tokens {span_neg or 'none'} vs {ocr_neg or 'none'}).",
+        }
+
+    # 3. Compute token and character overlap similarity
+    clean_span = " ".join(re.findall(r"[a-z0-9.]+", span_text.lower()))
+    clean_ocr = " ".join(re.findall(r"[a-z0-9.]+", ocr_text.lower()))
+
     if clean_span == clean_ocr or clean_span in clean_ocr or clean_ocr in clean_span:
         similarity = 1.0
     else:
-        # Character-level overlap
-        span_set = set(clean_span)
-        ocr_set = set(clean_ocr)
+        span_set = set(clean_span.split())
+        ocr_set = set(clean_ocr.split())
         overlap = len(span_set.intersection(ocr_set))
         union = len(span_set.union(ocr_set)) or 1
         similarity = round(overlap / union, 3)
 
-    is_agreement = similarity >= 0.70
+    is_agreement = similarity >= 0.60
     return {
         "status": "verified" if is_agreement else "disagreement",
         "agreement": is_agreement,

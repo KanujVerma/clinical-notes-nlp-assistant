@@ -500,18 +500,35 @@ def process_review_mutation(
     if Config.APP_MODE == "hosted_demo":
         if req.issue_dispositions:
             raise InvalidReviewPayloadError("Issue dispositions requiring free-text reasons are local-only")
+        sanitized_item_decisions = {}
         for key, decision in req.item_decisions.items():
-            if _get_decision_str(decision) not in ("accept", "remove", "pending"):
+            dec_str = _get_decision_str(decision)
+            if dec_str not in ("accept", "remove", "pending"):
                 raise InvalidReviewPayloadError(
                     f"Hosted sandbox permits only accept/remove/pending for '{key}'"
                 )
-            if isinstance(decision, dict) and decision.get("attribute_decisions"):
-                children = decision["attribute_decisions"]
-                if not isinstance(children, dict) or any(
-                    _get_decision_str(child) not in ("accept", "remove", "pending")
-                    for child in children.values()
-                ):
-                    raise InvalidReviewPayloadError("Hosted sandbox does not accept arbitrary field edits")
+            if isinstance(decision, dict):
+                # Reject arbitrary custom free-text fields in hosted mode
+                if decision.get("reason") or decision.get("value") is not None:
+                    raise InvalidReviewPayloadError("Hosted sandbox does not permit free-text edits or reasons")
+                clean_dec: Dict[str, Any] = {"decision": dec_str}
+                if decision.get("attribute_decisions"):
+                    children = decision["attribute_decisions"]
+                    if not isinstance(children, dict):
+                        raise InvalidReviewPayloadError("Attribute decisions must be an object")
+                    clean_children = {}
+                    for c_key, child in children.items():
+                        c_str = _get_decision_str(child)
+                        if c_str not in ("accept", "remove", "pending"):
+                            raise InvalidReviewPayloadError("Hosted sandbox permits only accept/remove/pending for attributes")
+                        if isinstance(child, dict) and (child.get("reason") or child.get("value") is not None):
+                            raise InvalidReviewPayloadError("Hosted sandbox does not permit attribute edits or reasons")
+                        clean_children[c_key] = {"decision": c_str}
+                    clean_dec["attribute_decisions"] = clean_children
+                sanitized_item_decisions[key] = clean_dec
+            else:
+                sanitized_item_decisions[key] = {"decision": dec_str}
+        req.item_decisions = sanitized_item_decisions
     valid_event_kinds = {"draft_saved", "review_completed", "review_reopened"}
     if req.event_kind not in valid_event_kinds:
         raise InvalidReviewPayloadError(

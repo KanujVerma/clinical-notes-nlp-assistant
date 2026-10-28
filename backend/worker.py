@@ -30,10 +30,30 @@ def utc_now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
 
 
+def renew_job_lease(session: Session, job_id: str, lease_owner: str, extra_seconds: int = 180) -> bool:
+    """Extends the lease expiry for a running job owned by this worker."""
+    now = utc_now()
+    new_expiry = now + datetime.timedelta(seconds=extra_seconds)
+    res = session.execute(
+        update(Job)
+        .where(
+            Job.id == job_id,
+            Job.lease_owner == lease_owner,
+            Job.status == "running",
+        )
+        .values(lease_expiry=new_expiry)
+        .execution_options(synchronize_session=False)
+    )
+    if res.rowcount == 1:
+        session.commit()
+        return True
+    return False
+
+
 def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job]:
     """Atomically claims the oldest queued or expired job using conditional update."""
     now = utc_now()
-    lease_until = now + datetime.timedelta(seconds=60)
+    lease_until = now + datetime.timedelta(seconds=120)
 
     # Expired jobs that have consumed all attempts are terminal; do not
     # leave them running forever or retry expensive inference indefinitely.
@@ -175,6 +195,8 @@ def process_single_job(job: Job, session: Session) -> bool:
             job.result_json = json.dumps({"extraction_id": ext.public_id, "fields_count": len(extracted.get("medications", []))})
 
         elif job.kind == "eval_run":
+            # Renew lease for long-running evaluation benchmark
+            renew_job_lease(session, job_id, claimed_lease_owner, extra_seconds=300)
             # The run is deliberately restricted to the repository's pinned
             # synthetic evaluation data. Job JSON cannot select filesystem
             # paths or send private source data into benchmark artifacts.

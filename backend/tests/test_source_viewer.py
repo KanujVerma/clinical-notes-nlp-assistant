@@ -138,6 +138,38 @@ def test_source_image_agreement_and_disagreement():
     assert res_missing["agreement"] is False
     assert res_missing["status"] == "missing_geometry"
 
+    # Decimal dose discrepancy case: Warfarin 2.5 mg vs 25 mg
+    res_decimal = check_source_image_agreement(
+        span_text="Warfarin 2.5 mg",
+        bbox=[45.0, 145.0, 170.0, 175.0],
+        page_boxes=[
+            {"bbox": [50.0, 150.0, 120.0, 170.0], "text": "Warfarin"},
+            {"bbox": [125.0, 150.0, 165.0, 170.0], "text": "25mg"},
+        ],
+        page_width=page_w,
+        page_height=page_h,
+    )
+    assert res_decimal["agreement"] is False
+    assert res_decimal["status"] == "disagreement"
+    assert "2.5" in res_decimal["reason"]
+
+    # Negation polarity mismatch: Continue aspirin vs Do not continue aspirin
+    res_neg = check_source_image_agreement(
+        span_text="Continue aspirin",
+        bbox=[45.0, 145.0, 170.0, 175.0],
+        page_boxes=[
+            {"bbox": [50.0, 150.0, 70.0, 170.0], "text": "Do"},
+            {"bbox": [75.0, 150.0, 100.0, 170.0], "text": "not"},
+            {"bbox": [105.0, 150.0, 150.0, 170.0], "text": "continue"},
+            {"bbox": [155.0, 150.0, 190.0, 170.0], "text": "aspirin"},
+        ],
+        page_width=page_w,
+        page_height=page_h,
+    )
+    assert res_neg["agreement"] is False
+    assert res_neg["status"] == "disagreement"
+    assert "polarity mismatch" in res_neg["reason"]
+
 
 def test_page_image_api_and_evidence_geometry_verification(client):
     headers = {"X-Session-ID": "test-viewer-session"}

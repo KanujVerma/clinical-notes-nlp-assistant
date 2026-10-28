@@ -121,19 +121,21 @@ def acquire_document(
                 confs = [c for c in tess_data["conf"] if c != -1]
                 conf = (sum(confs) / len(confs) / 100.0) if confs else 0.0
 
+                scale_x = width / float(preproc.width) if preproc.width > 0 else 1.0
+                scale_y = height / float(preproc.height) if preproc.height > 0 else 1.0
+
                 ocr_words = []
                 for i in range(len(tess_data["text"])):
                     txt = tess_data["text"][i].strip()
                     if txt:
                         ocr_words.append(txt)
+                        x0_scaled = round(tess_data["left"][i] * scale_x, 2)
+                        y0_scaled = round(tess_data["top"][i] * scale_y, 2)
+                        x1_scaled = round((tess_data["left"][i] + tess_data["width"][i]) * scale_x, 2)
+                        y1_scaled = round((tess_data["top"][i] + tess_data["height"][i]) * scale_y, 2)
                         char_boxes.append({
                             "text": txt,
-                            "bbox": [
-                                tess_data["left"][i],
-                                tess_data["top"][i],
-                                tess_data["left"][i] + tess_data["width"][i],
-                                tess_data["top"][i] + tess_data["height"][i],
-                            ]
+                            "bbox": [x0_scaled, y0_scaled, x1_scaled, y1_scaled],
                         })
                 page_text = " ".join(ocr_words)
 

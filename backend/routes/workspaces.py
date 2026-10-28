@@ -16,15 +16,41 @@ HOSTED_WORKSPACE_HOURS = 2
 LOCAL_WORKSPACE_HOURS = 24
 
 
+def purge_expired_workspaces(db, now: datetime.datetime):
+    """Transactionally cleans up expired workspaces and all their associated records."""
+    from models import (
+        Note, NoteRevision, Extraction, OperationalIssue,
+        ReviewEvent, InferenceRun, SourceAsset, Job, Validation
+    )
+    expired_ids = [w[0] for w in db.query(Workspace.id).filter(Workspace.expires_at < now).all()]
+    if not expired_ids:
+        return
+
+    # Find all note IDs in expired workspaces
+    expired_note_ids = [n[0] for n in db.query(Note.id).filter(Note.workspace_id.in_(expired_ids)).all()]
+    if expired_note_ids:
+        db.query(Validation).filter(Validation.note_id.in_(expired_note_ids)).delete(synchronize_session=False)
+
+    db.query(ReviewEvent).filter(ReviewEvent.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    db.query(OperationalIssue).filter(OperationalIssue.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    db.query(InferenceRun).filter(InferenceRun.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    db.query(Extraction).filter(Extraction.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    db.query(NoteRevision).filter(NoteRevision.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    db.query(Job).filter(Job.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    db.query(Note).filter(Note.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    db.query(SourceAsset).filter(SourceAsset.workspace_id.in_(expired_ids)).delete(synchronize_session=False)
+    db.query(Workspace).filter(Workspace.id.in_(expired_ids)).delete(synchronize_session=False)
+    db.commit()
+
+
 @bp.post("/api/workspaces")
 def create_workspace():
     is_hosted = getattr(Config, "APP_MODE", "local") == "hosted_demo"
     now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
 
     if is_hosted:
-        # 1. Purge expired workspaces to maintain bounded sandbox storage
-        g.db.query(Workspace).filter(Workspace.expires_at < now).delete(synchronize_session=False)
-        g.db.commit()
+        # 1. Purge expired workspaces and data to maintain bounded sandbox storage
+        purge_expired_workspaces(g.db, now)
 
         # 2. Enforce active workspace concurrency quota
         active_count = g.db.query(Workspace).filter(Workspace.mode == "hosted_demo").count()

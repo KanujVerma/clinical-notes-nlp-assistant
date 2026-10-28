@@ -294,13 +294,14 @@ def get_page_image(note_id: int, page_number: int):
                         return jsonify({"error": f"Page {page_number} out of bounds (1..{len(doc)})", "code": "PAGE_OUT_OF_BOUNDS"}), 404
                     page = doc[page_number - 1]
                     rot_deg = (rotation % 360 + 360) % 360
-                    mat = fitz.Matrix(rot_deg)
-                    pix = page.get_pixmap(dpi=150, matrix=mat)
+                    zoom = 150.0 / 72.0
+                    mat = fitz.Matrix(zoom, zoom).prerotate(rot_deg)
+                    pix = page.get_pixmap(matrix=mat)
                     img_bytes = pix.tobytes("png")
                     return send_file(io.BytesIO(img_bytes), mimetype="image/png")
                 finally:
                     doc.close()
-            else:
+            elif ext in (".png", ".jpg", ".jpeg", ".tiff", ".tif") or asset.mime_type.startswith("image/"):
                 # Direct image asset
                 if page_number != 1:
                     return jsonify({"error": "Image assets have only page 1", "code": "PAGE_OUT_OF_BOUNDS"}), 404

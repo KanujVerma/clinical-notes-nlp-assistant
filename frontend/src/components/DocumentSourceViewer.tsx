@@ -1,5 +1,5 @@
 // frontend/src/components/DocumentSourceViewer.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { ExtractionResult } from "../types";
 import { transformBbox, validateBboxGeometry, checkSourceImageAgreement } from "../utils/coordinates";
 
@@ -53,6 +53,16 @@ export default function DocumentSourceViewer({
   const [rotation, setRotation] = useState<number>(0);
   const [imageLoading, setImageLoading] = useState<boolean>(true);
   const [imageError, setImageError] = useState<string | null>(null);
+  const prevActiveKey = useRef<string | null>(null);
+
+  // Reset viewer state when changing notes
+  useEffect(() => {
+    setCurrentPage(1);
+    setRotation(0);
+    setImageLoading(true);
+    setImageError(null);
+    prevActiveKey.current = null;
+  }, [noteId]);
 
   const totalPages = Math.max(1, pages.length);
 
@@ -126,10 +136,14 @@ export default function DocumentSourceViewer({
 
   // Navigate page when activeKey changes to an evidence item on another page
   useEffect(() => {
-    if (!activeKey) return;
-    const activeItem = evidenceItems.find((item) => item.fieldKey === activeKey);
-    if (activeItem && activeItem.pageNumber && activeItem.pageNumber !== currentPage) {
-      setCurrentPage(activeItem.pageNumber);
+    if (activeKey && activeKey !== prevActiveKey.current) {
+      prevActiveKey.current = activeKey;
+      const activeItem = evidenceItems.find((item) => item.fieldKey === activeKey);
+      if (activeItem && activeItem.pageNumber && activeItem.pageNumber !== currentPage) {
+        setCurrentPage(activeItem.pageNumber);
+      }
+    } else if (!activeKey) {
+      prevActiveKey.current = null;
     }
   }, [activeKey, evidenceItems, currentPage]);
 

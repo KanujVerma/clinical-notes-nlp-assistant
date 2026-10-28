@@ -86,6 +86,30 @@ describe("checkSourceImageAgreement", () => {
     expect(res.reason).toContain("Disagreement");
   });
 
+  it("catches decimal dosage mismatch (e.g. 2.5 vs 25 mg)", () => {
+    const warfarinBoxes = [
+      { bbox: [10, 10, 40, 25], text: "Warfarin" },
+      { bbox: [45, 10, 70, 25], text: "25mg" },
+    ];
+    const res = checkSourceImageAgreement("Warfarin 2.5 mg", [8, 8, 75, 28], warfarinBoxes, 100, 100);
+    expect(res.agreement).toBe(false);
+    expect(res.status).toBe("disagreement");
+    expect(res.reason).toContain("numeric value '2.5'");
+  });
+
+  it("catches clinical polarity/negation difference", () => {
+    const negBoxes = [
+      { bbox: [10, 10, 40, 25], text: "Do" },
+      { bbox: [45, 10, 70, 25], text: "not" },
+      { bbox: [75, 10, 120, 25], text: "continue" },
+      { bbox: [125, 10, 160, 25], text: "aspirin" },
+    ];
+    const res = checkSourceImageAgreement("Continue aspirin", [8, 8, 170, 28], negBoxes, 200, 100);
+    expect(res.agreement).toBe(false);
+    expect(res.status).toBe("disagreement");
+    expect(res.reason).toContain("clinical polarity mismatch");
+  });
+
   it("handles missing geometry gracefully", () => {
     const res = checkSourceImageAgreement("Lisinopril", null, pageBoxes, 100, 100);
     expect(res.agreement).toBe(false);
