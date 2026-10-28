@@ -3,18 +3,32 @@ import json
 import urllib.request
 import urllib.error
 import hashlib
+from collections import defaultdict
+from urllib.parse import urlsplit
 from typing import Dict, Any, Optional, List
 from schemas.extracted_entities import StructuredExtraction
 from models import OperationalIssue, InferenceRun
 
 
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 DEFAULT_OCR_MODEL = os.environ.get("OLLAMA_OCR_MODEL", "glm-ocr:q8_0")
 DEFAULT_VL_MODEL = os.environ.get("OLLAMA_VL_MODEL", "qwen3-vl:4b")
 
 
+def _local_ollama_only() -> bool:
+    url = urlsplit(OLLAMA_BASE_URL)
+    return (
+        url.scheme == "http"
+        and url.hostname in ("localhost", "127.0.0.1", "::1")
+        and url.username is None and url.password is None
+        and url.path in ("", "/") and not url.query and not url.fragment
+    )
+
+
 def is_ollama_available() -> bool:
     """Checks if Ollama daemon is reachable."""
+    if not _local_ollama_only():
+        return False
     try:
         req = urllib.request.Request(f"{OLLAMA_BASE_URL}/api/tags", headers={"User-Agent": "ClinicalNLP/2.0"})
         with urllib.request.urlopen(req, timeout=1.0) as resp:
@@ -25,11 +39,19 @@ def is_ollama_available() -> bool:
 
 def query_ollama(model: str, prompt: str, system: Optional[str] = None) -> Dict[str, Any]:
     """Queries Ollama generate endpoint synchronously."""
+    if not _local_ollama_only():
+        raise ValueError("Ollama must use a local loopback endpoint")
+    if model != DEFAULT_VL_MODEL:
+        raise ValueError("Text proposals must use the configured local model")
+    if not isinstance(prompt, str) or len(prompt) > 32768:
+        raise ValueError("Text prompt exceeds the configured model budget")
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
         "format": "json",
+        "keep_alive": 0,
+        "options": {"temperature": 0, "num_predict": 1024},
     }
     if system:
         payload["system"] = system
@@ -112,35 +134,68 @@ def detect_discrepancies(
     rule_extraction: Dict[str, Any],
     ai_candidate: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    """
-    Compares deterministic rule extraction with local AI proposals.
-    Flags discrepancies in dose, route, frequency, or omission.
-    """
-    discrepancies = []
-    rule_meds = {str(m.get("name") or "").lower().strip(): m for m in rule_extraction.get("medications", []) if m.get("name")}
-    ai_meds = {str(m.get("name") or "").lower().strip(): m for m in (ai_candidate.get("medications") or []) if m.get("name")}
+    """Preserve duplicate-medication ambiguity instead of pairing by name.
 
-    # Check medications found by AI but missed by rules
-    for name, a_med in ai_meds.items():
-        if name not in rule_meds:
-            discrepancies.append({
-                "type": "omitted_medication",
-                "medication": name,
-                "detail": f"AI model proposed medication '{name}' which was not extracted by deterministic pipeline.",
-                "ai_candidate": a_med,
-            })
-        else:
-            r_med = rule_meds[name]
-            # Check dose discrepancy
-            r_dose = str(r_med.get("dose") or "").strip().lower()
-            a_dose = str(a_med.get("dose") or "").strip().lower()
-            if r_dose and a_dose and r_dose != a_dose:
+    Independent candidates may have different occurrence counts. Without
+    verified source occurrence IDs it is unsafe to choose the medication
+    instance that happens to match a model's dose, route or frequency.
+    """
+    discrepancies: List[Dict[str, Any]] = []
+    rule_by_name: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    ai_by_name: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+    def collect(records: Any, target: Dict[str, List[Dict[str, Any]]]) -> None:
+        if not isinstance(records, list):
+            return
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            name = str(record.get("name") or "").strip().casefold()
+            if name:
+                target[name].append(record)
+
+    collect(rule_extraction.get("medications"), rule_by_name)
+    collect(ai_candidate.get("medications"), ai_by_name)
+
+    for name in sorted(set(rule_by_name) | set(ai_by_name)):
+        rules = rule_by_name.get(name, [])
+        proposals = ai_by_name.get(name, [])
+        if not rules:
+            for item in proposals:
                 discrepancies.append({
-                    "type": "dose_discrepancy",
+                    "type": "omitted_medication",
                     "medication": name,
-                    "detail": f"Dose discrepancy for '{name}': Rules extracted '{r_dose}', but AI proposed '{a_dose}'.",
-                    "rule_value": r_dose,
-                    "ai_value": a_dose,
+                    "detail": "AI proposed a medication occurrence missing from the rule output",
+                    "ai_candidate": item,
                 })
-
+            continue
+        if not proposals:
+            discrepancies.append({
+                "type": "ai_omission",
+                "medication": name,
+                "detail": "Rule output contained medication not identified by AI",
+                "rule_count": len(rules),
+            })
+            continue
+        if len(rules) != 1 or len(proposals) != 1:
+            discrepancies.append({
+                "type": "ambiguous_duplicate_occurrences",
+                "medication": name,
+                "detail": "Duplicate-name occurrences need source-grounded reviewer pairing",
+                "rule_count": len(rules),
+                "ai_count": len(proposals),
+            })
+            continue
+        rule_item, ai_item = rules[0], proposals[0]
+        for field in ("dose", "route", "frequency", "action"):
+            rule_value = str(rule_item.get(field) or "").strip().casefold()
+            ai_value = str(ai_item.get(field) or "").strip().casefold()
+            if rule_value and ai_value and rule_value != ai_value:
+                discrepancies.append({
+                    "type": f"{field}_discrepancy",
+                    "medication": name,
+                    "detail": f"Rules and AI disagree on {field}",
+                    "rule_value": rule_value,
+                    "ai_value": ai_value,
+                })
     return discrepancies
