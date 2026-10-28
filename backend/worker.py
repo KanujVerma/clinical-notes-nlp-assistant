@@ -232,6 +232,23 @@ def process_single_job(job: Job, session: Session) -> bool:
                 snapshot["source_hash"], snapshot["adapter"],
                 snapshot["page_number"],
             )
+            # Lock the current note head through final job commit. A source
+            # edit racing between the last SELECT and insertion must not be
+            # able to attach a candidate to an already-invalidated current
+            # extraction. The no-op conditional UPDATE obtains a row lock
+            # on PostgreSQL and a writer lock on SQLite.
+            note_cas = session.execute(
+                update(Note).where(
+                    Note.id == snapshot["note_id"],
+                    Note.workspace_id == snapshot["workspace_id"],
+                    Note.current_source_revision_id == snapshot["source_revision_id"],
+                    Note.current_extraction_id == snapshot["extraction_id"],
+                ).values(lock_version=Note.lock_version)
+                .execution_options(synchronize_session=False)
+            )
+            if note_cas.rowcount != 1:
+                raise InferenceBindingError("AI_STALE_SOURCE")
+
             inference = InferenceRun(
                 workspace_id=snapshot["workspace_id"],
                 note_id=snapshot["note_id"],
