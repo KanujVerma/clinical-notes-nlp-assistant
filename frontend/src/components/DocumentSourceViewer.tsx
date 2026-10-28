@@ -363,9 +363,9 @@ export default function DocumentSourceViewer({
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-emerald-400" data-testid="geometry-verified-badge">
-              <span>✓</span>
-              <span>Visual coordinate verified for "{activeItem.label}" on page {currentPage}.</span>
+            <div className="flex items-center gap-1.5 text-amber-300" data-testid="ocr-consistent-unverified">
+              <span>◯</span>
+              <span>OCR text is consistent at this region. Original image reading is not independently verified; inspect the pixels before accepting "{activeItem.label}".</span>
             </div>
           )}
         </div>
