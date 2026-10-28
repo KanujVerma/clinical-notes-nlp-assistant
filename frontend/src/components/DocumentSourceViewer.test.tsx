@@ -65,7 +65,7 @@ const mockPages = [
   },
 ];
 
-describe("DocumentSourceViewer", async () => {
+describe("DocumentSourceViewer", () => {
   it("renders document viewer with navigation and controls", async () => {
     render(
       <DocumentSourceViewer
