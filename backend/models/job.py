@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text, UniqueConstraint
+from sqlalchemy import Column, String, Integer, Float, DateTime, Text, Index
 from sqlalchemy.sql import func
 from models.base import Base
 
@@ -30,5 +30,5 @@ class Job(Base):
     # SQLite/PostgreSQL both permit multiple NULL keys under a unique
     # constraint but reject two active requests sharing a non-NULL key.
     __table_args__ = (
-        UniqueConstraint("workspace_id", "idempotency_key", name="uq_jobs_workspace_idempotency"),
+        Index("uq_jobs_workspace_idempotency", "workspace_id", "idempotency_key", unique=True),
     )
