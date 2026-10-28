@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from utils.db import get_engine, get_session
 from config import Config
-from models import Job, Note, NoteRevision, Extraction, SourceAsset
+from models import Job, Note, NoteRevision, Extraction, SourceAsset, InferenceRun
 from extractors.pipeline import run_pipeline
 from validation.checker import check_extraction
 from evaluation.strict_evaluator import evaluate_corpus_strictly
@@ -40,6 +40,7 @@ def renew_job_lease(session: Session, job_id: str, lease_owner: str, extra_secon
             Job.id == job_id,
             Job.lease_owner == lease_owner,
             Job.status == "running",
+            Job.lease_expiry > now,
         )
         .values(lease_expiry=new_expiry)
         .execution_options(synchronize_session=False)
@@ -210,6 +211,62 @@ def process_single_job(job: Job, session: Session) -> bool:
             )
             job.result_json = json.dumps({"run_id": bundle["run_id"], "overall": bundle["summary"]["overall"]})
 
+        elif job.kind == "ai_inference":
+            from services.inference_pipeline import (
+                InferenceBindingError, check_binding, prepare_inference,
+                run_local_inference,
+            )
+            # Preparation loads a bounded, hash-checked immutable snapshot.
+            # The worker does not call a model while holding a DB transaction.
+            snapshot = prepare_inference(session, job)
+            if not renew_job_lease(session, job_id, claimed_lease_owner, extra_seconds=240):
+                raise InferenceBindingError("AI_LEASE_LOST")
+            session.rollback()
+            output = run_local_inference(snapshot)
+
+            # A human might have edited/re-extracted the note while Ollama
+            # was running. Never publish an old result as current.
+            check_binding(
+                session, snapshot["workspace_id"], snapshot["note_id"],
+                snapshot["source_revision_id"], snapshot["extraction_id"],
+                snapshot["source_hash"], snapshot["adapter"],
+                snapshot["page_number"],
+            )
+            inference = InferenceRun(
+                workspace_id=snapshot["workspace_id"],
+                note_id=snapshot["note_id"],
+                source_revision_id=snapshot["source_revision_id"],
+                task_type=output["task_type"],
+                model_name=output["model"],
+                model_digest=output["model_digest"],
+                input_hash=output["input_hash"],
+                prompt_template_hash=output["prompt_template_hash"],
+                config_hash=hashlib.sha256(json.dumps({
+                    "adapter": snapshot["adapter"],
+                    "page_number": snapshot["page_number"],
+                    "extraction_id": snapshot["extraction_id"],
+                    "model": snapshot["model"],
+                }, sort_keys=True).encode("utf-8")).hexdigest(),
+                duration_ms=output["duration_ms"],
+                status="completed",
+                parsed_candidate_json=json.dumps(output["candidates"]),
+                discrepancies_json=json.dumps(output["discrepancies"]),
+                alignment_results_json=json.dumps({
+                    "status": "human_source_review_required",
+                    "source_revision_id": snapshot["source_revision_id"],
+                    "extraction_id": snapshot["extraction_id"],
+                    "page_number": snapshot["page_number"],
+                }),
+            )
+            session.add(inference)
+            session.flush()
+            job.result_json = json.dumps({
+                "inference_run_id": inference.id,
+                "source_revision_id": snapshot["source_revision_id"],
+                "adapter": snapshot["adapter"],
+                "status": "completed",
+            })
+
         else:
             raise ValueError("INVALID_JOB_KIND")
 
@@ -236,8 +293,10 @@ def process_single_job(job: Job, session: Session) -> bool:
         session.commit()
         return True
 
-    except Exception as e:
+    except Exception as exc:
         session.rollback()
+        from services.inference_pipeline import InferenceBindingError
+        safe_code = exc.code if isinstance(exc, InferenceBindingError) else "PROCESSING_ERROR"
         now_dt = utc_now()
         fail_stmt = (
             update(Job)
@@ -249,7 +308,7 @@ def process_single_job(job: Job, session: Session) -> bool:
             )
             .values(
                 status="failed",
-                error_code="PROCESSING_ERROR",
+                error_code=safe_code,
                 error_message="Job failed; detailed exception not retained",
                 finished_at=now_dt,
             )
@@ -275,7 +334,20 @@ def run_worker_loop(engine, poll_interval: float = 1.0, once: bool = False):
 
 
 if __name__ == "__main__":
-    if Config.APP_MODE == "hosted_demo":
-        raise RuntimeError("Background jobs are not enabled in hosted demo mode")
+    if Config.APP_MODE != "local":
+        raise RuntimeError("Background jobs are local-only")
+    # The Mac/Linux local app owns one worker process, hence one local AI
+    # model in RAM. Fail fast if another worker holds the same lock.
+    import fcntl
+    from pathlib import Path
+
+    lock_path = Path(Config.DATA_DIR) / ".clinical-nlp-worker.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(str(lock_path), os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise SystemExit("Another local clinical NLP processing worker is already running")
+
     engine = get_engine(Config.DATABASE_URL)
     run_worker_loop(engine)
