@@ -71,17 +71,6 @@ def generate_ai_candidates(note_id: int):
     if not revision:
         return jsonify({"error": "Source revision not found", "code": "NOT_FOUND"}), 404
 
-    try:
-        check_binding(
-            g.db, workspace_id, note_id, source_revision_id,
-            extraction_id, revision.sha256, adapter, page_number,
-        )
-    except InferenceBindingError as exc:
-        status = 404 if exc.code == "NOTE_NOT_FOUND" else (
-            422 if exc.code in ("IMAGE_SOURCE_REQUIRED", "INVALID_IMAGE_PAGE") else 409
-        )
-        return jsonify({"error": "Inference source validation failed", "code": exc.code}), status
-
     payload = {
         "adapter": adapter,
         "page_number": page_number,
@@ -110,6 +99,20 @@ def generate_ai_candidates(note_id: int):
         ).first()
         if existing:
             return replay_or_conflict(existing)
+
+    # The exact identical idempotent replay is valid even when a human
+    # subsequently edited the source. Only *new* work must bind to the current
+    # revision/extraction; the original historical job stays accessible.
+    try:
+        check_binding(
+            g.db, workspace_id, note_id, source_revision_id,
+            extraction_id, revision.sha256, adapter, page_number,
+        )
+    except InferenceBindingError as exc:
+        status = 404 if exc.code == "NOTE_NOT_FOUND" else (
+            422 if exc.code in ("IMAGE_SOURCE_REQUIRED", "INVALID_IMAGE_PAGE") else 409
+        )
+        return jsonify({"error": "Inference source validation failed", "code": exc.code}), status
 
     # Keep optional model work bounded to a single queued/running task per
     # workspace. A single local worker further serializes model execution.
