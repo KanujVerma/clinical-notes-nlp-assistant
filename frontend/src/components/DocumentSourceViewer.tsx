@@ -102,6 +102,18 @@ export default function DocumentSourceViewer({
 
   const totalPages = Math.max(1, pages.length);
 
+  // Helper to derive page number from explicit field property or character span against page offsets
+  const resolvePageNumber = (span?: [number, number], explicitPage?: number): number => {
+    if (explicitPage) return explicitPage;
+    if (span && pages && pages.length > 0) {
+      const found = pages.find(
+        (p) => p.start_offset != null && p.end_offset != null && span[0] >= p.start_offset && span[0] < p.end_offset
+      );
+      if (found) return found.page_number;
+    }
+    return 1;
+  };
+
   // Collect all visual evidence items from extraction
   const evidenceItems = useMemo<EvidenceItem[]>(() => {
     const items: EvidenceItem[] = [];
@@ -115,7 +127,7 @@ export default function DocumentSourceViewer({
           label: k,
           span: v.span,
           quote: String(v.value ?? ""),
-          pageNumber: (v as any).page_number || 1,
+          pageNumber: resolvePageNumber(v.span, (v as any).page_number),
           bbox: (v as any).bbox,
         });
       }
@@ -131,7 +143,7 @@ export default function DocumentSourceViewer({
           label: m.name,
           span: m.span,
           quote: m.name,
-          pageNumber: (m as any).page_number || 1,
+          pageNumber: resolvePageNumber(m.span, (m as any).page_number),
           bbox: (m as any).bbox,
         });
       }
@@ -146,7 +158,7 @@ export default function DocumentSourceViewer({
           label: k,
           span: v.span,
           quote: String(v.value ?? ""),
-          pageNumber: (v as any).page_number || 1,
+          pageNumber: resolvePageNumber(v.span, (v as any).page_number),
           bbox: (v as any).bbox,
         });
       }
@@ -161,14 +173,14 @@ export default function DocumentSourceViewer({
           label: k,
           span: v.span,
           quote: String(v.value ?? ""),
-          pageNumber: (v as any).page_number || 1,
+          pageNumber: resolvePageNumber(v.span, (v as any).page_number),
           bbox: (v as any).bbox,
         });
       }
     });
 
     return items;
-  }, [extracted]);
+  }, [extracted, pages]);
 
   // Navigate page when activeKey changes to an evidence item on another page
   useEffect(() => {

@@ -97,6 +97,18 @@ describe("checkSourceImageAgreement", () => {
     expect(res.reason).toContain("numeric value '2.5'");
   });
 
+  it("flags leading decimal mismatch (.5 vs 5)", () => {
+    const boxes = [
+      { bbox: [10, 10, 40, 25], text: "Warfarin" },
+      { bbox: [45, 10, 60, 25], text: "5" },
+      { bbox: [65, 10, 80, 25], text: "mg" },
+    ];
+    const res = checkSourceImageAgreement("Warfarin .5 mg", [8, 8, 85, 28], boxes, 100, 100);
+    expect(res.agreement).toBe(false);
+    expect(res.status).toBe("disagreement");
+    expect(res.reason).toContain("0.5");
+  });
+
   it("catches clinical polarity/negation difference", () => {
     const negBoxes = [
       { bbox: [10, 10, 40, 25], text: "Do" },

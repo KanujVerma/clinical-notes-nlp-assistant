@@ -212,11 +212,15 @@ export function checkSourceImageAgreement(
     };
   }
 
-  // 1. Check exact numeric tokens (including decimals like 2.5 vs 25)
-  const spanNumbers: string[] = spanText.match(/\b\d+(?:\.\d+)?\b/g) || [];
-  const ocrNumbers: string[] = ocrText.match(/\b\d+(?:\.\d+)?\b/g) || [];
+  // 1. Check exact numeric tokens (including decimals like 0.5 vs .5 vs 5)
+  const extractNumbers = (text: string): number[] => {
+    const matches = text.match(/(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?![\w.])/g) || [];
+    return matches.map((s) => parseFloat(s)).filter((n) => !isNaN(n));
+  };
+  const spanNumbers = extractNumbers(spanText);
+  const ocrNumbers = extractNumbers(ocrText);
   for (const num of spanNumbers) {
-    if (!ocrNumbers.includes(num)) {
+    if (!ocrNumbers.some((oNum) => Math.abs(num - oNum) < 1e-5)) {
       return {
         status: "disagreement",
         agreement: false,

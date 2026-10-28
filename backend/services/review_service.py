@@ -700,7 +700,6 @@ def process_review_mutation(
     if req.issue_dispositions:
         merged_issue_dispositions = {k: v.model_dump() for k, v in req.issue_dispositions.items()}
     else:
-        from models import IssueEvent
         bound_issues = (
             session.query(OperationalIssue)
             .filter(

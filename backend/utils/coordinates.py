@@ -193,11 +193,21 @@ def check_source_image_agreement(
 
     import re
 
-    # 1. Check exact numeric tokens (including decimals like 2.5 vs 25)
-    span_numbers = re.findall(r"\b\d+(?:\.\d+)?\b", span_text)
-    ocr_numbers = re.findall(r"\b\d+(?:\.\d+)?\b", ocr_text)
+    # 1. Check exact numeric tokens (including decimals like 0.5 vs .5 vs 5)
+    def _extract_numbers(text: str) -> List[float]:
+        raw = re.findall(r"(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?![\w.])", text)
+        res = []
+        for s in raw:
+            try:
+                res.append(float(s))
+            except ValueError:
+                pass
+        return res
+
+    span_numbers = _extract_numbers(span_text)
+    ocr_numbers = _extract_numbers(ocr_text)
     for num in span_numbers:
-        if num not in ocr_numbers:
+        if not any(abs(num - o_num) < 1e-5 for o_num in ocr_numbers):
             return {
                 "status": "disagreement",
                 "agreement": False,

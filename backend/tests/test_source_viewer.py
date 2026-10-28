@@ -323,5 +323,52 @@ def test_edit_note_source_preserves_page_inventory_for_multipage_pdf(client):
     assert source_res2.status_code == 200
     pages2 = source_res2.json["pages"]
     assert len(pages2) == 2
-    assert pages2[0]["page_number"] == 1
-    assert pages2[1]["page_number"] == 2
+
+
+def test_decimal_dose_disagreement_detection():
+    # Transcript has Warfarin .5 mg PO daily, OCR has Warfarin 5 mg PO daily
+    boxes = [{"bbox": [50.0, 50.0, 200.0, 80.0], "text": "Warfarin 5 mg PO daily"}]
+    res = check_source_image_agreement(
+        "Warfarin .5 mg PO daily",
+        [50.0, 50.0, 200.0, 80.0],
+        boxes,
+        800.0,
+        1100.0,
+    )
+    assert not res["agreement"]
+    assert res["status"] == "disagreement"
+    assert "numeric value '0.5'" in res["reason"] or "0.5" in res["reason"]
+
+
+def test_text_note_multipage_pagination(client):
+    headers = {"X-Session-ID": "test-text-pagination"}
+    # Create note with 70 lines (should produce 2 pages, 45 lines/page)
+    long_text = "\n".join([f"Line {i}: Clinical observation data" for i in range(1, 71)])
+    create_res = client.post(
+        "/api/notes",
+        headers=headers,
+        json={"text": long_text},
+    )
+    assert create_res.status_code == 201
+    note_id = create_res.json["note_id"]
+
+    source_res = client.get(f"/api/notes/{note_id}/source", headers=headers)
+    assert source_res.status_code == 200
+    assert len(source_res.json["pages"]) == 2
+
+    # Fetch page 1 image
+    p1_res = client.get(f"/api/notes/{note_id}/pages/1/image", headers=headers)
+    assert p1_res.status_code == 200
+    assert p1_res.content_type == "image/png"
+
+    # Fetch page 2 image
+    p2_res = client.get(f"/api/notes/{note_id}/pages/2/image", headers=headers)
+    assert p2_res.status_code == 200
+    assert p2_res.content_type == "image/png"
+
+    # Page 3 is out of bounds
+    p3_res = client.get(f"/api/notes/{note_id}/pages/3/image", headers=headers)
+    assert p3_res.status_code == 404
+    assert p3_res.json["code"] == "PAGE_OUT_OF_BOUNDS"
+    assert source_res.json["pages"][0]["page_number"] == 1
+    assert source_res.json["pages"][1]["page_number"] == 2

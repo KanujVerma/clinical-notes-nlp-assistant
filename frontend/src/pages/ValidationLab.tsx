@@ -124,10 +124,10 @@ export default function ValidationLab() {
                     </span>
                     <span
                       className={`font-mono text-sm font-bold ${
-                        f1 >= 0.75 ? "text-emerald-400" : f1 >= 0.60 ? "text-amber-400" : "text-rose-400"
+                        f1 != null && f1 >= 0.75 ? "text-emerald-400" : f1 != null && f1 >= 0.60 ? "text-amber-400" : "text-rose-400"
                       }`}
                     >
-                      F1: {f1 ? f1.toFixed(3) : "N/A"}
+                      F1: {f1 != null ? f1.toFixed(3) : "N/A"}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
@@ -149,7 +149,7 @@ export default function ValidationLab() {
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                   <p className="text-xs font-medium text-slate-400">Overall F1</p>
                   <p className="mt-1 font-mono text-2xl font-bold text-cyan-400">
-                    {activeRun.summary?.overall?.f1 !== undefined ? activeRun.summary.overall.f1.toFixed(3) : "N/A"}
+                    {activeRun.summary?.overall?.f1 != null ? activeRun.summary.overall.f1.toFixed(3) : "N/A"}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     Prec: {activeRun.summary?.overall?.precision ?? "-"} | Rec: {activeRun.summary?.overall?.recall ?? "-"}
@@ -158,7 +158,7 @@ export default function ValidationLab() {
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                   <p className="text-xs font-medium text-slate-400">Medications F1</p>
                   <p className="mt-1 font-mono text-2xl font-bold text-emerald-400">
-                    {activeRun.summary?.medications?.f1 !== undefined ? activeRun.summary.medications.f1.toFixed(3) : "N/A"}
+                    {activeRun.summary?.medications?.f1 != null ? activeRun.summary.medications.f1.toFixed(3) : "N/A"}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     Support: {activeRun.summary?.medications?.support ?? "-"}
@@ -167,7 +167,7 @@ export default function ValidationLab() {
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                   <p className="text-xs font-medium text-slate-400">Vitals F1</p>
                   <p className="mt-1 font-mono text-2xl font-bold text-amber-400">
-                    {activeRun.summary?.vitals?.f1 !== undefined ? activeRun.summary.vitals.f1.toFixed(3) : "N/A"}
+                    {activeRun.summary?.vitals?.f1 != null ? activeRun.summary.vitals.f1.toFixed(3) : "N/A"}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     Support: {activeRun.summary?.vitals?.support ?? "-"}
@@ -176,7 +176,7 @@ export default function ValidationLab() {
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                   <p className="text-xs font-medium text-slate-400">Instructions F1</p>
                   <p className="mt-1 font-mono text-2xl font-bold text-violet-400">
-                    {activeRun.summary?.instructions?.f1 !== undefined ? activeRun.summary.instructions.f1.toFixed(3) : "N/A"}
+                    {activeRun.summary?.instructions?.f1 != null ? activeRun.summary.instructions.f1.toFixed(3) : "N/A"}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     Support: {activeRun.summary?.instructions?.support ?? "-"}

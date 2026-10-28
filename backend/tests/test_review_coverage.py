@@ -4,11 +4,25 @@ A passing schema validator is not sufficient: these tests exercise the pure
 authoritative snapshot derived from the bound extraction and human decisions.
 """
 import pytest
+from app import create_app
 from services.review_service import (
     derive_reviewed_snapshot,
     IncompleteReviewError,
     InvalidReviewPayloadError,
 )
+
+
+@pytest.fixture
+def app(tmp_path):
+    return create_app({
+        "TESTING": True,
+        "DATABASE_URL": f"sqlite:///{tmp_path / 'review_cov_test.db'}",
+    })
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
 
 
 def _fixture():
@@ -132,3 +146,79 @@ def test_source_evidence_for_added_fields_requires_exact_bound_quote():
                 }
             }, {}, True, "Drug B text",
         )
+
+
+def test_review_mutation_records_issue_disposition_without_unbound_local(client):
+    from models import OperationalIssue, IssueEvent
+    headers = {"X-Session-ID": "test-issue-disp-sess"}
+    create_res = client.post(
+        "/api/notes",
+        headers=headers,
+        json={"text": "BP 120/80 mmHg. Lisinopril 10 mg PO daily."},
+    )
+    assert create_res.status_code == 201
+    note_id = create_res.json["note_id"]
+    ext_id = create_res.json["extraction_id"]
+
+    source_res = client.get(f"/api/notes/{note_id}/source", headers=headers)
+    assert source_res.status_code == 200
+    source = source_res.json
+    rev_id = source["revision_id"]
+
+    # Create a non-critical operational issue
+    from utils.db import get_session
+    with get_session(client.application.config["ENGINE"]) as session:
+        issue = OperationalIssue(
+            workspace_id="test-issue-disp-sess",
+            note_id=note_id,
+            extraction_id=ext_id,
+            source_revision_id=rev_id,
+            issue_code="POTENTIAL_WARNING",
+            category="clinical_contradiction",
+            severity="warning",
+            safe_explanation="Synthetic test warning",
+        )
+        session.add(issue)
+        session.commit()
+        issue_id = issue.id
+
+    decisions = {
+        "vitals.blood_pressure": {"decision": "accept"},
+    }
+    for idx, med in enumerate(create_res.json.get("extracted_json", {}).get("medications", [])):
+        med_id = med.get("id") or med.get("source_occurrence_id") or f"med_{idx}"
+        decisions[f"med.{med_id}"] = {"decision": "accept"}
+
+    payload = {
+        "schema_version": "2.0.0",
+        "note_id": note_id,
+        "source_revision_id": rev_id,
+        "source_hash": source["sha256"],
+        "extraction_id": ext_id,
+        "expected_head_event_id": None,
+        "expected_lock_version": 0,
+        "event_kind": "review_completed",
+        "idempotency_key": "test-disp-idem-1",
+        "category_acknowledgments": {
+            "vitals": True,
+            "medications": True,
+            "instructions": True,
+            "metadata": True,
+        },
+        "item_decisions": decisions,
+        "issue_dispositions": {
+            issue_id: {"disposition": "acknowledged", "reason": "Reviewer accepted warning"}
+        },
+    }
+
+    res = client.post(f"/api/extractions/{ext_id}/reviews", headers=headers, json=payload)
+    assert res.status_code == 201, res.json
+    assert "event_id" in res.json
+
+    with get_session(client.application.config["ENGINE"]) as session:
+        iss = session.query(OperationalIssue).filter(OperationalIssue.id == issue_id).first()
+        assert iss.status == "acknowledged"
+        ev = session.query(IssueEvent).filter(IssueEvent.issue_id == issue_id).first()
+        assert ev is not None
+        assert ev.action == "acknowledged"
+        assert ev.reason == "Reviewer accepted warning"

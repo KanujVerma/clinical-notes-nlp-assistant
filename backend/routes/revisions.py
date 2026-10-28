@@ -269,6 +269,30 @@ def get_note_source(note_id: int):
                 except Exception:
                     pages = []
 
+    if not pages:
+        import textwrap
+        import math
+
+        wrapped_lines = []
+        for line in (raw_text or "").split("\n"):
+            if not line:
+                wrapped_lines.append("")
+            else:
+                wrapped_lines.extend(textwrap.wrap(line, width=80) or [""])
+
+        lines_per_page = 45
+        total_text_pages = max(1, math.ceil(len(wrapped_lines) / lines_per_page))
+        pages = [
+            {
+                "page_number": p,
+                "width": 800,
+                "height": 1100,
+                "acquisition_method": "text_render",
+                "boxes": [],
+            }
+            for p in range(1, total_text_pages + 1)
+        ]
+
     return jsonify({
         "note_id": note.id,
         "revision_id": rev.id if rev else None,
@@ -372,20 +396,39 @@ def get_page_image(note_id: int, page_number: int):
                     return send_file(buf, mimetype="image/png")
 
     # If no binary source asset, generate a clean rendered document page image
-    if page_number != 1:
-        return jsonify({"error": "Text notes have only page 1", "code": "PAGE_OUT_OF_BOUNDS"}), 404
+    import textwrap
+    import math
 
     text = rev.raw_text or note.raw_text or ""
+    wrapped_lines = []
+    for line in text.split("\n"):
+        if not line:
+            wrapped_lines.append("")
+        else:
+            wrapped_lines.extend(textwrap.wrap(line, width=80) or [""])
+
+    lines_per_page = 45
+    total_pages = max(1, math.ceil(len(wrapped_lines) / lines_per_page))
+    if page_number < 1 or page_number > total_pages:
+        return jsonify({"error": f"Page {page_number} out of bounds (1..{total_pages})", "code": "PAGE_OUT_OF_BOUNDS"}), 404
+
+    page_lines = wrapped_lines[(page_number - 1) * lines_per_page : page_number * lines_per_page]
+
     img = Image.new("RGB", (800, 1100), color=(252, 252, 253))
     draw = ImageDraw.Draw(img)
     draw.rectangle([0, 0, 800, 40], fill=(241, 245, 249))
-    draw.text((20, 12), f"CLINICAL NOTE #{note.id} — SOURCE TRANSCRIPT", fill=(71, 85, 105))
+    header_title = f"CLINICAL NOTE #{note.id} — SOURCE TRANSCRIPT"
+    if total_pages > 1:
+        header_title += f" (Page {page_number}/{total_pages})"
+    draw.text((20, 12), header_title, fill=(71, 85, 105))
 
-    lines = text.split("\n")
     y = 60
-    for line in lines[:45]:
-        draw.text((40, y), line[:85], fill=(15, 23, 42))
+    for line in page_lines:
+        draw.text((40, y), line, fill=(15, 23, 42))
         y += 22
+
+    if total_pages > 1:
+        draw.text((360, 1070), f"Page {page_number} of {total_pages}", fill=(148, 163, 184))
 
     rot_deg = (rotation % 360 + 360) % 360
     if rot_deg != 0:
