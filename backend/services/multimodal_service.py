@@ -27,7 +27,7 @@ def query_ollama_multimodal(
     prompt: str,
     images_b64: List[str],
     system: Optional[str] = None,
-    timeout: float = 30.0,
+    timeout: float = 90.0,
 ) -> Dict[str, Any]:
     """
     Queries local Ollama instance with multimodal inputs (base64 images).
