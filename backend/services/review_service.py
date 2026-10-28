@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from models import Note, NoteRevision, Extraction, ReviewEvent, OperationalIssue, IssueEvent
 from schemas.review import ReviewMutationRequest
 from validation.checker import check_extraction
+from config import Config
 
 
 class StaleReviewError(Exception):
@@ -492,6 +493,24 @@ def process_review_mutation(
     Executes atomic review write with optimistic concurrency and idempotency.
     Returns (ReviewEvent, is_replay).
     """
+    # The public sandbox must not accept arbitrary clinical free text through
+    # reviewer edits/additions or free-form issue reasons. It operates only on
+    # prepackaged synthetic extracted values until curated choices are shipped.
+    if Config.APP_MODE == "hosted_demo":
+        if req.issue_dispositions:
+            raise InvalidReviewPayloadError("Issue dispositions requiring free-text reasons are local-only")
+        for key, decision in req.item_decisions.items():
+            if _get_decision_str(decision) not in ("accept", "remove", "pending"):
+                raise InvalidReviewPayloadError(
+                    f"Hosted sandbox permits only accept/remove/pending for '{key}'"
+                )
+            if isinstance(decision, dict) and decision.get("attribute_decisions"):
+                children = decision["attribute_decisions"]
+                if not isinstance(children, dict) or any(
+                    _get_decision_str(child) not in ("accept", "remove", "pending")
+                    for child in children.values()
+                ):
+                    raise InvalidReviewPayloadError("Hosted sandbox does not accept arbitrary field edits")
     valid_event_kinds = {"draft_saved", "review_completed", "review_reopened"}
     if req.event_kind not in valid_event_kinds:
         raise InvalidReviewPayloadError(
