@@ -74,28 +74,28 @@ npm ci
 cd ..
 ```
 
-Open two terminals from the repository root:
+Start the full local workbench (Flask, Vite and **one durable processing worker**) with:
 
 ```bash
-# Terminal 1 — Flask
-source .venv/bin/activate
-cd backend
-python app.py
-# http://localhost:5000
+make dev
+# http://127.0.0.1:5173
 ```
 
+The local AI panel now queues source/extraction-bound jobs and polls the worker. Without a running worker, requests remain queued; Flask itself does **not** run inference. Launch Ollama separately only when testing an installed, free local model. The two vision adapters require an original synthetic PDF/image, and neither their output nor visual-coordinate suggestions can automatically approve review data.
+
+If running services separately, open three terminals:
+
 ```bash
-# Terminal 2 — Vite
-cd frontend
-npm run dev
-# http://localhost:5173
+.venv/bin/python backend/app.py       # Flask on port 5000
+.venv/bin/python backend/worker.py    # one local processing worker
+cd frontend && npm run dev            # Vite on port 5173
 ```
 
 Open <http://localhost:5173>. Vite proxies `/api` to the local Flask backend. Without `DATABASE_URL`, the backend uses a local SQLite database. Seed synthetic notes with the **Seed demo data** button or use **Load sample note**. No API keys are needed.
 
 **Optional AI explainer:** External paid inference is disabled by default. To explicitly enable it locally, set `ENABLE_EXTERNAL_EXPLAINER=true` AND configure `ANTHROPIC_API_KEY`; keep both disabled for offline processing. A pre-existing API key alone cannot enable provider calls. Keep it unset for offline extraction/review testing. Never send actual patient data to this demo or to the optional provider.
 
-**Docker Compose (development):** `docker compose up --build` starts the backend on port **5000** and the Vite frontend on port **5173**. The Compose configuration is a two-service development environment; it does not serve the whole application solely at port 5000.
+**Docker Compose (development):** `docker compose up --build` starts the backend on port **5000** and Vite on **5173**, but the two-service Compose configuration does **not** start the local worker or enable AI inference. Use `make dev` for the complete local workbench.
 
 ## Review controls
 
