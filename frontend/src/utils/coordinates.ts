@@ -17,7 +17,7 @@ export interface ValidationResult {
 }
 
 export interface AgreementResult {
-  status: "verified" | "disagreement" | "missing_geometry" | "empty_box_ocr" | "missing_span_text";
+  status: "ocr_consistent_unverified" | "disagreement" | "missing_geometry" | "empty_box_ocr" | "missing_span_text";
   agreement: boolean;
   similarity: number;
   ocrText: string;
@@ -264,7 +264,7 @@ export function checkSourceImageAgreement(
 
   const agreement = similarity >= 0.6;
   return {
-    status: agreement ? "verified" : "disagreement",
+    status: agreement ? "ocr_consistent_unverified" : "disagreement",
     agreement,
     similarity,
     ocrText,
