@@ -192,6 +192,42 @@ def test_inference_idempotency_conflict_and_per_workspace_queue_limit(client):
     assert independent.json["code"] == "INFERENCE_BUSY"
 
 
+def test_same_source_reextraction_marks_prior_ai_candidate_historical(client, monkeypatch):
+    headers, note = _note(client)
+    monkeypatch.setattr(
+        "services.inference_pipeline.run_local_inference", _fake_model
+    )
+    queued = client.post(
+        f'/api/notes/{note["note_id"]}/ai-candidates',
+        headers=headers, json=_request(note),
+    )
+    assert queued.status_code == 202
+    run_worker_loop(client.application.config["ENGINE"], once=True)
+    current = client.get(
+        f'/api/notes/{note["note_id"]}/ai-candidates', headers=headers,
+    ).json
+    assert len(current) == 1
+    assert current[0]["is_current"] is True
+
+    rerun = client.post("/api/jobs", headers=headers, json={
+        "kind": "extraction",
+        "note_id": note["note_id"],
+        "source_revision_id": note["revision_id"],
+        "idempotency_key": "source-reextraction-001",
+    })
+    assert rerun.status_code == 202, rerun.json
+    run_worker_loop(client.application.config["ENGINE"], once=True)
+    rerun_status = client.get(f'/api/jobs/{rerun.json["job_id"]}', headers=headers)
+    assert rerun_status.json["status"] == "succeeded", rerun_status.json
+
+    old = client.get(
+        f'/api/notes/{note["note_id"]}/ai-candidates', headers=headers,
+    ).json
+    assert len(old) == 1
+    assert old[0]["is_current"] is False
+    assert old[0]["extraction_id"] == note["extraction_id"]
+
+
 def test_hosted_blocks_local_ai_jobs_at_server(client, monkeypatch):
     from config import Config
     monkeypatch.setattr(Config, "APP_MODE", "hosted_demo")
