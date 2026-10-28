@@ -115,8 +115,10 @@ def check_binding(
 def _read_verified_image(asset: SourceAsset, page_number: int) -> bytes:
     path = Path(asset.storage_key)
     try:
-        if not path.is_file() or path.stat().st_size != asset.byte_size:
+        if not path.is_file():
             raise InferenceBindingError("SOURCE_ASSET_UNAVAILABLE")
+        if path.stat().st_size != asset.byte_size:
+            raise InferenceBindingError("SOURCE_ASSET_INTEGRITY_FAILURE")
         if asset.byte_size <= 0 or asset.byte_size > MAX_SOURCE_BYTES:
             raise InferenceBindingError("SOURCE_ASSET_TOO_LARGE")
         original = path.read_bytes()
