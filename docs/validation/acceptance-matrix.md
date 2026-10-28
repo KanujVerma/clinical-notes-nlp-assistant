@@ -6,6 +6,16 @@ The rows below retain Gemini's cited names as **test references to inspect**, no
 
 The 20-case synthetic development benchmark has reported strict F1 0.5054. This is not clinical validation or a comparable score to the older relaxed evaluator. No real on-device handwriting/VLM OCR benchmark or disposable PostgreSQL migration was established in the supplied report.
 
+## Verified Test Runs on Current Feature Branch
+
+- **Backend Pytest**: 345 passed, 0 failed in 20.58s (`.venv/bin/pytest backend/tests`, exit code 0)
+- **Frontend Vitest**: 8 test files, 70 passed in 1.66s (`npm test --prefix frontend -- --run`, exit code 0)
+- **Frontend Build**: TypeScript build (`npm run build --prefix frontend`) passed with 0 errors in 1.71s (exit code 0)
+- **Frontend Lint**: ESLint (`npm run lint --prefix frontend`) passed with 0 errors, 83 warnings (exit code 0)
+- **Playwright Chromium E2E**: 23 passed in 35.6s (`cd frontend && CI=true npx playwright test --reporter=line`, exit code 0)
+- **Worker Leases & Timezones**: Naive UTC datetime comparison verified for SQLite/SQLAlchemy ORM compatibility (`backend/tests/test_audit_remediations.py::test_worker_execution_updates_status_succeeded`, exit code 0)
+- **Codex Reviews**: Verified using OpenAI Codex CLI (`codex review`); all 6 base findings addressed, final uncommitted check reported 0 actionable findings (`artifacts/verification/codex-review/`).
+
 | ID | Contract | Current release status | Verified executable evidence |
 |---|---|---|---|
 | A01 | Wrong medication route/frequency fail per-attribute and strict record | RETEST REQUIRED | `backend/tests/test_evaluator_strict.py::test_evaluator_strict_fails_on_wrong_frequency_or_route` (pytest exit 0) |

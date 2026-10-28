@@ -25,9 +25,14 @@ WORKER_ID = f"worker_{uuid.uuid4().hex[:8]}"
 MAX_JOB_ATTEMPTS = 3
 
 
+def utc_now() -> datetime.datetime:
+    """Return naive UTC datetime compatible with SQLAlchemy DateTime columns."""
+    return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+
 def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job]:
     """Atomically claims the oldest queued or expired job using conditional update."""
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = utc_now()
     lease_until = now + datetime.timedelta(seconds=60)
 
     # Expired jobs that have consumed all attempts are terminal; do not
@@ -42,7 +47,7 @@ def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job
             error_code="ATTEMPTS_EXHAUSTED",
             error_message="Retry budget exhausted",
             finished_at=now,
-        )
+        ).execution_options(synchronize_session=False)
     )
     if exhausted.rowcount:
         session.commit()
@@ -84,6 +89,7 @@ def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job
             started_at=now,
             attempt_number=Job.attempt_number + 1,
         )
+        .execution_options(synchronize_session=False)
     )
     res = session.execute(stmt)
     if res.rowcount != 1:
@@ -185,16 +191,21 @@ def process_single_job(job: Job, session: Session) -> bool:
         else:
             raise ValueError("INVALID_JOB_KIND")
 
-        now_dt = datetime.datetime.now(datetime.timezone.utc)
-        stmt = update(Job).where(
-            Job.id == job.id,
-            Job.lease_owner == claimed_lease_owner,
-            Job.status == "running",
-            Job.lease_expiry > now_dt,
-        ).values(
-            status="succeeded",
-            result_json=job.result_json,
-            finished_at=now_dt,
+        now_dt = utc_now()
+        stmt = (
+            update(Job)
+            .where(
+                Job.id == job.id,
+                Job.lease_owner == claimed_lease_owner,
+                Job.status == "running",
+                Job.lease_expiry > now_dt,
+            )
+            .values(
+                status="succeeded",
+                result_json=job.result_json,
+                finished_at=now_dt,
+            )
+            .execution_options(synchronize_session=False)
         )
         if session.execute(stmt).rowcount != 1:
             session.rollback()
@@ -205,7 +216,7 @@ def process_single_job(job: Job, session: Session) -> bool:
 
     except Exception as e:
         session.rollback()
-        now_dt = datetime.datetime.now(datetime.timezone.utc)
+        now_dt = utc_now()
         fail_stmt = (
             update(Job)
             .where(
@@ -220,6 +231,7 @@ def process_single_job(job: Job, session: Session) -> bool:
                 error_message="Job failed; detailed exception not retained",
                 finished_at=now_dt,
             )
+            .execution_options(synchronize_session=False)
         )
         if session.execute(fail_stmt).rowcount == 1:
             session.commit()
