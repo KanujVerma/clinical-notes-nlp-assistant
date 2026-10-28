@@ -28,6 +28,22 @@ def create_app(test_config: dict | None = None) -> Flask:
     if test_config:
         app.config.update(test_config)
 
+    # Hosted mode never silently enables paid providers or arbitrary origins.
+    # Explicit, reviewed configuration is required before a manual rollout.
+    if Config.APP_MODE == "hosted_demo":
+        if Config.ENABLE_EXTERNAL_EXPLAINER:
+            raise RuntimeError("Hosted sandbox must disable external AI")
+        if not Config.FRONTEND_URL and not app.config.get("TESTING"):
+            raise RuntimeError("Hosted sandbox requires an explicit FRONTEND_URL")
+
+    @app.after_request
+    def apply_hosted_headers(response):
+        from flask import request
+        if Config.APP_MODE == "hosted_demo" and request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, private"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
     # DB
     engine = get_engine(app.config["DATABASE_URL"])
     # Only disposable SQLite/local or test databases are auto-migrated. Hosted
