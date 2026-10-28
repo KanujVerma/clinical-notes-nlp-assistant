@@ -5,7 +5,9 @@ import fitz
 from flask import Blueprint, g, jsonify, request
 from models import Note, NoteRevision, Extraction, InferenceRun, SourceAsset
 from services.ollama_service import extract_candidates_with_local_ai, detect_discrepancies
-from services.multimodal_service import glm_ocr_infer, qwen3_vl_infer
+from services.multimodal_service import (
+    glm_ocr_infer, qwen3_vl_infer, DEFAULT_OCR_MODEL, DEFAULT_VL_MODEL,
+)
 from utils.session import require_session
 from config import Config
 
@@ -29,9 +31,24 @@ def generate_ai_candidates(note_id: int):
     if not note:
         return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
 
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(silent=True)
+    if body is None:
+        body = {}
+    if not isinstance(body, dict):
+        return jsonify({"error": "JSON object required", "code": "INVALID_INPUT"}), 422
     adapter = body.get("adapter", "text")  # "text" | "qwen3_vl" | "glm_ocr"
+    if adapter not in ("text", "qwen3_vl", "glm_ocr"):
+        return jsonify({"error": "Unsupported AI adapter", "code": "INVALID_ADAPTER"}), 422
+    expected_model = DEFAULT_OCR_MODEL if adapter == "glm_ocr" else DEFAULT_VL_MODEL
     requested_model = body.get("model")
+    if requested_model is not None and requested_model != expected_model:
+        return jsonify({
+            "error": "AI model must match the configured local allowlisted model",
+            "code": "UNSUPPORTED_MODEL",
+        }), 422
+    page_number = body.get("page_number", 1)
+    if type(page_number) is not int or not 1 <= page_number <= 20:
+        return jsonify({"error": "Invalid document page", "code": "INVALID_PAGE"}), 422
 
     rev = (
         g.db.query(NoteRevision)
@@ -48,26 +65,41 @@ def generate_ai_candidates(note_id: int):
     )
     rule_data = json.loads(ext.extracted_json) if (ext and ext.extracted_json) else {}
 
-    # Check if multimodal image input is requested and available
+    # Text-only proposals never require a page raster. Vision adapters must
+    # operate on actual pixels: never silently fall back to text inference.
     image_bytes = None
-    if rev and rev.source_asset_id:
+    if adapter != "text" and rev and rev.source_asset_id:
         asset = g.db.query(SourceAsset).filter(SourceAsset.id == rev.source_asset_id).first()
         if asset and os.path.exists(asset.storage_key):
             ext_name = os.path.splitext(asset.original_filename or "")[1].lower()
             if ext_name == ".pdf" or asset.mime_type == "application/pdf":
                 doc = fitz.open(asset.storage_key)
                 try:
-                    if len(doc) > 0:
-                        pix = doc[0].get_pixmap(dpi=150)
+                    if len(doc) >= page_number:
+                        page = doc[page_number - 1]
+                        raster_pixels = (page.rect.width * 150 / 72) * (page.rect.height * 150 / 72)
+                        if raster_pixels > 20_000_000:
+                            return jsonify({"error": "Page exceeds raster budget", "code": "IMAGE_TOO_LARGE"}), 413
+                        pix = page.get_pixmap(dpi=150)
                         image_bytes = pix.tobytes("png")
                 finally:
                     doc.close()
-            else:
+            elif asset.mime_type.startswith("image/"):
+                if page_number != 1:
+                    return jsonify({"error": "Image source has one page", "code": "INVALID_PAGE"}), 422
+                if os.path.getsize(asset.storage_key) > 10 * 1024 * 1024:
+                    return jsonify({"error": "Image exceeds input budget", "code": "IMAGE_TOO_LARGE"}), 413
                 with open(asset.storage_key, "rb") as f:
                     image_bytes = f.read()
 
+    if adapter != "text" and not image_bytes:
+        return jsonify({
+            "error": "Vision inference requires an original image/PDF page",
+            "code": "IMAGE_SOURCE_REQUIRED",
+        }), 422
+
     if adapter == "glm_ocr" and image_bytes:
-        res = glm_ocr_infer(image_bytes=image_bytes, page_number=1, model=requested_model)
+        res = glm_ocr_infer(image_bytes=image_bytes, page_number=page_number, model=expected_model)
         task_type = "multimodal_ocr"
         candidates = {"transcribed_text": res.get("transcribed_text"), "boxes": res.get("boxes", [])}
         discrepancies = []
@@ -76,7 +108,7 @@ def generate_ai_candidates(note_id: int):
         error_code = res.get("error_code")
 
     elif adapter == "qwen3_vl" and image_bytes:
-        res = qwen3_vl_infer(image_bytes=image_bytes, rule_extraction=rule_data, model=requested_model)
+        res = qwen3_vl_infer(image_bytes=image_bytes, rule_extraction=rule_data, model=expected_model)
         task_type = "multimodal_vl"
         candidates = res.get("candidates") or {}
         discrepancies = res.get("discrepancies", [])
@@ -87,7 +119,7 @@ def generate_ai_candidates(note_id: int):
     else:
         # Default text-based semantic candidates
         task_type = "semantic_candidates"
-        ai_res = extract_candidates_with_local_ai(raw_text, model=requested_model or "qwen3-vl:4b")
+        ai_res = extract_candidates_with_local_ai(raw_text, model=expected_model)
         candidates = ai_res.get("candidates") or {}
         discrepancies = detect_discrepancies(rule_data, candidates) if candidates else []
         model_name = ai_res.get("model", "qwen3-vl:4b")
