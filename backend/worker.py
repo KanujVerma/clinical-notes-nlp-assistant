@@ -22,6 +22,7 @@ from evaluation.dataset import load_curated_corpus
 
 
 WORKER_ID = f"worker_{uuid.uuid4().hex[:8]}"
+MAX_JOB_ATTEMPTS = 3
 
 
 def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job]:
@@ -29,13 +30,30 @@ def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job
     now = datetime.datetime.now(datetime.timezone.utc)
     lease_until = now + datetime.timedelta(seconds=60)
 
+    # Expired jobs that have consumed all attempts are terminal; do not
+    # leave them running forever or retry expensive inference indefinitely.
+    session.execute(
+        update(Job).where(
+            Job.status == "running",
+            Job.lease_expiry < now,
+            Job.attempt_number >= MAX_JOB_ATTEMPTS,
+        ).values(
+            status="failed",
+            error_code="ATTEMPTS_EXHAUSTED",
+            error_message="Retry budget exhausted",
+            finished_at=now,
+        )
+    )
+    session.flush()
+
     # Find candidate job
     candidate = (
         session.query(Job.id)
         .filter(
             or_(
-                Job.status == "queued",
-                and_(Job.status == "running", Job.lease_expiry < now),
+                and_(Job.status == "queued", Job.attempt_number < MAX_JOB_ATTEMPTS),
+                and_(Job.status == "running", Job.lease_expiry < now,
+                     Job.attempt_number < MAX_JOB_ATTEMPTS),
             )
         )
         .order_by(Job.created_at.asc())
@@ -53,8 +71,9 @@ def claim_next_job(session: Session, worker_id: str = WORKER_ID) -> Optional[Job
         .where(
             Job.id == candidate_id,
             or_(
-                Job.status == "queued",
-                and_(Job.status == "running", Job.lease_expiry < now),
+                and_(Job.status == "queued", Job.attempt_number < MAX_JOB_ATTEMPTS),
+                and_(Job.status == "running", Job.lease_expiry < now,
+                     Job.attempt_number < MAX_JOB_ATTEMPTS),
             ),
         )
         .values(
@@ -168,8 +187,9 @@ def process_single_job(job: Job, session: Session) -> bool:
         now_dt = datetime.datetime.now(datetime.timezone.utc)
         stmt = update(Job).where(
             Job.id == job.id,
-            Job.lease_owner == job.lease_owner,
+            Job.lease_owner == claimed_lease_owner,
             Job.status == "running",
+            Job.lease_expiry > now_dt,
         ).values(
             status="succeeded",
             result_json=job.result_json,
@@ -191,11 +211,12 @@ def process_single_job(job: Job, session: Session) -> bool:
                 Job.id == job_id,
                 Job.lease_owner == claimed_lease_owner,
                 Job.status == "running",
+                Job.lease_expiry > now_dt,
             )
             .values(
                 status="failed",
                 error_code="PROCESSING_ERROR",
-                error_message=str(e),
+                error_message="Job failed; detailed exception not retained",
                 finished_at=now_dt,
             )
         )
@@ -219,5 +240,7 @@ def run_worker_loop(engine, poll_interval: float = 1.0, once: bool = False):
 
 
 if __name__ == "__main__":
+    if Config.APP_MODE == "hosted_demo":
+        raise RuntimeError("Background jobs are not enabled in hosted demo mode")
     engine = get_engine(Config.DATABASE_URL)
     run_worker_loop(engine)
