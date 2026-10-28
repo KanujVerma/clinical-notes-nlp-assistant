@@ -1,4 +1,6 @@
 import json
+import hashlib
+from sqlalchemy.exc import IntegrityError
 from flask import Blueprint, g, jsonify, request
 from models import Job, Note
 from utils.session import require_session
@@ -24,7 +26,7 @@ def get_job_status(job_id: str):
         "progress": job.progress,
         "result": json.loads(job.result_json) if job.result_json else None,
         "error_code": job.error_code,
-        "error_message": job.error_message,
+        "error_message": "Job failed; inspect safe error_code" if job.status == "failed" else None,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "finished_at": job.finished_at.isoformat() if job.finished_at else None,
     })
@@ -70,17 +72,37 @@ def create_job():
             return jsonify({"error": "Benchmark jobs cannot reference workspace notes", "code": "INVALID_JOB_BINDING"}), 422
 
     idempotency_key = body.get("idempotency_key")
+    if idempotency_key is not None and (
+        not isinstance(idempotency_key, str) or not idempotency_key.strip()
+        or len(idempotency_key) > 128
+    ):
+        return jsonify({"error": "Invalid idempotency key", "code": "INVALID_IDEMPOTENCY_KEY"}), 422
+
+    request_hash = hashlib.sha256(json.dumps({
+        "kind": kind,
+        "note_id": note_id,
+        "source_revision_id": revision_id,
+        "payload": {},
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+    def replay_or_conflict(existing):
+        if existing.request_hash != request_hash:
+            return jsonify({
+                "error": "Idempotency key reused for a different job",
+                "code": "IDEMPOTENCY_CONFLICT",
+            }), 409
+        return jsonify({
+            "job_id": existing.id, "kind": existing.kind,
+            "status": existing.status,
+        }), 200
+
     if idempotency_key:
-        existing_job = g.db.query(Job).filter(
+        existing = g.db.query(Job).filter(
             Job.workspace_id == sid,
             Job.idempotency_key == idempotency_key,
         ).first()
-        if existing_job:
-            return jsonify({
-                "job_id": existing_job.id,
-                "kind": existing_job.kind,
-                "status": existing_job.status,
-            }), 200
+        if existing:
+            return replay_or_conflict(existing)
 
     job = Job(
         workspace_id=sid,
@@ -88,8 +110,22 @@ def create_job():
         note_id=note_id,
         source_revision_id=revision_id,
         idempotency_key=idempotency_key,
+        request_hash=request_hash,
         payload_json="{}",
     )
     g.db.add(job)
-    g.db.commit()
+    try:
+        g.db.commit()
+    except IntegrityError:
+        g.db.rollback()
+        if not idempotency_key:
+            raise
+        # Unique DB index catches two simultaneous creators of the same key.
+        existing = g.db.query(Job).filter(
+            Job.workspace_id == sid,
+            Job.idempotency_key == idempotency_key,
+        ).first()
+        if existing:
+            return replay_or_conflict(existing)
+        raise
     return jsonify({"job_id": job.id, "kind": job.kind, "status": job.status}), 202
