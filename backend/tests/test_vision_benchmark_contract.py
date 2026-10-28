@@ -80,6 +80,6 @@ def test_generated_printed_fixtures_have_authentic_image_hashes(tmp_path):
     cases, metadata = load_gold_manifest(manifest)
     assert metadata["case_count"] == 3
     assert metadata["annotation_status"] == "synthetic_generator_ground_truth"
-    assert all(case["image_bytes"].startswith(b"\\x89PNG") for case in cases)
+    assert all(case["image_bytes"].startswith(b"\x89PNG") for case in cases)
     assert any("2.5 mg" in case["critical_tokens"] for case in cases)
     assert all("source_sha256" in case for case in cases)
