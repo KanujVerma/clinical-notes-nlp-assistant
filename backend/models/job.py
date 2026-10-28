@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text
+from sqlalchemy import Column, String, Integer, Float, DateTime, Text, UniqueConstraint
 from sqlalchemy.sql import func
 from models.base import Base
 
@@ -26,3 +26,9 @@ class Job(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     started_at = Column(DateTime, nullable=True)
     finished_at = Column(DateTime, nullable=True)
+
+    # SQLite/PostgreSQL both permit multiple NULL keys under a unique
+    # constraint but reject two active requests sharing a non-NULL key.
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "idempotency_key", name="uq_jobs_workspace_idempotency"),
+    )
