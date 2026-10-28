@@ -201,6 +201,8 @@ def prepare_inference(session: Session, job: Job) -> dict[str, Any]:
         rules = json.loads(ext.extracted_json or "{}")
     except (TypeError, ValueError) as exc:
         raise InferenceBindingError("INVALID_EXTRACTION_DATA") from exc
+    if not isinstance(rules, dict):
+        raise InferenceBindingError("INVALID_EXTRACTION_DATA")
     return {
         "workspace_id": job.workspace_id,
         "note_id": job.note_id,
