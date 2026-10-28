@@ -27,6 +27,13 @@ CASES = [
             "Blood pressure 120/80 mmHg.",
         ],
         "critical_tokens": ["500 mg", "10 mg", "120/80"],
+        "expected_medications": [
+            {"name": "Metformin", "dose": "500 mg", "route": "PO", "frequency": "BID"},
+            {"name": "Lisinopril", "dose": "10 mg", "route": "PO", "frequency": "daily"},
+        ],
+        "expected_vitals": [
+            {"vital_type": "blood_pressure", "value": "120/80", "unit": "mmHg"},
+        ],
     },
     {
         "id": "synthetic_print_decimal",
@@ -38,6 +45,10 @@ CASES = [
             "Return if symptoms worsen.",
         ],
         "critical_tokens": ["2.5 mg", "25 mg", "Hold", "Do not"],
+        "expected_medications": [
+            {"name": "Warfarin", "dose": "2.5 mg", "route": "PO", "frequency": "daily"},
+        ],
+        "expected_vitals": [],
     },
     {
         "id": "synthetic_print_noisy",
@@ -49,6 +60,11 @@ CASES = [
             "Follow up in 2 weeks.",
         ],
         "critical_tokens": ["500 mg", "10 days", "Do not", "81 mg"],
+        "expected_medications": [
+            {"name": "Amoxicillin", "dose": "500 mg", "route": "PO", "frequency": "TID"},
+            {"name": "aspirin", "dose": "81 mg", "route": "", "frequency": ""},
+        ],
+        "expected_vitals": [],
     },
 ]
 
@@ -92,6 +108,8 @@ def generate(output_dir: Path) -> Path:
             "sha256": hashlib.sha256(original).hexdigest(),
             "reference_text": reference_text,
             "critical_tokens": fixture["critical_tokens"],
+            "expected_medications": fixture["expected_medications"],
+            "expected_vitals": fixture["expected_vitals"],
             "source_type": fixture["type"],
         })
     manifest = {
