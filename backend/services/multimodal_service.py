@@ -177,7 +177,7 @@ def qwen3_vl_infer(
     system_prompt = (
         "You are a clinical vision-language model (Qwen3-VL). "
         "Extract all medications and vitals visible in this clinical note image into strict JSON: "
-        "'medications' (list of {name, dose, route, frequency}), "
+        "'medications' (list of {name, dose, route, frequency, action}), "
         "'vitals' (list of {vital_type, value, unit}), and "
         "'visual_evidence' (list of {entity, bbox: [x0, y0, x1, y1]})."
     )
@@ -212,6 +212,7 @@ def qwen3_vl_infer(
                     "dose": str(m.get("dose", "")).strip(),
                     "route": str(m.get("route", "")).strip(),
                     "frequency": str(m.get("frequency", "")).strip(),
+                    "action": str(m.get("action", "")).strip(),
                 }
                 if any(len(v) > 160 for v in candidate.values()) or not candidate["name"]:
                     raise ValueError("Malformed or oversized model medication field")
