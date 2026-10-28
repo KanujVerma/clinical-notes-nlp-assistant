@@ -252,3 +252,76 @@ def test_hosted_seed_uses_precomputed_scenarios_without_live_pipeline(client, mo
     assert scenarios_res.status_code == 200
     assert scenarios_res.json["count"] == 10
 
+
+def test_hosted_expiry_purge_removes_issue_events_and_acquisition_records(app):
+    """PostgreSQL FK-safe deletion ordering must remove all dependent records."""
+    from models import (
+        Workspace, Note, NoteRevision, SourceAsset, AcquisitionRun,
+        Extraction, OperationalIssue, IssueEvent,
+    )
+    from routes.workspaces import purge_expired_workspaces
+
+    now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    ws_id = "expired-synthetic-workspace"
+    with get_session(app.config["ENGINE"]) as session:
+        session.add(Workspace(
+            id=ws_id,
+            mode="hosted_demo",
+            expires_at=now - datetime.timedelta(hours=1),
+            state="active",
+        ))
+        note = Note(workspace_id=ws_id, session_id=ws_id, source="hosted_scenario", raw_text="Synthetic")
+        session.add(note)
+        session.flush()
+        asset = SourceAsset(
+            workspace_id=ws_id, sha256="0" * 64,
+            storage_key="synthetic-fixture-storage-key",
+            mime_type="text/plain", byte_size=9,
+        )
+        session.add(asset)
+        session.flush()
+        acquisition = AcquisitionRun(
+            source_asset_id=asset.id,
+            engine="text_utf8", status="completed", canonical_text="Synthetic",
+        )
+        session.add(acquisition)
+        session.flush()
+        revision = NoteRevision(
+            note_id=note.id, workspace_id=ws_id, revision_number=1,
+            source_asset_id=asset.id, acquisition_run_id=acquisition.id,
+            raw_text="Synthetic", normalized_text="Synthetic", sha256="1" * 64,
+        )
+        session.add(revision)
+        session.flush()
+        extraction = Extraction(
+            note_id=note.id, workspace_id=ws_id,
+            source_revision_id=revision.id,
+            pipeline_version="0.1.0", extracted_json="{}",
+        )
+        session.add(extraction)
+        session.flush()
+        issue = OperationalIssue(
+            workspace_id=ws_id, note_id=note.id,
+            source_revision_id=revision.id,
+            extraction_id=extraction.public_id,
+            issue_code="SYNTHETIC_WARNING",
+            severity="warning", category="pipeline_anomaly",
+            safe_explanation="Synthetic test issue",
+        )
+        session.add(issue)
+        session.flush()
+        session.add(IssueEvent(
+            issue_id=issue.id, action="acknowledged",
+            actor="reviewer", reason="Synthetic test",
+        ))
+        session.commit()
+
+        purge_expired_workspaces(session, now)
+
+    with get_session(app.config["ENGINE"]) as session:
+        assert session.query(Workspace).filter_by(id=ws_id).count() == 0
+        assert session.query(Note).filter_by(workspace_id=ws_id).count() == 0
+        assert session.query(OperationalIssue).filter_by(workspace_id=ws_id).count() == 0
+        assert session.query(IssueEvent).count() == 0
+        assert session.query(AcquisitionRun).filter_by(source_asset_id=asset.id).count() == 0
+        assert session.query(SourceAsset).filter_by(workspace_id=ws_id).count() == 0
