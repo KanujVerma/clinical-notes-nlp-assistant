@@ -36,6 +36,22 @@ def test_wrong_dose_unit_and_decimal_fail_strict_occurrence():
     assert vision.score_occurrences(gold, bad, vision.FIELDS, "name")["tp"] == 0
 
 
+def test_explicit_hold_stop_actions_are_strict_but_unannotated_are_excluded():
+    held = [{"name": "Warfarin", "dose": "2.5 mg", "action": "hold"}]
+    proposed = [{"name": "Warfarin", "dose": "2.5 mg", "action": "start"}]
+    incorrect = vision.score_occurrences(held, proposed, vision.FIELDS, "name")
+    assert (incorrect["tp"], incorrect["fp"], incorrect["fn"]) == (0, 1, 1)
+    assert "action" in incorrect["mismatches"][0]["attributes"]
+
+    proposed[0]["action"] = "hold"
+    assert vision.score_occurrences(held, proposed, vision.FIELDS, "name")["tp"] == 1
+
+    unannotated = [{"name": "Warfarin", "dose": "2.5 mg"}]
+    # A missing gold action is not automatically a true negative or a
+    # confirmed hallucination; mark this dimension unannotated.
+    assert vision.score_occurrences(unannotated, proposed, vision.FIELDS, "name")["tp"] == 1
+
+
 def test_critical_numeric_tokens_and_uncapped_error_rates():
     ref = "Take 2.5 mg"
     wrong = "Take 25 mg"
