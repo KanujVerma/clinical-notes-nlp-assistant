@@ -13,11 +13,29 @@ bp = Blueprint("seed", __name__)
 _SEED_SOURCES = ["dev", "showcase"]  # eval notes are held out
 
 
+def load_precomputed_scenarios() -> dict:
+    precomp_path = os.path.join(Config.DATA_DIR, "precomputed_scenarios.json")
+    if os.path.isfile(precomp_path):
+        try:
+            with open(precomp_path, "r", encoding="utf-8") as f:
+                items = json.load(f)
+                return {item["filename"]: item for item in items if isinstance(item, dict) and "filename" in item}
+        except Exception:
+            return {}
+    return {}
+
+
 def seed_notes(db_session, session_id: str) -> dict:
-    from extractors.pipeline import run_pipeline
+    is_hosted = getattr(Config, "APP_MODE", "local") == "hosted_demo"
+    precomputed = load_precomputed_scenarios()
+
     loaded = 0
     skipped = 0
-    for source_dir in _SEED_SOURCES:
+
+    # In public hosted sandbox, strictly restrict seeding to precomputed curated showcase scenarios.
+    sources = ["showcase"] if is_hosted else _SEED_SOURCES
+
+    for source_dir in sources:
         notes_dir = os.path.join(Config.DATA_DIR, source_dir, "notes")
         if not os.path.isdir(notes_dir):
             continue
@@ -32,16 +50,29 @@ def seed_notes(db_session, session_id: str) -> dict:
             if existing:
                 skipped += 1
                 continue
+
             fpath = os.path.join(notes_dir, fname)
-            with open(fpath, encoding="utf-8") as f:
-                text = f.read()
-            extracted = run_pipeline(text)
+            if fname in precomputed:
+                item = precomputed[fname]
+                text = item["raw_text"]
+                extracted = item["extraction"]
+                pre_issues = item.get("issues", [])
+            else:
+                if is_hosted:
+                    # In hosted mode, never execute unverified live pipeline runs
+                    continue
+                from extractors.pipeline import run_pipeline
+                with open(fpath, encoding="utf-8") as f:
+                    text = f.read()
+                extracted = run_pipeline(text)
+                pre_issues = None
+
             text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
 
             note = Note(
                 filename=fname,
                 raw_text=text,
-                source="demo",
+                source="hosted_scenario" if is_hosted else "demo",
                 session_id=session_id,
                 workspace_id=session_id,
                 status="needs_review",
@@ -57,7 +88,7 @@ def seed_notes(db_session, session_id: str) -> dict:
                 raw_text=text,
                 normalized_text=text,
                 sha256=text_hash,
-                creation_reason="demo_seed",
+                creation_reason="hosted_seed" if is_hosted else "demo_seed",
             )
             db_session.add(rev)
             db_session.flush()
@@ -81,25 +112,44 @@ def seed_notes(db_session, session_id: str) -> dict:
             note.current_source_revision_id = rev.id
             note.current_extraction_id = ext_id
 
-            # Run deterministic check and persist issues
-            issues = check_extraction(rev, ext)
-            for iss in issues:
-                db_iss = OperationalIssue(
-                    workspace_id=session_id,
-                    note_id=note.id,
-                    source_revision_id=rev.id,
-                    extraction_id=ext_id,
-                    issue_code=iss.issue_code,
-                    category=iss.category,
-                    severity=iss.severity,
-                    item_id=iss.item_id,
-                    field_path=iss.field_path,
-                    evidence_span_json=json.dumps(iss.evidence_span) if iss.evidence_span else None,
-                    safe_explanation=iss.safe_explanation,
-                    check_policy_version=iss.check_policy_version,
-                    status="open",
-                )
-                db_session.add(db_iss)
+            # Persist operational issues (either precomputed or dynamically checked)
+            if pre_issues is not None:
+                for iss in pre_issues:
+                    db_iss = OperationalIssue(
+                        workspace_id=session_id,
+                        note_id=note.id,
+                        source_revision_id=rev.id,
+                        extraction_id=ext_id,
+                        issue_code=iss["issue_code"],
+                        category=iss["category"],
+                        severity=iss["severity"],
+                        item_id=iss.get("item_id"),
+                        field_path=iss.get("field_path"),
+                        evidence_span_json=json.dumps(iss["evidence_span"]) if iss.get("evidence_span") else None,
+                        safe_explanation=iss.get("safe_explanation", ""),
+                        check_policy_version=iss.get("check_policy_version", "1.0.0"),
+                        status="open",
+                    )
+                    db_session.add(db_iss)
+            else:
+                issues = check_extraction(rev, ext)
+                for iss in issues:
+                    db_iss = OperationalIssue(
+                        workspace_id=session_id,
+                        note_id=note.id,
+                        source_revision_id=rev.id,
+                        extraction_id=ext_id,
+                        issue_code=iss.issue_code,
+                        category=iss.category,
+                        severity=iss.severity,
+                        item_id=iss.item_id,
+                        field_path=iss.field_path,
+                        evidence_span_json=json.dumps(iss.evidence_span) if iss.evidence_span else None,
+                        safe_explanation=iss.safe_explanation,
+                        check_policy_version=iss.check_policy_version,
+                        status="open",
+                    )
+                    db_session.add(db_iss)
 
             loaded += 1
     db_session.commit()

@@ -1,11 +1,15 @@
+import io
 import json
 import hashlib
 import os
+import fitz
+from PIL import Image, ImageDraw
 from flask import Blueprint, g, jsonify, request, send_file
 from models import Note, NoteRevision, Extraction, OperationalIssue, SourceAsset
 from utils.session import require_session
 from extractors.pipeline import run_pipeline
 from validation.checker import check_extraction
+from utils.coordinates import transform_bbox, validate_bbox_geometry, check_source_image_agreement
 from config import Config
 
 bp = Blueprint("revisions", __name__)
@@ -253,3 +257,158 @@ def get_source_file(note_id: int):
         as_attachment=False,
         download_name=asset.original_filename or f"note_{note_id}.bin",
     )
+
+
+@bp.get("/api/notes/<int:note_id>/pages/<int:page_number>/image")
+def get_page_image(note_id: int, page_number: int):
+    sid = require_session()
+    note = g.db.query(Note).filter(
+        Note.id == note_id,
+        (Note.workspace_id == sid) | (Note.session_id == sid),
+    ).first()
+    if not note:
+        return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
+
+    try:
+        rotation = int(request.args.get("rotation", 0))
+    except (ValueError, TypeError):
+        rotation = 0
+
+    rev = (
+        g.db.query(NoteRevision)
+        .filter(NoteRevision.id == note.current_source_revision_id)
+        .first()
+    )
+    if not rev:
+        return jsonify({"error": "No revision found", "code": "NOT_FOUND"}), 404
+
+    # If binary source asset exists
+    if rev.source_asset_id:
+        asset = g.db.query(SourceAsset).filter(SourceAsset.id == rev.source_asset_id).first()
+        if asset and os.path.exists(asset.storage_key):
+            ext = os.path.splitext(asset.original_filename or "")[1].lower()
+            if ext == ".pdf" or asset.mime_type == "application/pdf":
+                doc = fitz.open(asset.storage_key)
+                try:
+                    if page_number < 1 or page_number > len(doc):
+                        return jsonify({"error": f"Page {page_number} out of bounds (1..{len(doc)})", "code": "PAGE_OUT_OF_BOUNDS"}), 404
+                    page = doc[page_number - 1]
+                    rot_deg = (rotation % 360 + 360) % 360
+                    mat = fitz.Matrix(rot_deg)
+                    pix = page.get_pixmap(dpi=150, matrix=mat)
+                    img_bytes = pix.tobytes("png")
+                    return send_file(io.BytesIO(img_bytes), mimetype="image/png")
+                finally:
+                    doc.close()
+            else:
+                # Direct image asset
+                if page_number != 1:
+                    return jsonify({"error": "Image assets have only page 1", "code": "PAGE_OUT_OF_BOUNDS"}), 404
+                with Image.open(asset.storage_key) as img:
+                    rot_deg = (rotation % 360 + 360) % 360
+                    if rot_deg != 0:
+                        img = img.rotate(-rot_deg, expand=True)
+                    buf = io.BytesIO()
+                    img.save(buf, format="PNG")
+                    buf.seek(0)
+                    return send_file(buf, mimetype="image/png")
+
+    # If no binary source asset, generate a clean rendered document page image
+    if page_number != 1:
+        return jsonify({"error": "Text notes have only page 1", "code": "PAGE_OUT_OF_BOUNDS"}), 404
+
+    text = rev.raw_text or note.raw_text or ""
+    img = Image.new("RGB", (800, 1100), color=(252, 252, 253))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, 800, 40], fill=(241, 245, 249))
+    draw.text((20, 12), f"CLINICAL NOTE #{note.id} — SOURCE TRANSCRIPT", fill=(71, 85, 105))
+
+    lines = text.split("\n")
+    y = 60
+    for line in lines[:45]:
+        draw.text((40, y), line[:85], fill=(15, 23, 42))
+        y += 22
+
+    rot_deg = (rotation % 360 + 360) % 360
+    if rot_deg != 0:
+        img = img.rotate(-rot_deg, expand=True)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png")
+
+
+@bp.post("/api/notes/<int:note_id>/verify-evidence-geometry")
+def verify_evidence_geometry(note_id: int):
+    sid = require_session()
+    note = g.db.query(Note).filter(
+        Note.id == note_id,
+        (Note.workspace_id == sid) | (Note.session_id == sid),
+    ).first()
+    if not note:
+        return jsonify({"error": "Note not found", "code": "NOT_FOUND"}), 404
+
+    body = request.get_json(silent=True) or {}
+    span_text = body.get("span_text", "")
+    bbox = body.get("bbox")
+    try:
+        page_number = int(body.get("page_number", 1))
+    except (ValueError, TypeError):
+        page_number = 1
+    try:
+        rotation = int(body.get("rotation", 0))
+    except (ValueError, TypeError):
+        rotation = 0
+
+    rev = (
+        g.db.query(NoteRevision)
+        .filter(NoteRevision.id == note.current_source_revision_id)
+        .first()
+    )
+    pages = []
+    if rev and rev.pages_json:
+        try:
+            pages = json.loads(rev.pages_json)
+        except Exception:
+            pages = []
+
+    target_page = None
+    for p in pages:
+        if p.get("page_number") == page_number:
+            target_page = p
+            break
+
+    page_width = target_page.get("width", 800.0) if target_page else 800.0
+    page_height = target_page.get("height", 1100.0) if target_page else 1100.0
+    page_boxes = target_page.get("boxes", []) if target_page else []
+
+    is_valid, code, explanation = validate_bbox_geometry(bbox, page_width, page_height)
+    transformed = None
+    if is_valid:
+        try:
+            transformed = transform_bbox(bbox, page_width, page_height, rotation=rotation)
+        except Exception:
+            transformed = None
+
+    agreement_res = check_source_image_agreement(
+        span_text=span_text,
+        bbox=bbox,
+        page_boxes=page_boxes,
+        page_width=page_width,
+        page_height=page_height,
+    )
+
+    return jsonify({
+        "note_id": note.id,
+        "page_number": page_number,
+        "is_valid_geometry": is_valid,
+        "geometry_code": code,
+        "geometry_message": explanation,
+        "transformed_overlay": transformed,
+        "agreement": agreement_res.get("agreement", False),
+        "agreement_status": agreement_res.get("status"),
+        "similarity": agreement_res.get("similarity", 0.0),
+        "ocr_text": agreement_res.get("ocr_text", ""),
+        "disagreement_reason": agreement_res.get("reason"),
+    })

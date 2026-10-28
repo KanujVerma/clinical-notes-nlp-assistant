@@ -187,3 +187,68 @@ def test_hosted_requires_hosted_workspace_mode_and_rejects_arbitrary_edits(clien
     )
     assert response.status_code == 422
     assert response.json["code"] == "INVALID_REVIEW_PAYLOAD"
+
+
+def test_hosted_workspace_creation_quota_and_expired_cleanup(client, monkeypatch):
+    monkeypatch.setattr(Config, "APP_MODE", "hosted_demo")
+    from routes.workspaces import MAX_HOSTED_WORKSPACES
+    monkeypatch.setattr("routes.workspaces.MAX_HOSTED_WORKSPACES", 3)
+
+    # Create 3 hosted workspaces
+    ws_list = []
+    for _ in range(3):
+        res = client.post("/api/workspaces")
+        assert res.status_code == 201
+        ws_list.append(res.json)
+
+    # 4th creation attempt fails with 429 QUOTA_EXCEEDED
+    res_quota = client.post("/api/workspaces")
+    assert res_quota.status_code == 429
+    assert res_quota.json["code"] == "WORKSPACE_QUOTA_EXCEEDED"
+
+    # Expire one workspace manually in DB
+    app_engine = client.application.config["ENGINE"]
+    with get_session(app_engine) as session:
+        expired_ws = session.query(Workspace).filter_by(id=ws_list[0]["workspace_id"]).one()
+        expired_ws.expires_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(hours=1)
+        session.commit()
+
+    # Now a new creation succeeds because expired workspaces are purged
+    res_after = client.post("/api/workspaces")
+    assert res_after.status_code == 201
+    assert res_after.json["workspace_id"]
+
+
+def test_hosted_seed_uses_precomputed_scenarios_without_live_pipeline(client, monkeypatch):
+    monkeypatch.setattr(Config, "APP_MODE", "hosted_demo")
+    demo_ws = client.post("/api/workspaces").json
+    headers = {
+        "X-Workspace-ID": demo_ws["workspace_id"],
+        "X-Workspace-Token": demo_ws["token"],
+    }
+
+    # Track if run_pipeline is ever called
+    pipeline_called = []
+    def fail_pipeline(*args, **kwargs):
+        pipeline_called.append(True)
+        raise RuntimeError("run_pipeline should never be called during hosted demo seed")
+
+    import extractors.pipeline
+    monkeypatch.setattr(extractors.pipeline, "run_pipeline", fail_pipeline)
+
+    res = client.post("/api/seed-demo", headers=headers)
+    assert res.status_code == 200
+    assert len(pipeline_called) == 0
+    assert res.json["loaded"] == 10  # 10 curated showcase scenarios
+    assert res.json["skipped"] == 0
+
+    # Verify queue returns the seeded scenarios
+    queue_res = client.get("/api/queue", headers=headers)
+    assert queue_res.status_code == 200
+    assert len(queue_res.json["notes"]) == 10
+
+    # Scenarios list endpoint returns available scenarios
+    scenarios_res = client.get("/api/scenarios", headers=headers)
+    assert scenarios_res.status_code == 200
+    assert scenarios_res.json["count"] == 10
+

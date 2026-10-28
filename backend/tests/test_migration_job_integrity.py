@@ -154,3 +154,45 @@ def test_worker_finalizes_exhausted_lease_even_with_empty_queue(tmp_path):
         row = session.query(Job).filter_by(id=row_id).one()
         assert row.status == "failed"
         assert row.error_code == "ATTEMPTS_EXHAUSTED"
+
+
+def test_concurrent_job_creation_sqlite_barrier(tmp_path):
+    """Verifies that simultaneous job creators hitting a barrier on SQLite converge to a single job."""
+    import threading
+    app = create_app({
+        "TESTING": True,
+        "DATABASE_URL": f"sqlite:///{tmp_path / 'concurrent_job.db'}",
+    })
+    headers = {"X-Session-ID": "concurrent-sqlite-ws"}
+    barrier = threading.Barrier(2)
+    results = {}
+
+    def run_worker(name: str):
+        client = app.test_client()
+        barrier.wait(timeout=5)
+        res = client.post(
+            "/api/jobs",
+            json={"kind": "eval_run", "idempotency_key": "concurrent-barrier-key"},
+            headers=headers,
+        )
+        results[name] = (res.status_code, res.json)
+
+    t1 = threading.Thread(target=run_worker, args=("t1",))
+    t2 = threading.Thread(target=run_worker, args=("t2",))
+    t1.start()
+    t2.start()
+    t1.join(timeout=10)
+    t2.join(timeout=10)
+
+    assert results["t1"][0] in (200, 202)
+    assert results["t2"][0] in (200, 202)
+    assert results["t1"][1]["job_id"] == results["t2"][1]["job_id"]
+
+    engine = app.config["ENGINE"]
+    with get_session(engine) as session:
+        count = session.query(Job).filter_by(
+            workspace_id=headers["X-Session-ID"],
+            idempotency_key="concurrent-barrier-key",
+        ).count()
+        assert count == 1
+

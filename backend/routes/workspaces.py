@@ -1,3 +1,5 @@
+import os
+import json
 import uuid
 import datetime
 import hashlib
@@ -9,19 +11,40 @@ from services.ollama_service import is_ollama_available
 
 bp = Blueprint("workspaces", __name__)
 
+MAX_HOSTED_WORKSPACES = 50
+HOSTED_WORKSPACE_HOURS = 2
+LOCAL_WORKSPACE_HOURS = 24
+
 
 @bp.post("/api/workspaces")
 def create_workspace():
+    is_hosted = getattr(Config, "APP_MODE", "local") == "hosted_demo"
+    now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+    if is_hosted:
+        # 1. Purge expired workspaces to maintain bounded sandbox storage
+        g.db.query(Workspace).filter(Workspace.expires_at < now).delete(synchronize_session=False)
+        g.db.commit()
+
+        # 2. Enforce active workspace concurrency quota
+        active_count = g.db.query(Workspace).filter(Workspace.mode == "hosted_demo").count()
+        if active_count >= MAX_HOSTED_WORKSPACES:
+            return jsonify({
+                "error": "Public sandbox workspace quota reached. Please try again later.",
+                "code": "WORKSPACE_QUOTA_EXCEEDED",
+            }), 429
+
     ws_id = str(uuid.uuid4())
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-    mode = "hosted_demo" if getattr(Config, "APP_MODE", "local") == "hosted_demo" else "normal"
+    mode = "hosted_demo" if is_hosted else "normal"
+    hours = HOSTED_WORKSPACE_HOURS if is_hosted else LOCAL_WORKSPACE_HOURS
 
     ws = Workspace(
         id=ws_id,
         capability_token_hash=token_hash,
         mode=mode,
-        expires_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24),
+        expires_at=now + datetime.timedelta(hours=hours),
     )
     g.db.add(ws)
     g.db.commit()
@@ -36,6 +59,29 @@ def create_workspace():
         "mode": ws.mode,
         "expires_at": expires_dt.isoformat() if expires_dt else None,
     }), 201
+
+
+@bp.get("/api/scenarios")
+def list_scenarios():
+    """Returns curated synthetic scenarios for precomputed sandbox inspection."""
+    precomp_path = os.path.join(Config.DATA_DIR, "precomputed_scenarios.json")
+    scenarios = []
+    if os.path.isfile(precomp_path):
+        try:
+            with open(precomp_path, "r", encoding="utf-8") as f:
+                items = json.load(f)
+                for it in items:
+                    scenarios.append({
+                        "filename": it.get("filename"),
+                        "title": it.get("title", it.get("filename", "")),
+                        "sha256": it.get("sha256"),
+                        "has_issues": len(it.get("issues", [])) > 0,
+                        "issues_count": len(it.get("issues", [])),
+                        "snippet": (it.get("raw_text", "")[:150] + "...") if len(it.get("raw_text", "")) > 150 else it.get("raw_text", ""),
+                    })
+        except Exception:
+            pass
+    return jsonify({"scenarios": scenarios, "count": len(scenarios)})
 
 
 @bp.get("/api/capabilities")

@@ -188,6 +188,9 @@ export const api = {
   getCapabilities: () =>
     request<any>("/capabilities"),
 
+  getScenarios: () =>
+    request<{ scenarios: Array<{ filename: string; title: string; sha256: string; has_issues: boolean; issues_count: number; snippet: string }>; count: number }>("/scenarios"),
+
   getNoteState: (noteId: number) =>
     request<any>(`/notes/${noteId}`),
 

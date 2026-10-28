@@ -1,0 +1,1472 @@
+[
+  {
+    "filename": "showcase_001.txt",
+    "title": "Showcase 001",
+    "raw_text": "Patient: Demo Patient One\nDate of Service: 2025-01-15\nProvider: Dr. Demo Provider\n\nVITALS: BP 130/82. HR 76 bpm. Temp 98.6F. RR 14. SpO2 98%. Wt 175 lbs.\n\nMEDICATIONS:\n- lisinopril 10 mg PO daily\n- metformin 500 mg PO BID\n- atorvastatin 20 mg PO daily\n\nDISCHARGE INSTRUCTIONS:\nTake all medications as prescribed. Follow a heart-healthy diet. Weigh yourself daily.\n\nFOLLOW UP:\nReturn to clinic in 2 weeks for follow-up labs and blood pressure check.\n\nRETURN PRECAUTIONS:\nReturn to the emergency department if you experience chest pain, shortness of breath, or blood pressure above 180/110 mmHg.\n",
+    "sha256": "a5b8aff746b5aadc3168c39eb8ea104bf7c891a4dc0112a4981e6caa9d70ad44",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "130/82",
+          "span": [
+            91,
+            100
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "76 bpm",
+          "span": [
+            102,
+            111
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "temperature": {
+          "value": "98.6 F",
+          "span": [
+            113,
+            123
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "14",
+          "span": [
+            125,
+            130
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "oxygen_saturation": {
+          "value": "98%",
+          "span": [
+            132,
+            140
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "175 lbs",
+          "span": [
+            142,
+            152
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "lisinopril",
+          "dose": "10 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            168,
+            195
+          ],
+          "source": "section",
+          "confidence": 0.85
+        },
+        {
+          "name": "metformin",
+          "dose": "500 mg",
+          "route": "PO",
+          "frequency": "BID",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            196,
+            221
+          ],
+          "source": "section",
+          "confidence": 0.85
+        },
+        {
+          "name": "atorvastatin",
+          "dose": "20 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            222,
+            251
+          ],
+          "source": "section",
+          "confidence": 0.85
+        }
+      ],
+      "instructions": {
+        "discharge_instructions": {
+          "value": "Take all medications as prescribed. Follow a heart-healthy diet. Weigh yourself daily.",
+          "span": [
+            253,
+            365
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "follow_up": {
+          "value": "Return to clinic in 2 weeks for follow-up labs and blood pressure check.",
+          "span": [
+            365,
+            450
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "return_precautions": {
+          "value": "Return to the emergency department if you experience chest pain, shortness of breath, or blood pressure above 180/110 mmHg.",
+          "span": [
+            450,
+            594
+          ],
+          "source": "section",
+          "confidence": 0.9
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient One",
+          "span": [
+            0,
+            25
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-15",
+          "span": [
+            26,
+            53
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "provider_name": {
+          "value": "Dr. Demo Provider",
+          "span": [
+            54,
+            81
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": []
+  },
+  {
+    "filename": "showcase_002.txt",
+    "title": "Showcase 002",
+    "raw_text": "Patient: Demo Patient Two\nDate of Service: 2025-01-16\nProvider: Dr. Demo Provider\n\nVITALS: BP 118/72. HR 84 bpm. Patient declined temperature, weight, and SpO2 measurements.\n\nMEDICATIONS:\n- amlodipine 5 mg PO daily\n- omeprazole 20 mg PO QHS\n\nDISCHARGE INSTRUCTIONS:\nContinue all current medications. Maintain a low-sodium diet.\n\nFOLLOW UP:\nReturn to clinic in 4 weeks.\n\nRETURN PRECAUTIONS:\nGo to the ER if you develop severe chest pain or dizziness.\n",
+    "sha256": "272905e2239c6d0c3c0ccc3b912a330ca03eb18b2025eb57c5b5cc901b1afa05",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "118/72",
+          "span": [
+            91,
+            100
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "84 bpm",
+          "span": [
+            102,
+            111
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "amlodipine",
+          "dose": "5 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            188,
+            214
+          ],
+          "source": "section",
+          "confidence": 0.85
+        },
+        {
+          "name": "omeprazole",
+          "dose": "20 mg",
+          "route": "PO",
+          "frequency": "QHS",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            215,
+            240
+          ],
+          "source": "section",
+          "confidence": 0.85
+        }
+      ],
+      "instructions": {
+        "discharge_instructions": {
+          "value": "Continue all current medications. Maintain a low-sodium diet.",
+          "span": [
+            242,
+            329
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "follow_up": {
+          "value": "Return to clinic in 4 weeks.",
+          "span": [
+            329,
+            370
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "return_precautions": {
+          "value": "Go to the ER if you develop severe chest pain or dizziness.",
+          "span": [
+            370,
+            450
+          ],
+          "source": "section",
+          "confidence": 0.9
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient Two",
+          "span": [
+            0,
+            25
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-16",
+          "span": [
+            26,
+            53
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "provider_name": {
+          "value": "Dr. Demo Provider",
+          "span": [
+            54,
+            81
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": []
+  },
+  {
+    "filename": "showcase_003.txt",
+    "title": "Showcase 003",
+    "raw_text": "Patient: Demo Patient Three\nDate of Service: 2025-01-17\nProvider: Dr. Demo Provider\n\nVITALS: BP 144/88. HR 90 bpm. Temp 99.0F. RR 16. SpO2 96%. Wt 210 lbs.\n\nMEDICATIONS (5 active):\n- metformin 1000 mg PO BID\n- lisinopril 20 mg PO daily\n- atorvastatin 40 mg PO daily\n- sertraline 50 mg PO daily\n- gabapentin 300 mg PO TID\n\nDISCHARGE INSTRUCTIONS:\nTake medications as directed. Monitor blood glucose daily. Avoid alcohol with gabapentin.\n\nFOLLOW UP:\nEndocrinology in 3 weeks. PCP in 6 weeks.\n\nRETURN PRECAUTIONS:\nReturn to ED for severe hypoglycemia (blood sugar < 60), confusion, or chest pain.\n",
+    "sha256": "63c57be7de11ada8c48af4cf8bc99bf85e24b989ce138b58497ff94671b30460",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "144/88",
+          "span": [
+            93,
+            102
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "90 bpm",
+          "span": [
+            104,
+            113
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "temperature": {
+          "value": "99.0 F",
+          "span": [
+            115,
+            125
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "16",
+          "span": [
+            127,
+            132
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "oxygen_saturation": {
+          "value": "96%",
+          "span": [
+            134,
+            142
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "210 lbs",
+          "span": [
+            144,
+            154
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "metformin",
+          "dose": "1000 mg",
+          "route": "PO",
+          "frequency": "BID",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            183,
+            192
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        },
+        {
+          "name": "lisinopril",
+          "dose": "20 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            210,
+            220
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        },
+        {
+          "name": "atorvastatin",
+          "dose": "40 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            238,
+            250
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        },
+        {
+          "name": "sertraline",
+          "dose": "50 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            268,
+            278
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        },
+        {
+          "name": "gabapentin",
+          "dose": "300 mg",
+          "route": "PO",
+          "frequency": "TID",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            296,
+            306
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        }
+      ],
+      "instructions": {
+        "discharge_instructions": {
+          "value": "Take medications as directed. Monitor blood glucose daily. Avoid alcohol with gabapentin.",
+          "span": [
+            322,
+            437
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "follow_up": {
+          "value": "Endocrinology in 3 weeks. PCP in 6 weeks.",
+          "span": [
+            437,
+            491
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "return_precautions": {
+          "value": "Return to ED for severe hypoglycemia (blood sugar < 60), confusion, or chest pain.",
+          "span": [
+            491,
+            594
+          ],
+          "source": "section",
+          "confidence": 0.9
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient Three",
+          "span": [
+            0,
+            27
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-17",
+          "span": [
+            28,
+            55
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "provider_name": {
+          "value": "Dr. Demo Provider",
+          "span": [
+            56,
+            83
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": []
+  },
+  {
+    "filename": "showcase_004.txt",
+    "title": "Showcase 004",
+    "raw_text": "Patient: Demo Patient Four\nDate of Service: 2025-01-18\nProvider: Dr. Demo Provider\n\nVITALS: BP 128/80. HR 72. Temp 98.3F. RR 13. SpO2 99%. Wt 162 lbs.\n\nMEDICATIONS:\n- albuterol 90 mcg inhaled PRN\n- metoprolol 25 mg PO BID\n\nPatient denies use of theophylline. Not currently taking prednisone. Patient reports she stopped taking ibuprofen 2 weeks ago.\n\nDISCHARGE INSTRUCTIONS:\nUse albuterol only as needed. Do not exceed 4 puffs per day. Keep a rescue inhaler accessible at all times.\n\nFOLLOW UP:\nPulmonology clinic in 4 weeks.\n\nRETURN PRECAUTIONS:\nGo to the ER immediately if albuterol provides no relief or symptoms worsen rapidly.\n",
+    "sha256": "6a12aa411a887223a3edaa8d4ccc4479a39e7f474b15fb5b226939581d84743a",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "128/80",
+          "span": [
+            92,
+            101
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "72",
+          "span": [
+            103,
+            108
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "temperature": {
+          "value": "98.3 F",
+          "span": [
+            110,
+            120
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "13",
+          "span": [
+            122,
+            127
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "oxygen_saturation": {
+          "value": "99%",
+          "span": [
+            129,
+            137
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "162 lbs",
+          "span": [
+            139,
+            149
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "albuterol",
+          "dose": "90 mcg",
+          "route": "inhaled",
+          "frequency": "PRN",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            165,
+            195
+          ],
+          "source": "section",
+          "confidence": 0.85
+        },
+        {
+          "name": "metoprolol",
+          "dose": "25 mg",
+          "route": "PO",
+          "frequency": "BID",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            196,
+            221
+          ],
+          "source": "section",
+          "confidence": 0.85
+        },
+        {
+          "name": "ibuprofen",
+          "dose": "",
+          "route": "",
+          "frequency": "",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            327,
+            336
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        }
+      ],
+      "instructions": {
+        "discharge_instructions": {
+          "value": "Use albuterol only as needed. Do not exceed 4 puffs per day. Keep a rescue inhaler accessible at all times.",
+          "span": [
+            351,
+            484
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "follow_up": {
+          "value": "Pulmonology clinic in 4 weeks.",
+          "span": [
+            484,
+            527
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "return_precautions": {
+          "value": "Go to the ER immediately if albuterol provides no relief or symptoms worsen rapidly.",
+          "span": [
+            527,
+            632
+          ],
+          "source": "section",
+          "confidence": 0.9
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient Four",
+          "span": [
+            0,
+            26
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-18",
+          "span": [
+            27,
+            54
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "provider_name": {
+          "value": "Dr. Demo Provider",
+          "span": [
+            55,
+            82
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": []
+  },
+  {
+    "filename": "showcase_005.txt",
+    "title": "Showcase 005",
+    "raw_text": "Patient: Demo Patient Five\nDate of Service: 2025-01-19\nProvider: Dr. Demo Provider\n\nVITALS: BP 136/84. HR 80 bpm. Temp 98.7F. RR 15. SpO2 97%. Wt 188 lbs.\n\nThe patient was started on amoxicillin 500 mg three times daily for a suspected upper respiratory infection. She is already taking omeprazole 20 mg nightly for reflux and her cardiologist recently added aspirin 81 mg once daily for cardiovascular prophylaxis. No allergies to penicillin reported.\n\nDISCHARGE INSTRUCTIONS:\nTake amoxicillin with food. Complete the full 10-day course. Continue omeprazole and aspirin as prescribed.\n\nFOLLOW UP:\nCheck in with primary care in 1 week if symptoms have not improved.\n\nRETURN PRECAUTIONS:\nSeek emergency care if rash, throat swelling, or difficulty breathing develops.\n",
+    "sha256": "cbc19f8ae5631116081f627c015e64acb7b845b11d654d790c918dbf2ba1eeb1",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "136/84",
+          "span": [
+            92,
+            101
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "80 bpm",
+          "span": [
+            103,
+            112
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "temperature": {
+          "value": "98.7 F",
+          "span": [
+            114,
+            124
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "15",
+          "span": [
+            126,
+            131
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "oxygen_saturation": {
+          "value": "97%",
+          "span": [
+            133,
+            141
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "188 lbs",
+          "span": [
+            143,
+            153
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [],
+      "instructions": {
+        "discharge_instructions": {
+          "value": "Take amoxicillin with food. Complete the full 10-day course. Continue omeprazole and aspirin as prescribed.",
+          "span": [
+            454,
+            587
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "follow_up": {
+          "value": "Check in with primary care in 1 week if symptoms have not improved.",
+          "span": [
+            587,
+            667
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "return_precautions": {
+          "value": "Seek emergency care if rash, throat swelling, or difficulty breathing develops.",
+          "span": [
+            667,
+            767
+          ],
+          "source": "section",
+          "confidence": 0.9
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient Five",
+          "span": [
+            0,
+            26
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-19",
+          "span": [
+            27,
+            54
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "provider_name": {
+          "value": "Dr. Demo Provider",
+          "span": [
+            55,
+            82
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": []
+  },
+  {
+    "filename": "showcase_006.txt",
+    "title": "Showcase 006",
+    "raw_text": "Brief progress note. Patient stable. No acute distress.\n\nBP 122/76 HR 68 Temp 98.1 RR 13 O2 99% Wt 155 lbs.\n\nContinuing lisinopril 10 mg daily and metformin 500 mg BID. No adverse effects reported.\n\nFollow up in 8 weeks. Call clinic if dizziness or persistent cough.\n",
+    "sha256": "689d83d307646f47b46f3bd6481ed867bec0a15bc98c9c00bf1b99fb2587f22c",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "122/76",
+          "span": [
+            57,
+            66
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "68",
+          "span": [
+            67,
+            72
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "temperature": {
+          "value": "98.1",
+          "span": [
+            73,
+            82
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "13",
+          "span": [
+            83,
+            88
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "155 lbs",
+          "span": [
+            96,
+            106
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "lisinopril",
+          "dose": "10 mg",
+          "route": "",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            120,
+            130
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        },
+        {
+          "name": "metformin",
+          "dose": "500 mg",
+          "route": "",
+          "frequency": "BID",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            147,
+            156
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        }
+      ],
+      "instructions": {
+        "follow_up": {
+          "value": "Follow up in 8 weeks. Call clinic if dizziness or persistent cough.",
+          "span": [
+            199,
+            266
+          ],
+          "source": "fallback",
+          "confidence": 0.6
+        }
+      },
+      "metadata": {}
+    },
+    "issues": [
+      {
+        "issue_code": "A09_MULTIPLE_MEDICATIONS_IN_SENTENCE",
+        "category": "clinical_canary",
+        "severity": "info",
+        "item_id": null,
+        "field_path": null,
+        "evidence_span": null,
+        "safe_explanation": "Sentence contains multiple medications (lisinopril, metformin). Verify dose/route are not cross-borrowed.",
+        "check_policy_version": "1.0.0"
+      },
+      {
+        "issue_code": "A03_MISSING_VITAL_UNIT",
+        "category": "clinical_canary",
+        "severity": "warning",
+        "item_id": "689b5ad7-8ac6-47ff-97b1-5a6575853dbe",
+        "field_path": "vitals.temperature.unit",
+        "evidence_span": null,
+        "safe_explanation": "Vital 'temperature' has value '98.1' but missing unit (e.g. kg vs lbs or C vs F)",
+        "check_policy_version": "1.0.0"
+      }
+    ]
+  },
+  {
+    "filename": "showcase_007.txt",
+    "title": "Showcase 007",
+    "raw_text": "Pt:Demo Patient Seven DOS:2025-01-21 MD:Dr.Demo Provider\nVS:BP138/86 HR88 T98.8 RR16 O2:96% Wt:202lbs\nMeds:furosemide 40mg PO daily,spironolactone 25mg PO daily,carvedilol 12.5mg PO BID\nDC Instrs:Weigh daily.Low-sodium diet.Fluid restriction 1.5L/day.\nFU:Cardiology 1wk.\nReturn:SOB at rest,wt gain>3lbs/day,leg edema worsening.\n",
+    "sha256": "14db22acf7374b74c3c1b51cf3765f977e04fed42f0b3a2d3867a96a26902a07",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "138/86",
+          "span": [
+            60,
+            68
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "88",
+          "span": [
+            69,
+            73
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "16",
+          "span": [
+            80,
+            84
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "202 lbs",
+          "span": [
+            92,
+            101
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "furosemide",
+          "dose": "40mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            107,
+            117
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        },
+        {
+          "name": "spironolactone",
+          "dose": "25mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            132,
+            146
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        },
+        {
+          "name": "carvedilol",
+          "dose": "",
+          "route": "",
+          "frequency": "",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            161,
+            171
+          ],
+          "source": "medspacy",
+          "confidence": 0.9
+        }
+      ],
+      "instructions": {
+        "discharge_instructions": {
+          "value": "Return:SOB at rest,wt gain>3lbs/day,leg edema worsening.",
+          "span": [
+            271,
+            327
+          ],
+          "source": "fallback",
+          "confidence": 0.6
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient Seven DOS:2025-01-21 MD:Dr.Demo Provider",
+          "span": [
+            0,
+            56
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-21",
+          "span": [
+            22,
+            36
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": [
+      {
+        "issue_code": "A09_MULTIPLE_MEDICATIONS_IN_SENTENCE",
+        "category": "clinical_canary",
+        "severity": "info",
+        "item_id": null,
+        "field_path": null,
+        "evidence_span": null,
+        "safe_explanation": "Sentence contains multiple medications (furosemide, spironolactone, carvedilol). Verify dose/route are not cross-borrowed.",
+        "check_policy_version": "1.0.0"
+      }
+    ]
+  },
+  {
+    "filename": "showcase_008.txt",
+    "title": "Showcase 008",
+    "raw_text": "Patient: Demo Patient Eight\n\n\nDate of Service:   2025-01-22\n\n\nProvider:  Dr. Demo Provider\n\n\n\nVITALS\n\n\n\nBP:   132/80   |   HR:   74   |   Temp:   98.5F   |   RR:   14   |   SpO2:   98%   |   Wt:   168 lbs\n\n\n\nCURRENT MEDICATIONS\n\n\n\nwarfarin   5mg   PO   daily\nhydrochlorothiazide   25mg   PO   daily\n\n\n\nDISCHARGE INSTRUCTIONS\n\n\n\nContinue warfarin. INR recheck in 1 week. Avoid grapefruit and significant changes to leafy green vegetable intake.\n\n\n\nFOLLOW-UP:\n\n\n\nHematology clinic   in   2   weeks.\n\n\n\nRETURN PRECAUTIONS:\n\n\n\nReturn to ED for unusual bleeding, blood in urine, or signs of stroke.\n",
+    "sha256": "bd56402b8613de37cb6aebd70fbcca293bb5a294d55cb41c9740d087e4bd739a",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "132/80",
+          "span": [
+            104,
+            116
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "74",
+          "span": [
+            123,
+            131
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "temperature": {
+          "value": "98.5 F",
+          "span": [
+            138,
+            151
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "14",
+          "span": [
+            158,
+            166
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "oxygen_saturation": {
+          "value": "98%",
+          "span": [
+            173,
+            184
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "168 lbs",
+          "span": [
+            191,
+            204
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "warfarin",
+          "dose": "5mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            228,
+            257
+          ],
+          "source": "section",
+          "confidence": 0.85
+        },
+        {
+          "name": "hydrochlorothiazide",
+          "dose": "25mg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            258,
+            297
+          ],
+          "source": "section",
+          "confidence": 0.85
+        }
+      ],
+      "instructions": {
+        "discharge_instructions": {
+          "value": "Continue warfarin. INR recheck in 1 week. Avoid grapefruit and significant changes to leafy green vegetable intake.",
+          "span": [
+            302,
+            447
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "follow_up": {
+          "value": "Hematology clinic   in   2   weeks.",
+          "span": [
+            447,
+            500
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "return_precautions": {
+          "value": "Return to ED for unusual bleeding, blood in urine, or signs of stroke.",
+          "span": [
+            500,
+            594
+          ],
+          "source": "section",
+          "confidence": 0.9
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient Eight",
+          "span": [
+            0,
+            27
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-22",
+          "span": [
+            30,
+            59
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "provider_name": {
+          "value": "Dr. Demo Provider",
+          "span": [
+            62,
+            90
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": [
+      {
+        "issue_code": "A04_CONTRADICTORY_INSTRUCTION",
+        "category": "clinical_canary",
+        "severity": "warning",
+        "item_id": "ec3e59cf-a821-4fa8-8ebd-686351bb89cd",
+        "field_path": "text",
+        "evidence_span": null,
+        "safe_explanation": "Instruction contains potentially contradictory action words: 'Continue warfarin. INR recheck in 1 week. Avoid grapefruit and significant changes to leafy green vegetable intake.'",
+        "check_policy_version": "1.0.0"
+      }
+    ]
+  },
+  {
+    "filename": "showcase_009.txt",
+    "title": "Showcase 009",
+    "raw_text": "Patient: Demo Patient Nine\nDate of Service: 2025-01-23\nProvider: Dr. Demo Provider\n\nFollow-up for hypothyroidism. Patient feeling well. Fatigue improved.\n\nVITALS: BP 114/70. HR 62. Temp 97.8F. RR 12. SpO2 100%. Wt 138 lbs.\n\nMEDICATIONS:\n- levothyroxine 75 mcg PO daily (take on empty stomach, 30 min before food)\n\nFOLLOW UP:\nRepeat TSH labs in 6 weeks. Return appointment with endocrinology in 3 months.\n",
+    "sha256": "1d2391c10dff8a5713ccb4ce483733d3f0343b68e87b93f54c36da27dfb54571",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "114/70",
+          "span": [
+            163,
+            172
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "62",
+          "span": [
+            174,
+            179
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "temperature": {
+          "value": "97.8 F",
+          "span": [
+            181,
+            191
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "12",
+          "span": [
+            193,
+            198
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "oxygen_saturation": {
+          "value": "100%",
+          "span": [
+            200,
+            209
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "138 lbs",
+          "span": [
+            211,
+            221
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "levothyroxine",
+          "dose": "75 mcg",
+          "route": "PO",
+          "frequency": "daily",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            237,
+            312
+          ],
+          "source": "section",
+          "confidence": 0.85
+        }
+      ],
+      "instructions": {
+        "follow_up": {
+          "value": "Repeat TSH labs in 6 weeks. Return appointment with endocrinology in 3 months.",
+          "span": [
+            314,
+            404
+          ],
+          "source": "section",
+          "confidence": 0.9
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient Nine",
+          "span": [
+            0,
+            26
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-23",
+          "span": [
+            27,
+            54
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "provider_name": {
+          "value": "Dr. Demo Provider",
+          "span": [
+            55,
+            82
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": []
+  },
+  {
+    "filename": "showcase_010.txt",
+    "title": "Showcase 010",
+    "raw_text": "Patient: Demo Patient Ten (pediatric case)\nDate of Service: 2025-01-24\nProvider: Dr. Demo Provider\n\nVITALS: BP 102/64. HR 96 bpm. Temp 37.8C. RR 22. SpO2 97%. Wt 28 kg.\n\nMEDICATIONS:\n- amoxicillin 250 mg PO TID x 10 days\n- ibuprofen 200 mg PO TID PRN fever or pain\n\nDISCHARGE INSTRUCTIONS:\nComplete the full course of amoxicillin. Ibuprofen for fever above 38.5C or for discomfort. Encourage fluids and rest.\n\nFOLLOW UP:\nReturn to pediatric clinic in 10 days or sooner if not improving.\n\nRETURN PRECAUTIONS:\nReturn to ED if fever exceeds 40C, child is not drinking fluids, or has difficulty breathing.\n",
+    "sha256": "8deae5e4c260a40357f0510799157443c2556f557d37bd283676677defcb35ad",
+    "extraction": {
+      "pipeline_version": "0.1.0",
+      "vitals": {
+        "blood_pressure": {
+          "value": "102/64",
+          "span": [
+            108,
+            117
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "heart_rate": {
+          "value": "96 bpm",
+          "span": [
+            119,
+            128
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "temperature": {
+          "value": "37.8 C",
+          "span": [
+            130,
+            140
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "respiratory_rate": {
+          "value": "22",
+          "span": [
+            142,
+            147
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "oxygen_saturation": {
+          "value": "97%",
+          "span": [
+            149,
+            157
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        },
+        "weight": {
+          "value": "28 kg",
+          "span": [
+            159,
+            167
+          ],
+          "source": "regex",
+          "confidence": 1.0
+        }
+      },
+      "medications": [
+        {
+          "name": "amoxicillin",
+          "dose": "250 mg",
+          "route": "PO",
+          "frequency": "TID",
+          "duration": "",
+          "qualifier": "",
+          "span": [
+            183,
+            220
+          ],
+          "source": "section",
+          "confidence": 0.85
+        },
+        {
+          "name": "ibuprofen",
+          "dose": "200 mg",
+          "route": "PO",
+          "frequency": "TID",
+          "duration": "",
+          "qualifier": "PRN fever or pain",
+          "span": [
+            221,
+            264
+          ],
+          "source": "section",
+          "confidence": 0.85
+        }
+      ],
+      "instructions": {
+        "discharge_instructions": {
+          "value": "Complete the full course of amoxicillin. Ibuprofen for fever above 38.5C or for discomfort. Encourage fluids and rest.",
+          "span": [
+            266,
+            410
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "follow_up": {
+          "value": "Return to pediatric clinic in 10 days or sooner if not improving.",
+          "span": [
+            410,
+            488
+          ],
+          "source": "section",
+          "confidence": 0.9
+        },
+        "return_precautions": {
+          "value": "Return to ED if fever exceeds 40C, child is not drinking fluids, or has difficulty breathing.",
+          "span": [
+            488,
+            602
+          ],
+          "source": "section",
+          "confidence": 0.9
+        }
+      },
+      "metadata": {
+        "patient_name": {
+          "value": "Demo Patient Ten (pediatric case)",
+          "span": [
+            0,
+            42
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "date_of_service": {
+          "value": "2025-01-24",
+          "span": [
+            43,
+            70
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        },
+        "provider_name": {
+          "value": "Dr. Demo Provider",
+          "span": [
+            71,
+            98
+          ],
+          "source": "regex",
+          "confidence": 0.9
+        }
+      }
+    },
+    "issues": []
+  }
+]

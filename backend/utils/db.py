@@ -31,6 +31,11 @@ def get_engine(database_url: str):
         kwargs["connect_args"] = {
             "sslmode": os.environ.get("DATABASE_SSLMODE", "require")
         }
+    elif database_url.startswith("sqlite"):
+        kwargs["connect_args"] = {
+            "timeout": 30.0,
+            "check_same_thread": False,
+        }
     return create_engine(database_url, echo=False, **kwargs)
 
 

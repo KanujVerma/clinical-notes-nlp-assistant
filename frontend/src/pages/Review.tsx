@@ -4,6 +4,7 @@ import { useLocation, useParams, useNavigate, useBlocker } from "react-router-do
 import { api } from "../api/client";
 import { ExtractionResult, NoteDetail } from "../types";
 import NoteViewer from "../components/NoteViewer";
+import DocumentSourceViewer, { PageMetadata } from "../components/DocumentSourceViewer";
 import FieldEditor, { FieldStatus, FieldCategory } from "../components/FieldEditor";
 import TranscriptionEditModal from "../components/TranscriptionEditModal";
 import OperationalIssuesDrawer from "../components/OperationalIssuesDrawer";
@@ -235,6 +236,8 @@ export default function Review() {
     medications: false,
     instructions: false,
   });
+  const [pages, setPages] = useState<PageMetadata[]>([]);
+  const [leftPaneMode, setLeftPaneMode] = useState<"document" | "transcript">("document");
 
   const deactivateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -307,6 +310,7 @@ export default function Review() {
             setReviewEventId(st.review_head?.event_id ?? null);
             setCurrentRevisionNumber(src.revision_number ?? 1);
             setCurrentSourceHash(src.sha256 ?? null);
+            if (src.pages) setPages(src.pages);
           })
           .catch(() => setError("Cannot verify current source/extraction binding."));
       }
@@ -322,6 +326,7 @@ export default function Review() {
       api.getNoteSource(nid).then((src) => {
         if (src.revision_number) setCurrentRevisionNumber(src.revision_number);
         if (src.sha256) setCurrentSourceHash(src.sha256);
+        if (src.pages) setPages(src.pages);
       }).catch(() => {});
 
       api.getNoteDetail(nid).then((d: NoteDetail) => {
@@ -902,36 +907,80 @@ export default function Review() {
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: NoteViewer */}
-        <div className="w-1/2 border-r border-slate-200 flex flex-col overflow-hidden bg-white">
-          {/* Legend and Edit Transcription */}
-          <div className="px-4 py-1.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-4 flex-shrink-0">
-            <div className="flex items-center gap-4">
-              {[
-                { label: "vitals", color: "bg-blue-400" },
-                { label: "meds", color: "bg-green-400" },
-                { label: "instructions", color: "bg-amber-400" },
-                { label: "metadata", color: "bg-violet-400" },
-              ].map(({ label, color }) => (
-                <span key={label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                  <span className={`w-2 h-2 rounded-sm ${color} opacity-70`} />
-                  {label}
-                </span>
-              ))}
+        {/* Left: Document Source & Evidence Viewer */}
+        <div className="w-1/2 border-r border-slate-200 flex flex-col overflow-hidden bg-slate-900">
+          {/* Header controls for Document vs Transcript view */}
+          <div className="px-3 py-1.5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between gap-2 flex-shrink-0">
+            <div className="inline-flex rounded-lg p-0.5 bg-slate-950 border border-slate-700">
+              <button
+                type="button"
+                onClick={() => setLeftPaneMode("document")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                  leftPaneMode === "document"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                data-testid="leftpane-mode-document"
+              >
+                Document Viewer (PDF/Image)
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeftPaneMode("transcript")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                  leftPaneMode === "transcript"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                data-testid="leftpane-mode-transcript"
+              >
+                Transcript Spans
+              </button>
             </div>
+
             <button
               onClick={() => setIsTranscriptionModalOpen(true)}
-              className="text-[11px] font-semibold text-cyan-600 hover:text-cyan-700 underline"
+              className="text-[11px] font-medium text-cyan-400 hover:text-cyan-300 underline"
             >
               Update Transcription (Rev {currentRevisionNumber})
             </button>
           </div>
-          <NoteViewer
-            rawText={rawText}
-            extracted={extracted}
-            activeKey={activeKey}
-            onSpanClick={handleActivate}
-          />
+
+          {leftPaneMode === "document" && noteIdState && extracted ? (
+            <DocumentSourceViewer
+              noteId={noteIdState}
+              rawText={rawText}
+              extracted={extracted}
+              pages={pages}
+              activeKey={activeKey}
+              onSpanClick={handleActivate}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden bg-white">
+              {/* Legend */}
+              <div className="px-4 py-1.5 border-b border-slate-100 bg-slate-50 flex items-center gap-4 flex-shrink-0">
+                {[
+                  { label: "vitals", color: "bg-blue-400" },
+                  { label: "meds", color: "bg-green-400" },
+                  { label: "instructions", color: "bg-amber-400" },
+                  { label: "metadata", color: "bg-violet-400" },
+                ].map(({ label, color }) => (
+                  <span key={label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                    <span className={`w-2 h-2 rounded-sm ${color} opacity-70`} />
+                    {label}
+                  </span>
+                ))}
+              </div>
+              {extracted && (
+                <NoteViewer
+                  rawText={rawText}
+                  extracted={extracted}
+                  activeKey={activeKey}
+                  onSpanClick={handleActivate}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: Field cards */}
@@ -1213,6 +1262,7 @@ export default function Review() {
             api.getNoteSource(noteIdState).then((src) => {
               if (src.sha256) setCurrentSourceHash(src.sha256);
               if (src.revision_number) setCurrentRevisionNumber(src.revision_number);
+              if (src.pages) setPages(src.pages);
             }).catch(() => {});
           }}
         />
