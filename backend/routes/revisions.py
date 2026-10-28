@@ -272,7 +272,9 @@ def get_page_image(note_id: int, page_number: int):
     try:
         rotation = int(request.args.get("rotation", 0))
     except (ValueError, TypeError):
-        rotation = 0
+        return jsonify({"error": "Invalid rotation", "code": "INVALID_ROTATION"}), 422
+    if rotation not in (0, 90, 180, 270):
+        return jsonify({"error": "Rotation must be 0, 90, 180 or 270", "code": "INVALID_ROTATION"}), 422
 
     rev = (
         g.db.query(NoteRevision)
@@ -295,6 +297,9 @@ def get_page_image(note_id: int, page_number: int):
                     page = doc[page_number - 1]
                     rot_deg = (rotation % 360 + 360) % 360
                     zoom = 150.0 / 72.0
+                    estimated_pixels = page.rect.width * page.rect.height * zoom * zoom
+                    if estimated_pixels > 20_000_000:
+                        return jsonify({"error": "Page raster size exceeded", "code": "PAGE_TOO_LARGE"}), 413
                     mat = fitz.Matrix(zoom, zoom).prerotate(rot_deg)
                     pix = page.get_pixmap(matrix=mat)
                     img_bytes = pix.tobytes("png")
@@ -360,7 +365,9 @@ def verify_evidence_geometry(note_id: int):
     try:
         rotation = int(body.get("rotation", 0))
     except (ValueError, TypeError):
-        rotation = 0
+        return jsonify({"error": "Invalid rotation", "code": "INVALID_ROTATION"}), 422
+    if rotation not in (0, 90, 180, 270):
+        return jsonify({"error": "Unsupported rotation", "code": "INVALID_ROTATION"}), 422
 
     rev = (
         g.db.query(NoteRevision)
@@ -379,6 +386,11 @@ def verify_evidence_geometry(note_id: int):
         if p.get("page_number") == page_number:
             target_page = p
             break
+
+    if pages and target_page is None:
+        return jsonify({"error": "Source page is unavailable", "code": "PAGE_OUT_OF_BOUNDS"}), 404
+    if not pages and page_number != 1:
+        return jsonify({"error": "Transcript has only one rendered page", "code": "PAGE_OUT_OF_BOUNDS"}), 404
 
     page_width = target_page.get("width", 800.0) if target_page else 800.0
     page_height = target_page.get("height", 1100.0) if target_page else 1100.0
