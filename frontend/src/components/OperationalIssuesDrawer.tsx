@@ -16,6 +16,7 @@ export default function OperationalIssuesDrawer({
   onToggle: () => void;
   onIssuesUpdated?: (openBlockersCount: number) => void;
 }) {
+  const [isHosted, setIsHosted] = useState(false);
   const [issues, setIssues] = useState<any[]>([]);
   const [loadingIssues, setLoadingIssues] = useState(false);
   const [aiDiscrepancies, setAiDiscrepancies] = useState<any[]>([]);
@@ -23,6 +24,11 @@ export default function OperationalIssuesDrawer({
 
   const currentBindingRef = useRef({ noteId, revisionId, extractionId });
   currentBindingRef.current = { noteId, revisionId, extractionId };
+
+  useEffect(() => {
+    api.getCapabilities().then((caps) => setIsHosted(caps.mode === "hosted_demo"))
+      .catch(() => setIsHosted(true)); // fail closed if capabilities unavailable
+  }, []);
 
   useEffect(() => {
     setAiDiscrepancies([]);
@@ -141,6 +147,7 @@ export default function OperationalIssuesDrawer({
                     <p className="mt-1 text-xs text-slate-300 leading-snug">
                       {iss.safe_explanation}
                     </p>
+                    {!isHosted && (
                     <div className="mt-2.5 flex justify-end space-x-2">
                       <button
                         onClick={() => handleDisposition(iss.id, "dismissed")}
@@ -155,6 +162,7 @@ export default function OperationalIssuesDrawer({
                         Acknowledge
                       </button>
                     </div>
+                    )}
                   </div>
                 );
               })}
@@ -168,13 +176,17 @@ export default function OperationalIssuesDrawer({
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Local AI Understanding
             </h4>
-            <button
-              onClick={handleRequestAi}
-              disabled={loadingAi}
-              className="rounded bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-cyan-400 hover:bg-slate-700 disabled:opacity-50"
-            >
-              {loadingAi ? "Analyzing…" : "Request Proposals"}
-            </button>
+            {isHosted ? (
+              <span className="text-[11px] text-slate-400">Recorded synthetic examples only</span>
+            ) : (
+              <button
+                onClick={handleRequestAi}
+                disabled={loadingAi}
+                className="rounded bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-cyan-400 hover:bg-slate-700 disabled:opacity-50"
+              >
+                {loadingAi ? "Analyzing…" : "Request Proposals"}
+              </button>
+            )}
           </div>
 
           {aiDiscrepancies.length > 0 && (
