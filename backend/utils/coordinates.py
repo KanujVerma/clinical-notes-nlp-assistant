@@ -138,8 +138,9 @@ def check_source_image_agreement(
     page_height: float,
 ) -> Dict[str, Any]:
     """
-    Verifies agreement between extracted span text and the underlying
-    visual/OCR text within the bounding box on the page.
+    Checks agreement between an extracted transcript span and *stored OCR
+    words* within its page region. This is NOT independent verification of
+    original image pixels, source transcription truth, or clinical correctness.
     Flags disagreements, missing geometry, and out-of-bounds anomalies.
     """
     if not span_text or not span_text.strip():
@@ -237,7 +238,7 @@ def check_source_image_agreement(
 
     is_agreement = similarity >= 0.60
     return {
-        "status": "verified" if is_agreement else "disagreement",
+        "status": "ocr_consistent_unverified" if is_agreement else "disagreement",
         "agreement": is_agreement,
         "similarity": similarity,
         "ocr_text": ocr_text,
