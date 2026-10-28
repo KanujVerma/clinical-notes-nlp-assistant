@@ -43,9 +43,13 @@ def get_capabilities():
     is_hosted = getattr(Config, "APP_MODE", "local") == "hosted_demo"
     return jsonify({
         "mode": "hosted_demo" if is_hosted else "local",
-        "ocr_available": True,
-        "local_ai_available": is_ollama_available(),
-        "paid_ai_available": bool(getattr(Config, "ANTHROPIC_API_KEY", None)),
+        "ocr_available": not is_hosted,
+        "local_ai_available": (not is_hosted) and is_ollama_available(),
+        "paid_ai_available": (not is_hosted)
+            and Config.ENABLE_EXTERNAL_EXPLAINER
+            and bool(getattr(Config, "ANTHROPIC_API_KEY", None)),
+        "source_upload_allowed": not is_hosted,
+        "review_mode": "accept_remove_only" if is_hosted else "full_synthetic",
         "hosted_sandbox": is_hosted,
         "version": getattr(Config, "PIPELINE_VERSION", "2.0.0"),
     })
