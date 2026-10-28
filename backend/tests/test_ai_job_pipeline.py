@@ -142,6 +142,12 @@ def test_ai_job_rejects_stale_source_before_model_is_run(client, monkeypatch):
         },
     )
     assert changed.status_code == 201, changed.json
+    replay = client.post(
+        f'/api/notes/{note["note_id"]}/ai-candidates',
+        headers=headers, json=_request(note),
+    )
+    assert replay.status_code == 200
+    assert replay.json["job_id"] == queued.json["job_id"]
 
     run_worker_loop(client.application.config["ENGINE"], once=True)
     assert invoked == []
