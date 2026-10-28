@@ -240,6 +240,47 @@ def test_duplicate_same_name_proposals_flag_occurrence_ambiguity():
     assert not any(item["type"] == "dose_discrepancy" for item in findings)
 
 
+def test_vision_rejects_tampered_original_asset_before_ollama(
+    client, tmp_path, monkeypatch
+):
+    import fitz
+    from utils.db import get_session
+
+    monkeypatch.setattr("routes.upload.STORAGE_ROOT", str(tmp_path / "assets"))
+    doc = fitz.open()
+    p = doc.new_page()
+    p.insert_text((50, 70),
+        "Synthetic document for provenance checking. "
+        "Lisinopril 10 mg PO daily. This is harmless test text.")
+    pdf = doc.tobytes()
+    doc.close()
+    headers = {"X-Session-ID": "asset-integrity-workspace"}
+    uploaded = client.post(
+        "/api/upload", headers=headers,
+        data={"file": (io.BytesIO(pdf), "integrity.pdf")},
+        content_type="multipart/form-data",
+    )
+    assert uploaded.status_code == 201, uploaded.json
+
+    with get_session(client.application.config["ENGINE"]) as session:
+        note = session.query(Note).filter_by(id=uploaded.json["note_id"]).one()
+        revision = session.query(NoteRevision).filter_by(
+            id=note.current_source_revision_id
+        ).one()
+        asset = session.query(SourceAsset).filter_by(id=revision.source_asset_id).one()
+        from pathlib import Path
+        stored_path = Path(asset.storage_key)
+
+    stored_path.write_bytes(b"tampered fixture bytes")
+    res = client.post(
+        f'/api/notes/{uploaded.json["note_id"]}/ai-candidates',
+        headers=headers,
+        json={"adapter": "qwen3_vl"},
+    )
+    assert res.status_code == 409
+    assert res.json["code"] == "SOURCE_ASSET_INTEGRITY_FAILURE"
+
+
 def test_synthetic_handwriting_and_printed_benchmark():
     """
     Deterministic error-metric fixture, NOT a live OCR model benchmark.
