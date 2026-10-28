@@ -21,13 +21,27 @@ describe("hosted workspace capabilities", () => {
           expires_at: "2099-01-01T00:00:00Z",
         }) };
       }
-      return { ok: true, json: async () => ({ notes: [], count: 0 }) };
+      return {
+        ok: true,
+        json: async () => ({ notes: [], count: 0 }),
+        headers: { get: (key: string) => key.toLowerCase() === "content-type" ? "image/png" : null },
+        blob: async () => new Blob(["synthetic-page"], { type: "image/png" }),
+      };
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const { api } = await import("./client");
     await api.getQueue();
     await api.getQueue();
+    const page = await api.getPageImageBlob(12, 1, 90);
+    expect(page.type).toBe("image/png");
+
+    const pageRequest = calls.find((call) => call.url.includes("/notes/12/pages/1/image"));
+    expect(pageRequest).toBeDefined();
+    expect(pageRequest!.url).not.toContain("server-issued-secret");
+    const imageHeaders = pageRequest!.init?.headers as Record<string, string>;
+    expect(imageHeaders["X-Workspace-Token"]).toBe("server-issued-secret");
+    expect(imageHeaders["X-Workspace-ID"]).toBe("server-owned-workspace");
 
     expect(calls.filter((call) => call.url.endsWith("/workspaces"))).toHaveLength(1);
     const requests = calls.filter((call) => call.url.endsWith("/queue"));
