@@ -326,8 +326,9 @@ def test_synthetic_handwriting_and_printed_benchmark():
       1. Clean printed clinical prescriptions.
       2. Degraded / noisy printed prescriptions.
       3. Cursive / handwritten clinical prescriptions.
-    Asserts measured failure modes on handwriting and confirms no unverified
-    handwriting claims are made.
+    Asserts that the scoring implementation detects a deliberately
+    fabricated critical-dose transcription error. These are NOT generated
+    model predictions and establish NO handwriting model performance.
     """
     # Ground truth test set
     BENCHMARK_CASES = [
@@ -382,7 +383,8 @@ def test_synthetic_handwriting_and_printed_benchmark():
     assert hand_res["cer"] >= 0.05, f"Expected measured error on handwriting, got {hand_res['cer']}"
     assert hand_res["wer"] >= 0.15, f"Expected word error on handwriting, got {hand_res['wer']}"
 
-    # Critical Assertion: handwriting support CANNOT be claimed without empirical verification
+    # Critical assertion about the simulated fixture ONLY; it is not a model
+    # quality gate or a measured handwriting accuracy threshold.
     handwriting_supported = False if hand_res["cer"] > 0.03 else True
     assert handwriting_supported is False, (
         "Handwriting support cannot be claimed as production-ready: measured CER exceeds tolerance."
