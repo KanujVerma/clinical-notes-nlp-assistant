@@ -104,9 +104,30 @@ def export_reviewed_bundle(event_id: str):
     normalized_vitals = []
     if isinstance(raw_vitals, dict):
         for k, v in raw_vitals.items():
-            normalized_vitals.append({"vital_type": k, "value": v, "unit": ""})
+            if isinstance(v, dict):
+                val_val = v.get("value")
+                unit_val = v.get("unit")
+                val_str = "" if val_val is None else str(val_val)
+                unit_str = "" if unit_val is None else str(unit_val)
+            else:
+                val_str = "" if v is None else str(v)
+                unit_str = ""
+            normalized_vitals.append({"vital_type": k, "value": val_str, "unit": unit_str})
     elif isinstance(raw_vitals, list):
-        normalized_vitals = raw_vitals
+        for v in raw_vitals:
+            if isinstance(v, dict):
+                v_type = v.get("vital_type") or v.get("type") or ""
+                val = v.get("value")
+                if isinstance(val, dict):
+                    inner_val = val.get("value")
+                    val_str = "" if inner_val is None else str(inner_val)
+                    unit_val = val.get("unit") if val.get("unit") is not None else v.get("unit")
+                    unit_str = "" if unit_val is None else str(unit_val)
+                else:
+                    val_str = "" if val is None else str(val)
+                    unit_val = v.get("unit")
+                    unit_str = "" if unit_val is None else str(unit_val)
+                normalized_vitals.append({"vital_type": v_type, "value": val_str, "unit": unit_str})
 
     for v in normalized_vitals:
         if isinstance(v, dict):

@@ -1,7 +1,7 @@
 import json
 import hashlib
-from sqlalchemy.exc import IntegrityError
 from flask import Blueprint, g, jsonify, request
+from sqlalchemy.exc import IntegrityError
 from models import Job, Note
 from utils.session import require_session
 from config import Config

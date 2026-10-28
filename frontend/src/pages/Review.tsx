@@ -238,6 +238,7 @@ export default function Review() {
 
   const deactivateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const hasLoadedReviewRef = useRef<boolean>(false);
   const pendingSubmissionRef = useRef<{
     idempotencyKey: string;
     reviewDurationMs: number;
@@ -276,6 +277,7 @@ export default function Review() {
     setCurrentSourceHash(null);
     setLockVersion(0);
     setReviewEventId(null);
+    hasLoadedReviewRef.current = false;
     pendingSubmissionRef.current = null;
     setCategoryAck({
       metadata: false, vitals: false, medications: false, instructions: false,
@@ -430,18 +432,19 @@ export default function Review() {
               m[key] = { value, originalValue: "", status: "corrected" };
             }
           }
+          hasLoadedReviewRef.current = true;
           setFields(m);
-          // reReviewBanner is set to true above; the flatten useEffect guards on it,
-          // so setExtracted won't overwrite these statuses.
+          // reReviewBanner or hasLoadedReviewRef guards the flatten useEffect below,
+          // so setExtracted won't overwrite these restored draft or review statuses.
           setExtracted(ext);
         }
       });
     }
   }, [noteId, location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Flatten extracted JSON into FieldMap (only for fresh loads without validation)
+  // Flatten extracted JSON into FieldMap (only for fresh loads without prior validation or draft)
   useEffect(() => {
-    if (!extracted || reReviewBanner) return;
+    if (!extracted || reReviewBanner || hasLoadedReviewRef.current) return;
     const m = flattenExtracted(extracted);
     setFields(m);
   }, [extracted, reReviewBanner]);
@@ -1190,6 +1193,7 @@ export default function Review() {
             setCurrentRevisionId(newRevId);
             setCurrentRevisionNumber((n) => n + 1);
             setReReviewBanner(false);
+            hasLoadedReviewRef.current = false;
             setSaved(false);
             setCategoryAck({
               metadata: false, vitals: false, medications: false, instructions: false,
@@ -1197,6 +1201,9 @@ export default function Review() {
             api.getNoteState(noteIdState).then((st) => {
               setRawText(st.raw_text);
               setExtracted(st.extracted_json);
+              if (st.extracted_json) {
+                setFields(flattenExtracted(st.extracted_json));
+              }
               setLockVersion(st.lock_version);
               if (st.current_source_revision_id) setCurrentRevisionId(st.current_source_revision_id);
               if (st.current_extraction_id) setCurrentExtractionId(st.current_extraction_id);

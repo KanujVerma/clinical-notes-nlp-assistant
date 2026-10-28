@@ -3,6 +3,7 @@ import hashlib
 from typing import Dict, Any, Optional, Tuple
 from sqlalchemy import update, and_, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from models import Note, NoteRevision, Extraction, ReviewEvent, OperationalIssue, IssueEvent
 from schemas.review import ReviewMutationRequest
 from validation.checker import check_extraction
@@ -521,6 +522,8 @@ def process_review_mutation(
     req_hash = canonical_hash(body_dict)
 
     # 1. Idempotency Check
+    if req.idempotency_key is not None and isinstance(req.idempotency_key, str) and not req.idempotency_key.strip():
+        req.idempotency_key = None
     if req.idempotency_key:
         existing = (
             session.query(ReviewEvent)
@@ -721,7 +724,27 @@ def process_review_mutation(
         review_duration_ms=req.review_duration_ms,
     )
     session.add(review_event)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        if req.idempotency_key:
+            existing = (
+                session.query(ReviewEvent)
+                .filter(
+                    ReviewEvent.workspace_id == workspace_id,
+                    ReviewEvent.idempotency_key == req.idempotency_key,
+                )
+                .first()
+            )
+            if existing:
+                if existing.request_hash == req_hash:
+                    return existing, True
+                else:
+                    raise IdempotencyConflictError(
+                        f"Idempotency key '{req.idempotency_key}' reused with conflicting request payload."
+                    )
+        raise
 
     # 8. Record Issue Dispositions if provided
     if req.issue_dispositions:

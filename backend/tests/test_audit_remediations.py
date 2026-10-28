@@ -304,3 +304,93 @@ def test_metrics_excludes_legacy_validations_when_note_needs_review(client):
     # Because the note status is needs_review, the legacy validation must NOT be counted as accepted
     by_status = {item["status"]: item["count"] for item in data["db_stats"]["by_status"]}
     assert by_status.get("accepted", 0) == 0
+
+
+def test_init_db_escapes_percent_encoded_url_for_alembic(monkeypatch):
+    import os
+    from alembic.config import Config as AlembicConfig
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ini_path = os.path.join(backend_dir, "alembic.ini")
+    cfg = AlembicConfig(ini_path)
+    encoded_url = "postgresql://user:p%40ssword@localhost:5432/test_db"
+    # Escaping percent signs allows ConfigParser to set option without ValueError
+    cfg.set_main_option("sqlalchemy.url", encoded_url.replace("%", "%%"))
+    assert cfg.get_main_option("sqlalchemy.url") == encoded_url
+
+
+def test_review_export_unwraps_dictionary_vitals(client):
+    from models import Note, NoteRevision, Extraction, ReviewEvent
+    engine = client.application.config["ENGINE"]
+    with get_session(engine) as session:
+        ws_id = "test-export-vitals-ws"
+        note = Note(workspace_id=ws_id, source="paste", raw_text="Vitals normal", status="reviewed_unchanged")
+        session.add(note)
+        session.flush()
+        rev = NoteRevision(
+            note_id=note.id, workspace_id=ws_id, raw_text="Vitals normal",
+            normalized_text="Vitals normal", sha256="hexp"
+        )
+        session.add(rev)
+        session.flush()
+        note.current_source_revision_id = rev.id
+        ext = Extraction(
+            note_id=note.id, workspace_id=ws_id, source_revision_id=rev.id,
+            extracted_json='{"vitals":{"blood_pressure":{"value":"120/80","unit":"mmHg","span":[0,6]}}}',
+            pipeline_version="0.1.0", public_id="ext-exp"
+        )
+        session.add(ext)
+        session.flush()
+        note.current_extraction_id = ext.public_id
+
+        event = ReviewEvent(
+            workspace_id=ws_id,
+            note_id=note.id,
+            source_revision_id=rev.id,
+            extraction_id=ext.public_id,
+            event_kind="review_completed",
+            derived_outcome="reviewed_unchanged",
+            item_decisions_json="{}",
+            category_acknowledgments_json=json.dumps({"vitals": True}),
+            reviewed_snapshot_json='{"vitals":{"blood_pressure":{"value":"120/80","unit":"mmHg","span":[0,6]},"pain_score":{"value":0,"unit":null},"temperature":0}}',
+            source_hash="hexp",
+            expected_lock_version=0,
+            idempotency_key="idemp-exp-1",
+        )
+        session.add(event)
+        session.flush()
+        note.review_head_event_id = event.id
+        session.commit()
+        event_id = event.id
+
+    res = client.get(f"/api/review-events/{event_id}/export", headers={"X-Workspace-ID": ws_id})
+    assert res.status_code == 200
+    import io, zipfile
+    z = zipfile.ZipFile(io.BytesIO(res.data))
+    html_summary = z.read("summary.html").decode("utf-8")
+    assert "<td>blood_pressure</td><td>120/80</td><td>mmHg</td>" in html_summary
+    assert "<td>pain_score</td><td>0</td><td></td>" in html_summary
+    assert "<td>temperature</td><td>0</td><td></td>" in html_summary
+    assert "None" not in html_summary
+    assert "{'value':" not in html_summary
+
+
+def test_concurrent_job_creation_idempotency(client):
+    ws_id = "test-job-concurrency-ws"
+    # First post creates the job
+    res1 = client.post(
+        "/api/jobs",
+        json={"kind": "eval_run", "idempotency_key": "concurrent-key-1"},
+        headers={"X-Workspace-ID": ws_id},
+    )
+    assert res1.status_code in (200, 202)
+    job_id_1 = res1.json["job_id"]
+
+    # Second post with identical idempotency key replays the job cleanly without 500
+    res2 = client.post(
+        "/api/jobs",
+        json={"kind": "eval_run", "idempotency_key": "concurrent-key-1"},
+        headers={"X-Workspace-ID": ws_id},
+    )
+    assert res2.status_code in (200, 202)
+    assert res2.json["job_id"] == job_id_1
+
