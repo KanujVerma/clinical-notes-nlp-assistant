@@ -325,3 +325,34 @@ def test_hosted_expiry_purge_removes_issue_events_and_acquisition_records(app):
         assert session.query(IssueEvent).count() == 0
         assert session.query(AcquisitionRun).filter_by(source_asset_id=asset.id).count() == 0
         assert session.query(SourceAsset).filter_by(workspace_id=ws_id).count() == 0
+
+
+def test_hosted_seed_rejects_stale_precomputed_source_hash(app, tmp_path, monkeypatch):
+    from routes.seed import seed_notes
+    from models import Note
+
+    showcase = tmp_path / "showcase" / "notes"
+    showcase.mkdir(parents=True)
+    (showcase / "case.txt").write_text("Synthetic source", encoding="utf-8")
+    monkeypatch.setattr(Config, "APP_MODE", "hosted_demo")
+    monkeypatch.setattr(Config, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("routes.seed.load_precomputed_scenarios", lambda: {
+        "case.txt": {
+            "raw_text": "Synthetic source",
+            "sha256": "0" * 64,
+            "extraction": {
+                "vitals": {}, "medications": [],
+                "instructions": {}, "metadata": {},
+            },
+            "issues": [],
+        }
+    })
+
+    from routes.seed import seed_notes
+    with get_session(app.config["ENGINE"]) as session:
+        with pytest.raises(ValueError, match="integrity verification"):
+            seed_notes(session, "synthetic-test-workspace")
+        session.rollback()
+
+    with get_session(app.config["ENGINE"]) as session:
+        assert session.query(Note).filter_by(workspace_id="synthetic-test-workspace").count() == 0
