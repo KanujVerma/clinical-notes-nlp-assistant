@@ -1,7 +1,24 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import DocumentSourceViewer from "./DocumentSourceViewer";
 import { ExtractionResult } from "../types";
+
+vi.mock("../api/client", () => ({
+  api: {
+    getPageImageBlob: vi.fn(async () => new Blob(["synthetic-image"], { type: "image/png" })),
+  },
+}));
+
+beforeEach(() => {
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: vi.fn(() => "blob:synthetic-authorized-source"),
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: vi.fn(),
+  });
+});
 
 const mockExtracted: ExtractionResult = {
   vitals: {
@@ -48,8 +65,8 @@ const mockPages = [
   },
 ];
 
-describe("DocumentSourceViewer", () => {
-  it("renders document viewer with navigation and controls", () => {
+describe("DocumentSourceViewer", async () => {
+  it("renders document viewer with navigation and controls", async () => {
     render(
       <DocumentSourceViewer
         noteId={101}
@@ -64,10 +81,10 @@ describe("DocumentSourceViewer", () => {
     expect(screen.getByTestId("document-source-viewer")).toBeInTheDocument();
     expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
     expect(screen.getByTestId("rotate-btn")).toHaveTextContent("↻ 0°");
-    expect(screen.getByTestId("document-page-image")).toBeInTheDocument();
+    expect(await screen.findByTestId("document-page-image")).toBeInTheDocument();
   });
 
-  it("toggles between document image and transcript text view", () => {
+  it("toggles between document image and transcript text view", async () => {
     render(
       <DocumentSourceViewer
         noteId={101}
@@ -86,10 +103,10 @@ describe("DocumentSourceViewer", () => {
 
     // Click back to document view
     fireEvent.click(screen.getByTestId("toggle-view-document"));
-    expect(screen.getByTestId("document-page-image")).toBeInTheDocument();
+    expect(await screen.findByTestId("document-page-image")).toBeInTheDocument();
   });
 
-  it("navigates between pages using previous and next buttons", () => {
+  it("navigates between pages using previous and next buttons", async () => {
     render(
       <DocumentSourceViewer
         noteId={101}
@@ -110,7 +127,7 @@ describe("DocumentSourceViewer", () => {
     expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
   });
 
-  it("rotates document page and updates rotation angle", () => {
+  it("rotates document page and updates rotation angle", async () => {
     render(
       <DocumentSourceViewer
         noteId={101}
@@ -130,7 +147,7 @@ describe("DocumentSourceViewer", () => {
     expect(screen.getByTestId("rotate-btn")).toHaveTextContent("↻ 180°");
   });
 
-  it("renders bounding box overlay and responds to span click", () => {
+  it("renders bounding box overlay and responds to span click", async () => {
     const onSpanClick = vi.fn();
     render(
       <DocumentSourceViewer
@@ -144,7 +161,7 @@ describe("DocumentSourceViewer", () => {
     );
 
     // Simulate image loaded
-    fireEvent.load(screen.getByTestId("document-page-image"));
+    fireEvent.load(await screen.findByTestId("document-page-image"));
 
     const overlayBox = screen.getByTestId("overlay-box-med.med_1.name");
     expect(overlayBox).toBeInTheDocument();
@@ -152,7 +169,7 @@ describe("DocumentSourceViewer", () => {
     expect(onSpanClick).toHaveBeenCalledWith("med.med_1.name");
   });
 
-  it("displays missing geometry alert when active item lacks bounding box", () => {
+  it("displays missing geometry alert when active item lacks bounding box", async () => {
     render(
       <DocumentSourceViewer
         noteId={101}
