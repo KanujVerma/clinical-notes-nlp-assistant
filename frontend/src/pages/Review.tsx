@@ -761,7 +761,7 @@ export default function Review() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [activeKey, fields, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
+  }, [activeKey, fields, isHosted, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
 
   // H: Unsaved changes warning — blocks both in-app nav and browser-level unload
   const isDirty = Object.values(fields).some((f) => f.status !== "pending") && !saved;
