@@ -98,7 +98,7 @@ def verified_tesseract_baseline(path: Path = BASELINE_FILE) -> dict:
             "source_sha256": source_sha,
             "source_type": entry.get("source_type", "synthetic_printed"),
             "transcription": transcription,
-            "cer": counts_safe_rate(metrics["char_distance"], metrics["ref_chars"]),
+            "cer": counts_safe_rate(metrics["character_distance"], metrics["ref_chars"]),
             "wer": counts_safe_rate(metrics["word_distance"], metrics["ref_words"]),
             "critical_tokens": critical,
         })
