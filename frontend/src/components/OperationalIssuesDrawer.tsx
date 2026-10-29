@@ -5,6 +5,7 @@ export default function OperationalIssuesDrawer({
   noteId,
   revisionId,
   extractionId,
+  focusedIssueId,
   isOpen,
   onToggle,
   onIssuesUpdated,
@@ -12,6 +13,7 @@ export default function OperationalIssuesDrawer({
   noteId: number;
   revisionId?: string | null;
   extractionId?: string | null;
+  focusedIssueId?: string | null;
   isOpen: boolean;
   onToggle: () => void;
   onIssuesUpdated?: (openBlockersCount: number) => void;
@@ -27,6 +29,7 @@ export default function OperationalIssuesDrawer({
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiCandidates, setAiCandidates] = useState<Record<string, unknown> | null>(null);
 
+  const selectedIssueRef = useRef<HTMLDivElement | null>(null);
   const currentBindingRef = useRef({ noteId, revisionId, extractionId });
   currentBindingRef.current = { noteId, revisionId, extractionId };
 
@@ -44,6 +47,13 @@ export default function OperationalIssuesDrawer({
     setLoadingAi(false);
     loadIssues();
   }, [noteId, revisionId, extractionId]);
+
+  useEffect(() => {
+    if (isOpen && focusedIssueId && selectedIssueRef.current) {
+      selectedIssueRef.current.focus();
+      selectedIssueRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [isOpen, focusedIssueId, issues]);
 
   async function loadIssues() {
     try {
@@ -164,6 +174,9 @@ export default function OperationalIssuesDrawer({
 
   return (
     <div
+      role="region"
+      aria-label="Operational issues for current note"
+      aria-hidden={!isOpen}
       className={`fixed top-0 right-0 z-40 h-full w-[380px] border-l border-slate-700 bg-slate-900 shadow-2xl transition-transform duration-200 ease-in-out ${
         isOpen ? "translate-x-0" : "translate-x-full"
       } flex flex-col text-slate-100`}
@@ -184,6 +197,8 @@ export default function OperationalIssuesDrawer({
           )}
         </div>
         <button
+          type="button"
+          aria-label="Close operational issues"
           onClick={onToggle}
           className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
         >
@@ -209,7 +224,10 @@ export default function OperationalIssuesDrawer({
                 return (
                   <div
                     key={iss.id}
-                    className={`rounded-lg border p-3 ${
+                    ref={(node) => { if (iss.id === focusedIssueId) selectedIssueRef.current = node; }}
+                    tabIndex={iss.id === focusedIssueId ? -1 : undefined}
+                    aria-label={iss.id === focusedIssueId ? `Selected issue ${iss.issue_code}` : undefined}
+                    className={`rounded-lg border p-3 ${iss.id === focusedIssueId ? "ring-2 ring-cyan-400 " : ""}${
                       isCrit
                         ? "border-rose-800/80 bg-rose-950/20 text-rose-200"
                         : "border-amber-800/80 bg-amber-950/20 text-amber-200"
