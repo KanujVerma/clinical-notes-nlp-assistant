@@ -327,7 +327,7 @@ def _same_source_occurrence(a: dict[str, Any], b: dict[str, Any]) -> bool:
         r"^(?:continue\s+to\s+(?:hold|withhold)|do\s+not\s+continue|"
         r"discontinue|withhold|continue|restart|"
         r"initiate|administer|prescribe|resume|start|begin|hold|stop|"
-        r"cease|give|take|use|apply|inject|inhale)\s+",
+        r"cease|give|take|use|apply|inject|inhale)(?:\s+taking)?\s+",
         re.IGNORECASE,
     )
     a_name = prefix.sub("", a.get("name", "").casefold())
