@@ -62,7 +62,9 @@ _ACTIONS = {
 # These introduce laboratory values, safety cautions, or narrative, not a
 # patient-specific medication order. A dose token alone is never sufficient.
 _NON_ORDER = re.compile(
-    r"^(?:patient|blood|fasting|serum|hemoglobin|hematocrit|"
+    r"^(?:no|not|never|denies?|denied|without|formerly|previously|"
+    r"historical|history\s+of|stopped\s+taking|is\s+not\s+taking|"
+    r"patient|blood|fasting|serum|hemoglobin|hematocrit|"
     r"platelet|glucose|systolic|diastolic|temperature|temp|"
     r"heart|pulse|respiratory|maximum|minimum|daily\s+dose|"
     r"dose|caution|warning|verify|confirm|do\s+not|avoid|"
@@ -143,11 +145,46 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
     elif as_needed and "as needed" not in frequency.casefold():
         frequency = (frequency + " as needed").strip()
 
+    # The PRN indication is reviewer-visible information, not just a word
+    # following a dosing frequency. Preserve only explicitly stated words.
+    qualifier = ""
+    qualifier_end = 0
+    if prn:
+        reason = re.match(
+            r"\s+([A-Za-z][A-Za-z0-9/-]*(?:\s+[A-Za-z][A-Za-z0-9/-]*){0,3})",
+            after_dose[prn.end():],
+        )
+        words = reason.group(1).split() if reason else []
+        for stop in ("up", "if", "when", "unless", "until", "before", "after"):
+            if stop in [word.casefold() for word in words]:
+                words = words[:[word.casefold() for word in words].index(stop)]
+                break
+        if words:
+            reason_text = " ".join(words)
+            qualifier = "PRN " + reason_text
+            qualifier_end = prn.end() + after_dose[prn.end():].find(reason_text) + len(reason_text)
+        else:
+            qualifier = "PRN"
+            qualifier_end = prn.end()
+    elif as_needed:
+        reason = re.match(
+            r"\s+for\s+([A-Za-z][A-Za-z0-9/-]*(?:\s+[A-Za-z][A-Za-z0-9/-]*){0,3})",
+            after_dose[as_needed.end():],
+        )
+        if reason:
+            qualifier = "as needed for " + reason.group(1)
+            qualifier_end = as_needed.end() + reason.end()
+        else:
+            qualifier = "as needed"
+            qualifier_end = as_needed.end()
+
     duration = _DURATION.search(after_dose)
     sig_end = max(item.end() for item in doses)
     for hit in (route_match, freq_match, prn, as_needed, duration):
         if hit:
             sig_end = max(sig_end, dose.end() + hit.end())
+    if qualifier_end:
+        sig_end = max(sig_end, dose.end() + qualifier_end)
 
     # Exact source span covers drug identity and supported sig fields, never
     # a whole page or an unrelated following sentence.
@@ -160,7 +197,7 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         "route": route_match.group().strip() if route_match else "",
         "frequency": frequency,
         "duration": duration.group().strip() if duration else "",
-        "qualifier": "",
+        "qualifier": qualifier,
         "action": action,
         "span": [start, end],
         "source": "explicit_order",
