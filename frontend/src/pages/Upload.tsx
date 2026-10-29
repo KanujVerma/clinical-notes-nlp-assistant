@@ -39,7 +39,9 @@ export default function Upload() {
   const navigate = useNavigate();
   const { bumpQueue } = useQueue();
 
-  const [isHosted, setIsHosted] = useState(false);
+  // Fail closed until the backend confirms whether arbitrary input is allowed.
+  const [isHosted, setIsHosted] = useState(true);
+  const [capabilitiesChecked, setCapabilitiesChecked] = useState(false);
   const [scenarios, setScenarios] = useState<Array<{ filename: string; title: string; sha256: string; has_issues: boolean; issues_count: number; snippet: string }>>([]);
 
   const [text, setText] = useState("");
@@ -60,11 +62,17 @@ export default function Upload() {
       .then((caps) => {
         const hosted = caps.mode === "hosted_demo" || Boolean(caps.hosted_sandbox);
         setIsHosted(hosted);
+        setCapabilitiesChecked(true);
         if (hosted) {
-          api.getScenarios().then((res) => setScenarios(res.scenarios || [])).catch(() => {});
+          api.getScenarios().then((res) => setScenarios(res.scenarios || []))
+            .catch(() => setTextError("Could not load curated synthetic scenarios."));
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setIsHosted(true);
+        setCapabilitiesChecked(true);
+        setTextError("Cannot confirm server capabilities. Free-text input is disabled.");
+      });
   }, []);
 
   function showToast(msg: string) {
@@ -74,7 +82,7 @@ export default function Upload() {
   }
 
   async function handleSubmitText() {
-    if (!text.trim()) return;
+    if (!capabilitiesChecked || isHosted || !text.trim()) return;
     setTextLoading(true);
     setTextError(null);
     try {
@@ -88,6 +96,7 @@ export default function Upload() {
   }
 
   async function handleSeedDemo() {
+    if (!capabilitiesChecked) return;
     setTextLoading(true);
     try {
       const result = await api.seedDemo();
@@ -108,6 +117,7 @@ export default function Upload() {
   }
 
   function addFiles(newFiles: File[]) {
+    if (!capabilitiesChecked || isHosted) return;
     const entries: FileEntry[] = newFiles.map((f) => ({ file: f, status: { phase: "queued" } }));
     setFiles((prev) => [...prev, ...entries]);
   }
@@ -130,6 +140,10 @@ export default function Upload() {
   }, []);
 
   async function startUpload() {
+    if (!capabilitiesChecked || isHosted) {
+      setTextError("Uploads are unavailable until local mode is confirmed.");
+      return { successCount: 0, failCount: 0, firstSuccessId: null, firstSuccessResult: null };
+    }
     cancelRef.current = false;
     setUploading(true);
 
@@ -191,7 +205,7 @@ export default function Upload() {
       )}
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6 max-w-3xl mx-auto w-full">
-        {isHosted && (
+        {capabilitiesChecked && isHosted && (
           <div className="w-full bg-amber-50 border border-amber-300 rounded-lg p-3.5 text-sm text-amber-900">
             <div className="font-semibold mb-1 flex items-center gap-1.5">
               <span>Public Hosted Sandbox</span>
@@ -232,7 +246,7 @@ export default function Upload() {
         <div className="flex gap-3 flex-wrap justify-center w-full">
           <button
             onClick={handleSubmitText}
-            disabled={!text.trim() || textLoading || isHosted}
+            disabled={!capabilitiesChecked || !text.trim() || textLoading || isHosted}
             title={isHosted ? "Free-text extraction is disabled in the public sandbox" : undefined}
             className="px-6 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700 disabled:opacity-50"
           >
@@ -248,7 +262,7 @@ export default function Upload() {
           )}
           <button
             onClick={handleSeedDemo}
-            disabled={textLoading}
+            disabled={textLoading || !capabilitiesChecked}
             className="px-4 py-2 bg-slate-800 text-white font-medium rounded-lg text-sm hover:bg-slate-700 disabled:opacity-50"
           >
             {isHosted ? "Seed Showcase Scenarios (10 Notes)" : "Seed demo data"}

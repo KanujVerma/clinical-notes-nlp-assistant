@@ -7,6 +7,7 @@ from sqlalchemy import select
 from models import Note, Extraction, NoteRevision, OperationalIssue
 from validation.checker import check_extraction
 from config import Config
+from services.hosted_release import HostedFixtureError, verified_scenarios
 from utils.session import require_session
 
 bp = Blueprint("seed", __name__)
@@ -14,6 +15,8 @@ _SEED_SOURCES = ["dev", "showcase"]  # eval notes are held out
 
 
 def load_precomputed_scenarios() -> dict:
+    if Config.APP_MODE == "hosted_demo":
+        return verified_scenarios(Config.DATA_DIR)
     precomp_path = os.path.join(Config.DATA_DIR, "precomputed_scenarios.json")
     if os.path.isfile(precomp_path):
         try:
@@ -169,5 +172,12 @@ def seed_notes(db_session, session_id: str) -> dict:
 @bp.post("/api/seed-demo")
 def seed_demo():
     sid = require_session()
-    result = seed_notes(g.db, sid)
+    try:
+        result = seed_notes(g.db, sid)
+    except HostedFixtureError:
+        g.db.rollback()
+        return jsonify({
+            "error": "Curated synthetic scenarios are unavailable",
+            "code": "CURATED_FIXTURES_UNAVAILABLE",
+        }), 503
     return jsonify(result)

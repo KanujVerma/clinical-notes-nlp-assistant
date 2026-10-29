@@ -64,4 +64,30 @@ describe("hosted workspace capabilities", () => {
     await expect(api.getQueue()).rejects.toThrow(/server workspace mode/i);
     vi.unstubAllGlobals();
   });
+
+  it("permits same-origin API calls when VITE_ALLOW_SAME_ORIGIN is enabled", async () => {
+    const originalProd = import.meta.env.PROD;
+    const originalUrl = import.meta.env.VITE_API_BASE_URL;
+    const originalSame = import.meta.env.VITE_ALLOW_SAME_ORIGIN;
+    (import.meta.env as Record<string, unknown>).PROD = true;
+    (import.meta.env as Record<string, unknown>).VITE_API_BASE_URL = "";
+    (import.meta.env as Record<string, unknown>).VITE_ALLOW_SAME_ORIGIN = "true";
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/capabilities")) {
+        return { ok: true, json: async () => ({ mode: "local_dev" }) };
+      }
+      return { ok: true, json: async () => ({ notes: [], count: 0 }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { api } = await import("./client");
+    const queue = await api.getQueue();
+    expect(queue.count).toBe(0);
+
+    (import.meta.env as Record<string, unknown>).PROD = originalProd;
+    (import.meta.env as Record<string, unknown>).VITE_API_BASE_URL = originalUrl;
+    (import.meta.env as Record<string, unknown>).VITE_ALLOW_SAME_ORIGIN = originalSame;
+    vi.unstubAllGlobals();
+  });
 });
