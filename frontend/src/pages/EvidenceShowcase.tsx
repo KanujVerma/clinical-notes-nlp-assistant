@@ -128,7 +128,7 @@ export default function EvidenceShowcase() {
                   <p className="text-xs leading-relaxed text-slate-600">{evidence.recorded_ai.message}</p>
                   {evidence.recorded_ai.models.map((model) => (
                     <article key={model.adapter} className="rounded-lg border border-slate-200 p-3">
-                      <h3 className="text-sm font-semibold text-slate-800">{model.adapter.replaceAll("_", "-")}</h3>
+                      <h3 className="text-sm font-semibold text-slate-800">{model.adapter.replace(/_/g, "-")}</h3>
                       <p className="mt-1 break-all font-mono text-[11px] text-slate-500">Installed model digest: {model.model_digest}</p>
                       <div className="mt-3 divide-y divide-slate-100">
                         {model.cases.map((item) => (
