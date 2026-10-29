@@ -197,8 +197,8 @@ export default function Metrics() {
                         <Link
                           to={`/metrics/drilldown?kind=status&status=${encodeURIComponent(row.status)}`}
                           className="text-cyan-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-cyan-600"
-                          aria-label={`Inspect current notes with review status ${row.status.replaceAll("_", " ")}`}
-                        >{row.status.replaceAll("_", " ")}</Link>
+                          aria-label={`Inspect current notes with review status ${row.status.replace(/_/g, " ")}`}
+                        >{row.status.replace(/_/g, " ")}</Link>
                       ) : row.status}
                     </td>
                     <td className="py-1.5 text-right text-slate-600">{row.count}</td>
