@@ -82,7 +82,7 @@ def verified_tesseract_baseline(path: Path = BASELINE_FILE) -> dict:
         if not isinstance(critical, list):
             raise ShowcaseEvidenceError("BASELINE_INVALID")
         for m, source in (("ref_chars", "ref_chars"), ("ref_words", "ref_words"),
-                          ("char_distance", "char_distance"), ("word_distance", "word_distance")):
+                          ("char_distance", "character_distance"), ("word_distance", "word_distance")):
             number = metrics.get(source)
             if type(number) is not int or number < 0:
                 raise ShowcaseEvidenceError("BASELINE_INVALID")
