@@ -25,6 +25,7 @@ REPORT = ROOT / "artifacts/evaluation/paired_local_17f5737320b78e10.json"
 @pytest.mark.parametrize(
     "line,name,dose,route,freq,action",
     [
+        ("Continue to hold Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "PO", "daily", "hold"),
         ("Hold Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "PO", "daily", "hold"),
         ("Do not continue Aspirin 81 mg.", "aspirin", "81 mg", "", "", "stop"),
         ("Start Amlodipine 5 mg PO daily tomorrow.", "amlodipine", "5 mg", "PO", "daily", "start"),
@@ -134,6 +135,43 @@ def test_action_prefixed_section_same_source_produces_one_record(source, name, d
     assert [(m["name"], m["dose"], m.get("action", "")) for m in meds] == [
         (name, dose, action)
     ]
+
+
+def test_unrecognized_compound_action_is_not_attributed_as_medication_name():
+    assert parse_order_lines("Continue to start Warfarin 2.5 mg PO daily.") == []
+    assert parse_order_lines("Start to discontinue Aspirin 81 mg PO daily.") == []
+
+
+def test_indented_legacy_medication_and_prose_sections_keep_exact_offsets():
+    source = "Medications:\n" + " " * 30 + "Hold Aspirin 81 mg PO daily.\n"
+    meds = run_pipeline(source)["medications"]
+    assert len(meds) == 1
+    assert (meds[0]["name"], meds[0]["action"]) == ("aspirin", "hold")
+    start, end = meds[0]["span"]
+    assert source[start:end] == "Aspirin 81 mg PO daily"
+    assert start == source.index("Aspirin")
+
+    source = "Plan:\n" + " " * 28 + "Continue Metformin 500 mg PO BID.\n"
+    meds = run_pipeline(source)["medications"]
+    assert len(meds) == 1
+    assert (meds[0]["name"], meds[0]["action"]) == ("metformin", "continue")
+    start, end = meds[0]["span"]
+    assert source[start:end] == "Metformin 500 mg PO BID"
+
+
+def test_prn_indication_whitespace_preserves_original_evidence_coordinates():
+    for whitespace in ("  ", "\t", " \t "):
+        source = (
+            "Medications:\n"
+            "Albuterol inhaler 2 puffs q6h PRN chest"
+            + whitespace + "tightness."
+        )
+        meds = run_pipeline(source)["medications"]
+        assert len(meds) == 1
+        assert meds[0]["qualifier"] == "PRN chest tightness"
+        start, end = meds[0]["span"]
+        assert source[start:end].endswith("PRN chest" + whitespace + "tightness")
+        assert end == source.index("tightness") + len("tightness")
 
 
 def test_explicit_prn_indication_and_evidence_span_are_preserved():
