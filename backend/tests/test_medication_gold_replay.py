@@ -35,6 +35,8 @@ REPORT = ROOT / "artifacts/evaluation/paired_local_17f5737320b78e10.json"
         ("Lorazepam 0.5 mg PO nightly at bedtime.", "lorazepam", "0.5 mg", "PO", "nightly", ""),
         ("Discharge Meds: Metoprolol Succinate 50 mg PO daily.", "metoprolol succinate", "50 mg", "PO", "daily", ""),
         ("Benzonatate 100 mg PO TID as needed for cough.", "benzonatate", "100 mg", "PO", "TID as needed", ""),
+        ("Nitroglycerin 400 mcg SL every 5 minutes PRN chest pain.", "nitroglycerin", "400 mcg", "SL", "every 5 minutes PRN", ""),
+        ("Discharge Meds Pantoprazole 40 mg PO daily.", "pantoprazole", "40 mg", "PO", "daily", ""),
         ("Ceftriaxone 1 g IV daily for 7 days.", "ceftriaxone", "1 g", "IV", "daily", ""),
         ("Administer Labetalol 20 mg IV push STAT.", "labetalol", "20 mg", "IV", "STAT", ""),
     ],
@@ -91,6 +93,14 @@ def test_multiple_dose_clauses_do_not_cross_bind_route_or_frequency():
     for med in meds:
         start, end = med["span"]
         assert two_orders[start:end].casefold().startswith(med["name"])
+
+
+def test_ambiguous_ocr_frequency_is_not_silently_corrected():
+    # O6H could mean a corrupted Q6H, but the model did not actually
+    # transcribe Q; do not invent that high-risk medication schedule.
+    med = parse_order_line("Acetaminophen 650 mg PO O6H PRN fever.")
+    assert med is not None
+    assert med["frequency"] == "PRN"
 
 
 def test_discrete_occurrence_spans_and_action_scope():
