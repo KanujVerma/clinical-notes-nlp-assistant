@@ -289,7 +289,11 @@ def run_evaluation(manifest_path: Path, arms: tuple[str, ...], output_dir: Path)
                 for m in pipe_out.get("medications", []):
                     freq = str(m.get("frequency", "")).strip()
                     qual = str(m.get("qualifier", "")).strip()
-                    if qual and "prn" in qual.lower() and "prn" not in freq.lower():
+                    qual_lower = qual.lower()
+                    freq_lower = freq.lower()
+                    if "as needed" in qual_lower and "as needed" not in freq_lower:
+                        freq = f"{freq} as needed".strip() if freq else "as needed"
+                    elif "prn" in qual_lower and "prn" not in freq_lower:
                         freq = f"{freq} PRN".strip() if freq else "PRN"
                     det_meds.append({
                         "name": m.get("name", ""),

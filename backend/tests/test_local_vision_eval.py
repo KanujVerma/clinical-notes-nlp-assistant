@@ -160,24 +160,36 @@ def test_rss_memory_marks_unloaded_model_as_unmeasured():
 
 
 def test_deterministic_medications_adapt_prn_qualifier():
-    source = "Medications:\nAlprazolam 0.25 mg PO TID PRN anxiety."
-    pipe_out = vision.run_pipeline(source)
-    det_meds = []
-    for m in pipe_out.get("medications", []):
-        freq = str(m.get("frequency", "")).strip()
-        qual = str(m.get("qualifier", "")).strip()
-        if qual and "prn" in qual.lower() and "prn" not in freq.lower():
-            freq = f"{freq} PRN".strip() if freq else "PRN"
-        det_meds.append({
-            "name": m.get("name", ""),
-            "dose": m.get("dose", ""),
-            "route": m.get("route", ""),
-            "frequency": freq,
-            "action": m.get("action", ""),
-        })
-    gold = [{"name": "Alprazolam", "dose": "0.25 mg", "route": "PO", "frequency": "TID PRN"}]
-    score = vision.score_occurrences(gold, det_meds, vision.FIELDS, "name")
-    assert score["tp"] == 1
-    assert score["fp"] == 0
-    assert score["fn"] == 0
-    assert score["f1"] == 1.0
+    for source, expected_gold in [
+        (
+            "Medications:\nAlprazolam 0.25 mg PO TID PRN anxiety.",
+            [{"name": "Alprazolam", "dose": "0.25 mg", "route": "PO", "frequency": "TID PRN"}],
+        ),
+        (
+            "Medications:\nBenzonatate 100 mg PO TID as needed for cough.",
+            [{"name": "Benzonatate", "dose": "100 mg", "route": "PO", "frequency": "TID as needed"}],
+        ),
+    ]:
+        pipe_out = vision.run_pipeline(source)
+        det_meds = []
+        for m in pipe_out.get("medications", []):
+            freq = str(m.get("frequency", "")).strip()
+            qual = str(m.get("qualifier", "")).strip()
+            qual_lower = qual.lower()
+            freq_lower = freq.lower()
+            if "as needed" in qual_lower and "as needed" not in freq_lower:
+                freq = f"{freq} as needed".strip() if freq else "as needed"
+            elif "prn" in qual_lower and "prn" not in freq_lower:
+                freq = f"{freq} PRN".strip() if freq else "PRN"
+            det_meds.append({
+                "name": m.get("name", ""),
+                "dose": m.get("dose", ""),
+                "route": m.get("route", ""),
+                "frequency": freq,
+                "action": m.get("action", ""),
+            })
+        score = vision.score_occurrences(expected_gold, det_meds, vision.FIELDS, "name")
+        assert score["tp"] == 1
+        assert score["fp"] == 0
+        assert score["fn"] == 0
+        assert score["f1"] == 1.0
