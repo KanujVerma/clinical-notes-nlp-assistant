@@ -263,6 +263,31 @@ def test_stop_continue_taking_never_becomes_part_of_drug_identity():
             assert source[start:end].startswith("Warfarin")
 
 
+def test_second_medication_instruction_never_leaks_prn_into_first_drug():
+    source = "Start Lisinopril 10 mg PO daily and use albuterol PRN wheezing."
+    assert parse_order_line(source) is None
+    orders = parse_order_lines(source)
+    lis = [m for m in orders if m["name"] == "lisinopril"]
+    assert len(lis) == 1
+    assert lis[0]["frequency"].casefold() == "daily"
+    assert lis[0]["qualifier"] == ""
+    assert lis[0]["action"] == "start"
+
+    extracted = run_pipeline(source)["medications"]
+    lis = [m for m in extracted if m["name"] == "lisinopril"]
+    assert len(lis) == 1
+    assert lis[0]["frequency"].casefold() == "daily"
+    assert "prn" not in lis[0].get("qualifier", "").casefold()
+
+
+def test_dose_free_take_aspirin_daily_keeps_canonical_entity():
+    for source in ("Take aspirin daily.", "Medications:\nTake aspirin daily."):
+        meds = run_pipeline(source)["medications"]
+        assert len(meds) >= 1
+        assert any(m["name"] == "aspirin" and m["frequency"].casefold() == "daily" for m in meds)
+        assert all(m["name"] != "take aspirin" for m in meds)
+
+
 def test_current_use_narrative_must_not_corrupt_drug_identity():
     for text in (
         "Currently taking Warfarin 2.5 mg PO daily.",
