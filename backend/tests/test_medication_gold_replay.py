@@ -27,6 +27,8 @@ REPORT = ROOT / "artifacts/evaluation/paired_local_17f5737320b78e10.json"
     "line,name,dose,route,freq,action",
     [
         ("Continue to hold Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "PO", "daily", "hold"),
+        ("Stop taking Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "PO", "daily", "stop"),
+        ("Continue taking Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "PO", "daily", "continue"),
         ("Hold Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "PO", "daily", "hold"),
         ("Do not continue Aspirin 81 mg.", "aspirin", "81 mg", "", "", "stop"),
         ("Start Amlodipine 5 mg PO daily tomorrow.", "amlodipine", "5 mg", "PO", "daily", "start"),
@@ -66,6 +68,8 @@ def test_explicit_orders_keep_exact_fields(line, name, dose, route, freq, action
         "Caution: do not dispense 0.25 mg.",
         "Verify label says 0.05 mg, never 0.5 mg.",
         "Warning: high risk if taken at 2.5 mg.",
+        "Weight gain 20 g daily.",
+        "Weight increased 5 g daily.",
         "Maximum daily dose 2 mg.",
         "Fasting blood glucose 118 mg/dL.",
         "Hemoglobin 13.8 g/dL.",
@@ -245,6 +249,24 @@ def test_two_medications_on_one_line_remain_distinct():
     )["medications"]
     assert "albuterol" in {m["name"] for m in meds}
     assert "omeprazole" in {m["name"] for m in meds}
+
+
+def test_stop_continue_taking_never_becomes_part_of_drug_identity():
+    for verb, action in (("Stop taking", "stop"), ("Continue taking", "continue")):
+        line = verb + " Warfarin 2.5 mg PO daily."
+        for source in (line, "Medications:\n" + line):
+            meds = run_pipeline(source)["medications"]
+            assert len(meds) == 1, (source, meds)
+            assert meds[0]["name"] == "warfarin"
+            assert meds[0]["action"] == action
+            start, end = meds[0]["span"]
+            assert source[start:end].startswith("Warfarin")
+
+
+def test_weight_gain_cannot_be_extracted_as_new_medication():
+    for narrative in ("Weight gain 20 g daily.", "Weight increased 5 g daily."):
+        for source in (narrative, "Medications:\n" + narrative):
+            assert run_pipeline(source)["medications"] == []
 
 
 def test_legacy_pre_dose_schedules_and_bedtime_remain_reviewable():
