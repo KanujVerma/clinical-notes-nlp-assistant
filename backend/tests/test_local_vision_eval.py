@@ -30,7 +30,13 @@ def test_wrong_dose_unit_and_decimal_fail_strict_occurrence():
     bad = [{"name": "Warfarin", "dose": "25 mg", "route": "PO", "frequency": "daily"}]
     scored = vision.score_occurrences(gold, bad, vision.FIELDS, "name")
     assert (scored["tp"], scored["fp"], scored["fn"]) == (0, 1, 1)
+    assert scored["f1"] == 0.0
     assert scored["mismatches"][0]["attributes"]["dose"]["expected"] == "2.5 mg"
+
+    # Missing predictions with gold support must report 0.0 F1, not null
+    omitted = vision.score_occurrences(gold, [], vision.FIELDS, "name")
+    assert (omitted["tp"], omitted["fp"], omitted["fn"]) == (0, 0, 1)
+    assert omitted["f1"] == 0.0
 
     bad[0]["dose"] = "2.5 g"
     assert vision.score_occurrences(gold, bad, vision.FIELDS, "name")["tp"] == 0
@@ -117,14 +123,21 @@ def test_full_paired_adapter_scoring_and_manifest_digest(tmp_path, monkeypatch):
     assert len(report["dataset"]["manifest_sha256"]) == 64
 
 
-def test_model_unavailable_fails_without_publishing_claims(tmp_path, monkeypatch):
+def test_model_unavailable_fails_without_publishing_claims(tmp_path, monkeypatch, capsys):
+    import sys
     manifest = generate(tmp_path / "dataset")
     monkeypatch.setattr(vision, "get_installed_model_digest",
-                        lambda model: (_ for _ in ()).throw(RuntimeError("MODEL_NOT_INSTALLED")))
+                        lambda model: (_ for _ in ()).throw(vision.InferenceBindingError("MODEL_NOT_INSTALLED")))
     destination = tmp_path / "output"
-    with pytest.raises(RuntimeError, match="MODEL_NOT_INSTALLED"):
+    with pytest.raises(vision.InferenceBindingError, match="MODEL_NOT_INSTALLED"):
         vision.run_evaluation(manifest, ("glm_ocr",), destination)
     assert not destination.exists()
+
+    monkeypatch.setattr(sys, "argv", ["local_vision_eval", "--manifest", str(manifest), "--arms", "glm_ocr", "--output-dir", str(destination)])
+    ret = vision.main()
+    assert ret == 2
+    captured = capsys.readouterr()
+    assert "EVALUATION_NOT_COMPLETED: MODEL_NOT_INSTALLED" in captured.err
 
 
 def test_handwriting_rejected_without_independent_gold(tmp_path):

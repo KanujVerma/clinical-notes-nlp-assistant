@@ -37,7 +37,7 @@ from PIL import Image  # noqa: E402
 import pytesseract  # noqa: E402
 
 from evaluation.vision_benchmark import load_gold_manifest  # noqa: E402
-from services.inference_pipeline import get_installed_model_digest  # noqa: E402
+from services.inference_pipeline import InferenceBindingError, get_installed_model_digest  # noqa: E402
 from services.multimodal_service import glm_ocr_infer, qwen3_vl_infer, calculate_cer_wer  # noqa: E402
 
 
@@ -59,10 +59,19 @@ def _normalize(value: Any) -> str:
 
 
 def _score_counts(tp: int, fp: int, fn: int) -> dict:
-    precision = tp / (tp + fp) if tp + fp else None
-    recall = tp / (tp + fn) if tp + fn else None
-    f1 = (2 * precision * recall / (precision + recall)
-          if precision is not None and recall is not None and precision + recall else None)
+    has_support = (tp + fn) > 0
+    has_preds = (tp + fp) > 0
+    precision = tp / (tp + fp) if has_preds else None
+    recall = tp / (tp + fn) if has_support else None
+    if has_support:
+        if tp == 0:
+            f1 = 0.0
+        elif precision is not None and recall is not None and (precision + recall) > 0:
+            f1 = 2 * precision * recall / (precision + recall)
+        else:
+            f1 = 0.0
+    else:
+        f1 = None
     return {"tp": tp, "fp": fp, "fn": fn, "precision": precision, "recall": recall, "f1": f1}
 
 
@@ -359,7 +368,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = run_evaluation(args.manifest, parse_arms(args.arms), args.output_dir)
-    except (ValueError, RuntimeError, OSError, FileExistsError) as exc:
+    except (ValueError, RuntimeError, OSError, FileExistsError, InferenceBindingError) as exc:
         code = str(exc) if str(exc).isupper() and "_" in str(exc) else "LOCAL_EVALUATION_FAILED"
         print("EVALUATION_NOT_COMPLETED: " + code, file=sys.stderr)
         return 2

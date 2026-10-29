@@ -1,0 +1,141 @@
+{
+  "arms_run": [
+    "tesseract"
+  ],
+  "cases": {
+    "tesseract": [
+      {
+        "case_id": "synthetic_print_clean",
+        "latency_ms": 185,
+        "source_sha256": "a2baf78e4e38d750b4eb36666ee2a9039f91e0cee5675b42f3603a2d01911f68",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.037037037037037035,
+          "character_distance": 5,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "500 mg"
+            },
+            {
+              "recognized": true,
+              "token": "10 mg"
+            },
+            {
+              "recognized": true,
+              "token": "120/80"
+            }
+          ],
+          "ref_chars": 135,
+          "ref_words": 22,
+          "wer": 0.2727272727272727,
+          "word_distance": 6
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nPrescription: Metformin 500 mg PO BID.\n\nLisinopril 10 mg POdaily.\n\nBlood pressure 120/80 mmHg.\n"
+      },
+      {
+        "case_id": "synthetic_print_decimal",
+        "latency_ms": 147,
+        "source_sha256": "a51f81bd1fdd087e024ec896a0f397977da2843d5382a5869d1d5aee54126030",
+        "source_type": "printed_decimal",
+        "text_metrics": {
+          "cer": 0.04838709677419355,
+          "character_distance": 6,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "2.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": true,
+              "token": "Do not"
+            }
+          ],
+          "ref_chars": 124,
+          "ref_words": 22,
+          "wer": 0.36363636363636365,
+          "word_distance": 8
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nHold Warfarin 2.5 mg POdaily.\n\nDo not substitute 25 mg.\n\nReturn ifsymptoms worsen.\n"
+      },
+      {
+        "case_id": "synthetic_print_noisy",
+        "latency_ms": 161,
+        "source_sha256": "9d0fa24ab062ce96b5ca94588c6a86a86ed4f2ce1916cb2e005211cf2eb6ba3b",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.03007518796992481,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "500 mg"
+            },
+            {
+              "recognized": true,
+              "token": "10 days"
+            },
+            {
+              "recognized": true,
+              "token": "Do not"
+            },
+            {
+              "recognized": true,
+              "token": "81 mg"
+            }
+          ],
+          "ref_chars": 133,
+          "ref_words": 26,
+          "wer": 0.19230769230769232,
+          "word_distance": 5
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FORCLINICAL USE\nAmoxicillin 500 mg PO TID for 10 days\n\nDo not continue aspirin 81 mg.\n\nFollow upin 2 weeks.\n"
+      }
+    ]
+  },
+  "dataset": {
+    "annotation_status": "synthetic_generator_ground_truth",
+    "case_count": 3,
+    "dataset_id": "synthetic_printed_visual_ocr_development_v1",
+    "manifest_sha256": "5666c3dee691a4fd67ba98940ba6c4317ae562d449d56fad45aafa07779225da"
+  },
+  "generated_at_utc": "2026-10-29T00:10:07.158566+00:00",
+  "git_sha": "5e6e3916818f758c23faa325c0ab883610b237dc",
+  "limitations": [
+    "Development synthetic printed images are generator-derived, not a held-out dataset",
+    "Qwen3-VL structured entity F1 is not character/word OCR accuracy",
+    "No handwritten clinical accuracy unless independently transcribed real handwriting cases were run",
+    "Local model runtime memory is not estimated from the Python runner's RSS",
+    "Critical token presence is not negation or medication-status comprehension"
+  ],
+  "model_digests": {
+    "tesseract": "5.5.2"
+  },
+  "not_clinical_validation": true,
+  "paired_tesseract_glm": null,
+  "status": "completed_local_actual_predictions",
+  "summary": {
+    "tesseract": {
+      "cases": 3,
+      "cer_micro": 0.03826530612244898,
+      "character_distance": 15,
+      "critical_token_hits": 11,
+      "critical_token_recall": 1.0,
+      "critical_token_total": 11,
+      "reference_characters": 392,
+      "reference_words": 70,
+      "total_latency_ms": 493,
+      "wer_micro": 0.2714285714285714,
+      "word_distance": 19
+    }
+  },
+  "synthetic_only": true
+}
