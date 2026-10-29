@@ -31,7 +31,10 @@ _FREQUENCY = re.compile(
     r"as\s+needed|prn)\b",
     re.IGNORECASE,
 )
-_DURATION = re.compile(r"\bfor\s+\d+\s+(?:days?|weeks?|months?)\b", re.IGNORECASE)
+_DURATION = re.compile(
+    r"\bfor\s+\d+\s+(?:more\s+)?(?:days?|weeks?|months?)\b",
+    re.IGNORECASE,
+)
 _BULLET = re.compile(r"^\s*(?:[-*\u2022]\s*|\d{1,3}[.)]\s*)")
 _LABEL = re.compile(
     r"^(?:prescription|discharge\s+med(?:s|ications?)|"
