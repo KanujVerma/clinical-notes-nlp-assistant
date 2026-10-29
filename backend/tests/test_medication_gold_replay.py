@@ -104,6 +104,51 @@ def test_ambiguous_ocr_frequency_is_not_silently_corrected():
     assert med["frequency"] == "PRN"
 
 
+@pytest.mark.parametrize(
+    "negative_line",
+    [
+        "No metformin 500 mg PO BID.",
+        "Not taking warfarin 5 mg PO daily.",
+        "Denies aspirin 81 mg PO daily.",
+        "Never used lisinopril 10 mg PO daily.",
+    ],
+)
+def test_explicit_and_full_pipeline_reject_negated_medication_histories(negative_line):
+    assert parse_order_lines(negative_line) == []
+    assert run_pipeline(negative_line)["medications"] == []
+
+
+@pytest.mark.parametrize(
+    "source,name,dose,action",
+    [
+        ("Medications:\nHold Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "hold"),
+        ("Medications:\nDo not continue Aspirin 81 mg.", "aspirin", "81 mg", "stop"),
+        ("Medications:\nStart Lisinopril 10 mg PO daily.", "lisinopril", "10 mg", "start"),
+    ],
+)
+def test_action_prefixed_section_same_source_produces_one_record(source, name, dose, action):
+    meds = run_pipeline(source)["medications"]
+    assert [(m["name"], m["dose"], m.get("action", "")) for m in meds] == [
+        (name, dose, action)
+    ]
+
+
+def test_explicit_prn_indication_and_evidence_span_are_preserved():
+    text = "Medications:\nAlbuterol inhaler 2 puffs q6h PRN wheezing."
+    meds = run_pipeline(text)["medications"]
+    assert len(meds) == 1
+    med = meds[0]
+    assert med["frequency"].casefold() == "q6h prn"
+    assert med["qualifier"] == "PRN wheezing"
+    a, b = med["span"]
+    assert text[a:b].endswith("PRN wheezing")
+    assert a < b <= len(text)
+
+    other = run_pipeline("Medications:\nBenzonatate 100 mg PO TID as needed for cough.")["medications"]
+    assert len(other) == 1
+    assert other[0]["qualifier"] == "as needed for cough"
+
+
 def test_discrete_occurrence_spans_and_action_scope():
     text = (
         "Hold Warfarin 2.5 mg PO daily.\n"
