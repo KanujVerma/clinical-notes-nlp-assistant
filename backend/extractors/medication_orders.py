@@ -91,13 +91,22 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         cursor += label.end()
 
     body = line[cursor:]
-    # Multiple dose expressions in a single unsplit clause are ambiguous:
-    # the later route/frequency may belong to a different medication.
-    # Leave those clauses to the entity matcher / human review.
+    # More than one drug-strength dose on a single clause is ambiguous.
+    # "250/50 mcg inhaled 1 puff" is an exception: the second amount is
+    # administration quantity, not a second drug. Only accept it when the
+    # intervening text is an explicit route (no other drug/conjunction).
     doses = list(_DOSE.finditer(body))
-    if len(doses) != 1:
+    if not doses:
         return None
     dose = doses[0]
+    for previous, extra in zip(doses, doses[1:]):
+        middle = body[previous.end():extra.start()]
+        administration_unit = re.search(
+            r"\b(?:puffs?|tablets?|tabs?|capsules?|caps?|sprays?|drops?|patch(?:es)?)\b",
+            extra.group("dose"), re.IGNORECASE,
+        )
+        if not administration_unit or re.sub(_ROUTE, "", middle).strip():
+            return None
 
     before_dose = body[:dose.start()]
     action_match = _ACTION.match(before_dose)
@@ -135,7 +144,7 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         frequency = (frequency + " as needed").strip()
 
     duration = _DURATION.search(after_dose)
-    sig_end = dose.end()
+    sig_end = max(item.end() for item in doses)
     for hit in (route_match, freq_match, prn, as_needed, duration):
         if hit:
             sig_end = max(sig_end, dose.end() + hit.end())
