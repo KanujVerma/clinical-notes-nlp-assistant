@@ -61,6 +61,24 @@ def test_glm_ocr_offline_graceful_fallback(monkeypatch):
     assert res["boxes"] == []
 
 
+def test_glm_ocr_rejects_assembled_box_transcript_exceeding_limit(monkeypatch):
+    monkeypatch.setattr("services.multimodal_service.is_ollama_available", lambda: True)
+    large_line = "A" * 200
+    mock_boxes = [{"text": large_line, "bbox": [10, 10, 100, 50]} for _ in range(200)]
+    mock_response = {
+        "response": json.dumps({
+            "text": "",
+            "boxes": mock_boxes,
+        })
+    }
+    monkeypatch.setattr("services.multimodal_service.query_ollama_multimodal", lambda **kwargs: mock_response)
+    dummy_image = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+    res = glm_ocr_infer(dummy_image)
+    assert res["status"] == "failed"
+    assert res["error_code"] == "INFERENCE_ERROR"
+    assert res["transcribed_text"] == ""
+
+
 def test_qwen3_vl_offline_graceful_fallback(monkeypatch):
     monkeypatch.setattr("services.multimodal_service.is_ollama_available", lambda: False)
     dummy_image = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"

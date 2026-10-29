@@ -148,3 +148,12 @@ def test_handwriting_rejected_without_independent_gold(tmp_path):
     cases, _ = vision.load_gold_manifest(manifest)
     with pytest.raises(ValueError, match="HANDWRITING_GOLD_MUST_BE_INDEPENDENT"):
         vision._validate_structured_gold(raw, cases)
+
+
+def test_rss_memory_marks_unloaded_model_as_unmeasured():
+    mem = vision._get_rss_bytes()
+    assert "runner_peak_rss_bytes" in mem
+    assert isinstance(mem["runner_peak_rss_bytes"], int)
+    assert mem["runner_peak_rss_bytes"] > 0
+    assert mem["ollama_inference_rss_bytes"] is None
+    assert mem["ollama_memory_status"] == "unmeasured_out_of_process_runner"

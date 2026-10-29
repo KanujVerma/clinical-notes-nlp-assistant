@@ -148,6 +148,8 @@ def glm_ocr_infer(
         if not transcript and raw_boxes:
             box_lines = [b.get("text", "").strip() for b in raw_boxes if isinstance(b, dict) and b.get("text")]
             transcript = "\n".join(b for b in box_lines if b)
+            if len(transcript) > 32768:
+                raise ValueError("Vision transcription exceeds output limit")
 
         return {
             "status": "completed",

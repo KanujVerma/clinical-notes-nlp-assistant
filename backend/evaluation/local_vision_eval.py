@@ -195,8 +195,8 @@ def _validate_structured_gold(manifest: dict, cases: list[dict]) -> dict:
     return by_id
 
 
-def _get_rss_bytes() -> dict[str, int]:
-    info: dict[str, int] = {}
+def _get_rss_bytes() -> dict[str, Any]:
+    info: dict[str, Any] = {}
     try:
         import resource
         raw_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -204,18 +204,11 @@ def _get_rss_bytes() -> dict[str, int]:
         info["runner_peak_rss_bytes"] = raw_rss * 1024 if sys.platform.startswith("linux") else raw_rss
     except Exception:
         pass
-    try:
-        proc = subprocess.run(
-            ["ps", "-ax", "-o", "rss,comm"], capture_output=True, text=True, check=True
-        )
-        for line in proc.stdout.splitlines():
-            if "ollama" in line.lower():
-                parts = line.strip().split()
-                if parts and parts[0].isdigit():
-                    info["ollama_rss_bytes"] = int(parts[0]) * 1024
-                    break
-    except Exception:
-        pass
+    # Local model inference runs out-of-process in Ollama child runners and unloads
+    # with keep_alive=0; mark out-of-process model memory as unmeasured rather than
+    # reporting post-unload daemon RSS.
+    info["ollama_inference_rss_bytes"] = None
+    info["ollama_memory_status"] = "unmeasured_out_of_process_runner"
     return info
 
 

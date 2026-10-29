@@ -6282,7 +6282,8 @@
     "Critical token presence is not negation or medication-status comprehension"
   ],
   "memory_usage": {
-    "ollama_rss_bytes": 17252352,
+    "ollama_inference_rss_bytes": null,
+    "ollama_memory_status": "unmeasured_out_of_process_runner",
     "runner_peak_rss_bytes": 235503616
   },
   "model_digests": {
