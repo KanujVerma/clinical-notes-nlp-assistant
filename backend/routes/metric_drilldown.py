@@ -47,7 +47,35 @@ def _changed_paths(before: dict, after: dict) -> set[str]:
 
     b_meds = before.get("medications") or []
     a_meds = after.get("medications") or []
-    if b_meds != a_meds:
+    med_fields = (
+        "name", "dose", "route", "frequency", "duration",
+        "qualifier", "prn", "action", "status", "temporal_status",
+    )
+
+    def comparable_medications(items):
+        if not isinstance(items, list):
+            return []
+        rows = []
+        for index, med in enumerate(items):
+            if not isinstance(med, dict):
+                continue
+            med_id = (
+                med.get("source_occurrence_id")
+                or med.get("occurrence_id")
+                or med.get("id")
+                or f"med_{index}"
+            )
+            semantic = tuple(
+                (field, _value(med[field]))
+                for field in med_fields if field in med and med[field] is not None
+            )
+            rows.append((str(med_id), semantic))
+        return rows
+
+    # A reviewed record may gain a server-assigned identity or additional
+    # provenance metadata without changing a single medication fact.
+    # Compare stable occurrences and their semantic attributes only.
+    if comparable_medications(b_meds) != comparable_medications(a_meds):
         changed.add("medications")
     return changed
 
