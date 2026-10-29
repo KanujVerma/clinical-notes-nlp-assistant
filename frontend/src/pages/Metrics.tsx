@@ -1,6 +1,7 @@
 // frontend/src/pages/Metrics.tsx
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { Link } from "react-router-dom";
 import { MetricsResponse } from "../types";
 
 export default function Metrics() {
@@ -60,7 +61,11 @@ export default function Metrics() {
               {corrCatChartData.map(({ category, rate, reviewed }) => (
                 <div key={category}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-slate-600 capitalize">{category}</span>
+                    <Link
+                      to={`/metrics/drilldown?kind=corrections&category=${encodeURIComponent(category)}`}
+                      className="text-xs text-cyan-800 capitalize font-medium underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-cyan-600"
+                      aria-label={`Inspect current corrected ${category} notes`}
+                    >{category}</Link>
                     <span className="text-xs text-slate-400">{rate}% of {reviewed} fields</span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -93,7 +98,13 @@ export default function Metrics() {
               <tbody>
                 {corrFieldRows.map(({ field, reviewed, corrected, rate }) => (
                   <tr key={field} className="border-t border-slate-100">
-                    <td className="py-1.5 text-slate-700 font-mono text-xs">{field}</td>
+                    <td className="py-1.5 text-slate-700 font-mono text-xs">
+                      <Link
+                        to={`/metrics/drilldown?kind=corrections&field=${encodeURIComponent(field)}`}
+                        className="text-cyan-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-cyan-600"
+                        aria-label={`Inspect current source evidence for corrections to ${field}`}
+                      >{field}</Link>
+                    </td>
                     <td className="py-1.5 text-right text-slate-500">{reviewed}</td>
                     <td className="py-1.5 text-right text-slate-500">{corrected}</td>
                     <td className="py-1.5 text-right">
@@ -115,24 +126,36 @@ export default function Metrics() {
           <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-600 mb-2">Operational Issues (Workspace)</h2>
             <div className="grid grid-cols-3 gap-2 text-center mt-3">
-              <div className="bg-rose-50 border border-rose-100 rounded p-2">
+              <Link
+                to="/metrics/drilldown?kind=issues&severity=critical_blocker&state=open"
+                className="bg-rose-50 border border-rose-100 rounded p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+                aria-label="Inspect current critical blocker issues and source evidence"
+              >
                 <span className="block text-rose-600 font-bold text-lg font-mono">
                   {data.db_stats.issues_summary?.open_blockers || 0}
                 </span>
-                <span className="text-[10px] text-rose-500 font-medium">Critical Blockers</span>
-              </div>
-              <div className="bg-amber-50 border border-amber-100 rounded p-2">
-                <span className="block text-amber-600 font-bold text-lg font-mono">
+                <span className="text-[10px] text-rose-700 font-medium">Critical Blockers</span>
+              </Link>
+              <Link
+                to="/metrics/drilldown?kind=issues&severity=warning&state=open"
+                className="bg-amber-50 border border-amber-100 rounded p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
+                aria-label="Inspect current open warning issues and source evidence"
+              >
+                <span className="block text-amber-700 font-bold text-lg font-mono">
                   {data.db_stats.issues_summary?.open_warnings || 0}
                 </span>
-                <span className="text-[10px] text-amber-500 font-medium">Warnings</span>
-              </div>
-              <div className="bg-slate-50 border border-slate-100 rounded p-2">
-                <span className="block text-slate-600 font-bold text-lg font-mono">
+                <span className="text-[10px] text-amber-800 font-medium">Warnings</span>
+              </Link>
+              <Link
+                to="/metrics/drilldown?kind=issues&state=resolved"
+                className="bg-slate-50 border border-slate-100 rounded p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
+                aria-label="Inspect current resolved issues and their notes"
+              >
+                <span className="block text-slate-700 font-bold text-lg font-mono">
                   {data.db_stats.issues_summary?.resolved || 0}
                 </span>
-                <span className="text-[10px] text-slate-500 font-medium">Resolved</span>
-              </div>
+                <span className="text-[10px] text-slate-600 font-medium">Resolved</span>
+              </Link>
             </div>
           </div>
 
@@ -169,7 +192,15 @@ export default function Metrics() {
               <tbody>
                 {data.db_stats.by_status.map((row) => (
                   <tr key={row.status} className="border-t border-slate-100">
-                    <td className="py-1.5 text-slate-700">{row.status}</td>
+                    <td className="py-1.5 text-slate-700">
+                      {row.status === "reviewed_unchanged" || row.status === "reviewed_corrected" ? (
+                        <Link
+                          to={`/metrics/drilldown?kind=status&status=${encodeURIComponent(row.status)}`}
+                          className="text-cyan-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-cyan-600"
+                          aria-label={`Inspect current notes with review status ${row.status.replaceAll("_", " ")}`}
+                        >{row.status.replaceAll("_", " ")}</Link>
+                      ) : row.status}
+                    </td>
                     <td className="py-1.5 text-right text-slate-600">{row.count}</td>
                     <td className="py-1.5 text-right text-slate-600">{Number(row.avg_corrections ?? 0).toFixed(1)}</td>
                     <td className="py-1.5 text-right text-slate-600">
