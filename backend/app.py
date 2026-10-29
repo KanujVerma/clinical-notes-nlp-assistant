@@ -115,6 +115,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     from routes.validate import bp as validate_bp
     from routes.history import bp as history_bp
     from routes.metrics import bp as metrics_bp
+    from routes.metric_drilldown import bp as metric_drilldown_bp
     from routes.seed import bp as seed_bp
     from routes.queue import bp as queue_bp
     from routes.reset import bp as reset_bp
@@ -134,6 +135,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(validate_bp)
     app.register_blueprint(history_bp)
     app.register_blueprint(metrics_bp)
+    app.register_blueprint(metric_drilldown_bp)
     app.register_blueprint(seed_bp)
     app.register_blueprint(queue_bp)
     app.register_blueprint(reset_bp)
