@@ -158,6 +158,17 @@ def main() -> int:
             f"{arm}: TP={scored['tp']} FP={scored['fp']} FN={scored['fn']} "
             f"strict F1={scored['f1']:.4f}"
         )
+    # Emit concise case-level diagnostics so missing doses/actions can be
+    # independently audited in CI without opening a binary artifact.
+    for arm in ("gold_text", "glm_ocr"):
+        for case in result["results"][arm]["cases"]:
+            counts = case["counts"]
+            if counts["fp"] or counts["fn"]:
+                print(
+                    f"UNMATCHED_{arm} {case['case_id']}: "
+                    f"TP={counts['tp']} FP={counts['fp']} FN={counts['fn']} "
+                    f"mismatches={json.dumps(case['mismatches'], sort_keys=True)}"
+                )
     print("MEDICATION_REPLAY_COMPLETED: " + str(output))
     return 0
 
