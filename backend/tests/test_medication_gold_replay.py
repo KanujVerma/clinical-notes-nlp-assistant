@@ -143,6 +143,19 @@ def test_unrecognized_compound_action_is_not_attributed_as_medication_name():
     assert parse_order_lines("Start to discontinue Aspirin 81 mg PO daily.") == []
 
 
+def test_compound_order_in_plan_cannot_be_reintroduced_by_prose_or_medspacy():
+    source = "Plan:\nContinue to hold Warfarin 2.5 mg PO daily."
+    meds = run_pipeline(source)["medications"]
+    assert [(m["name"], m["action"]) for m in meds] == [("warfarin", "hold")]
+
+    # Unsupported mixed directives must not reappear as an actionless order
+    # via the legacy section/prose parser or medSpaCy fallback.
+    for section in ("Medications:\n", "Plan:\n", ""):
+        assert run_pipeline(
+            section + "Continue to start Warfarin 2.5 mg PO daily."
+        )["medications"] == []
+
+
 def test_indented_legacy_medication_and_prose_sections_keep_exact_offsets():
     source = "Medications:\n" + " " * 30 + "Hold Aspirin 81 mg PO daily.\n"
     meds = run_pipeline(source)["medications"]
