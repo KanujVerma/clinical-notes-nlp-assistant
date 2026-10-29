@@ -263,6 +263,38 @@ def test_stop_continue_taking_never_becomes_part_of_drug_identity():
             assert source[start:end].startswith("Warfarin")
 
 
+def test_current_use_narrative_must_not_corrupt_drug_identity():
+    for text in (
+        "Currently taking Warfarin 2.5 mg PO daily.",
+        "Medications:\nCurrently taking Warfarin 2.5 mg PO daily.",
+    ):
+        # The old medSpaCy fallback may recognize Warfarin as a medication
+        # mention; it must not become "currently taking warfarin" or create
+        # an authoritative new medication order.
+        meds = run_pipeline(text)["medications"]
+        assert len(meds) <= 1
+        assert all(m["name"] == "warfarin" for m in meds)
+
+
+def test_as_needed_and_prn_long_indications_survive_precedence_and_spans():
+    cases = [
+        (
+            "Medications:\nBenzonatate 100 mg PO TID as needed for cough or shortness of breath.",
+            "as needed for cough or shortness of breath",
+        ),
+        (
+            "Medications:\nAlbuterol 2 puffs q6h PRN cough or shortness of breath.",
+            "PRN cough or shortness of breath",
+        ),
+    ]
+    for text, qualifier in cases:
+        meds = run_pipeline(text)["medications"]
+        assert len(meds) == 1
+        assert meds[0]["qualifier"] == qualifier
+        start, end = meds[0]["span"]
+        assert text[start:end].endswith(qualifier)
+
+
 def test_weight_gain_cannot_be_extracted_as_new_medication():
     for narrative in ("Weight gain 20 g daily.", "Weight increased 5 g daily."):
         for source in (narrative, "Medications:\n" + narrative):
