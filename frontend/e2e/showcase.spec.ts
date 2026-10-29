@@ -36,7 +36,24 @@ test("metrics issue count drills to a source-authorized note and selected issue"
   const inspect = page.getByRole("link", { name: /Inspect source and evidence for note/i }).first();
   await expect(inspect).toBeVisible({ timeout: 12_000 });
   await inspect.click();
-  await expect(page).toHaveURL(/\/review\/\d+\?issue=/);
+  await expect(page).toHaveURL(/\/review\/\d+\?.*source_revision_id=.*extraction_id=.*issue=/);
   await expect(page.getByRole("region", { name: "Operational issues for current note" })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByLabel(/Selected issue/i)).toBeVisible();
+});
+
+test("stale metric evidence link refuses to display a different note source", async ({ page }) => {
+  await page.goto(BASE);
+  const input = page.getByPlaceholder("Paste clinical note text here...");
+  await input.fill("Synthetic note only. BP: 120/80. HR: 72. No identifying data.");
+  await page.getByRole("button", { name: /Extract & Review/i }).click();
+  await expect(page).toHaveURL(/\/review\/\d+/, { timeout: 15_000 });
+  const noteId = page.url().match(/\/review\/(\d+)/)?.[1];
+  expect(noteId).toBeTruthy();
+
+  await page.goto(BASE + "/review/" + noteId +
+    "?source_revision_id=outdated-source&extraction_id=outdated-extraction&field=vitals.blood_pressure");
+  await expect(page.getByRole("heading", { name: "Evidence link needs refreshing" }))
+    .toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "Return to metrics" })).toBeVisible();
+  await expect(page.getByText("Reviewer", { exact: true })).not.toBeVisible();
 });
