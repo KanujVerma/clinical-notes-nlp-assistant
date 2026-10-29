@@ -176,3 +176,34 @@ def test_real_hosted_seed_is_idempotent_and_not_live_nlp(client, monkeypatch):
     assert first.json["loaded"] == 10
     assert second.json["loaded"] == 0
     assert second.json["skipped"] == 10
+
+
+def test_hosted_preflight_sanitizes_db_errors():
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    res = subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts" / "hosted_preflight.py"),
+            "--check-db",
+        ],
+        cwd=str(root),
+        env={
+            **os.environ,
+            "APP_MODE": "hosted_demo",
+            "FRONTEND_URL": "http://localhost:5173",
+            "ENABLE_EXTERNAL_EXPLAINER": "false",
+            "DATABASE_URL": "postgresql://user:super_secret_password@127.0.0.1:5432/bad_db",
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 2
+    assert "super_secret_password" not in res.stderr
+    assert "super_secret_password" not in res.stdout
+    data = json.loads(res.stderr.strip())
+    assert data["status"] == "blocked"
+    assert data["code"] == "DATABASE_SCHEMA_OR_CONNECTION_FAILED"

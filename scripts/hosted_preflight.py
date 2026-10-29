@@ -55,11 +55,15 @@ def preflight(check_db: bool = False, allow_disposable_sqlite: bool = False) -> 
         if not Config.DATABASE_URL.startswith("postgresql"):
             if not allow_disposable_sqlite or not Config.DATABASE_URL.startswith("sqlite"):
                 raise RuntimeError("DATABASE_MUST_BE_STAGING_POSTGRESQL")
-        engine = get_engine(Config.DATABASE_URL)
         try:
-            init_db(engine, migrate=False)  # read-only current Alembic head verification
-        finally:
-            engine.dispose()
+            from sqlalchemy.exc import SQLAlchemyError
+            engine = get_engine(Config.DATABASE_URL)
+            try:
+                init_db(engine, migrate=False)  # read-only current Alembic head verification
+            finally:
+                engine.dispose()
+        except SQLAlchemyError:
+            raise RuntimeError("DATABASE_SCHEMA_OR_CONNECTION_FAILED")
         result["schema_check"] = "verified_existing_head"
     return result
 
@@ -70,8 +74,13 @@ def main() -> int:
     parser.add_argument("--allow-disposable-sqlite", action="store_true")
     args = parser.parse_args()
     try:
+        from sqlalchemy.exc import SQLAlchemyError
+        all_errors = (RuntimeError, HostedFixtureError, ValueError, OSError, SQLAlchemyError)
+    except ImportError:
+        all_errors = (RuntimeError, HostedFixtureError, ValueError, OSError)
+    try:
         result = preflight(args.check_db, args.allow_disposable_sqlite)
-    except (RuntimeError, HostedFixtureError, ValueError, OSError) as exc:
+    except all_errors as exc:
         # Only emit public static error codes; never print DB URLs/credentials.
         code = exc.code if isinstance(exc, HostedFixtureError) else (
             str(exc) if str(exc).isupper() and "_" in str(exc) else "PREFLIGHT_FAILED"

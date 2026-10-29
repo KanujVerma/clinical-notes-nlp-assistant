@@ -3,10 +3,11 @@ import { QueueResponse } from "../types";
 import { AiExplainRequest, AiExplainResponse, AiStatusResponse } from "../lib/aiExplain";
 
 // Hosted Vercel builds need an explicit HTTPS Render backend origin.
-// The local Vite dev proxy is the only supported same-origin fallback.
-const configuredBackend = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/$/, "");
-const PRODUCTION_API_MISSING = import.meta.env.PROD && !configuredBackend;
-const BASE = configuredBackend + "/api";
+// Bundled Docker builds and the local Vite dev proxy run on the same origin.
+const configuredBackend = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/api\/?$/, "").replace(/\/$/, "");
+const allowSameOrigin = import.meta.env.VITE_ALLOW_SAME_ORIGIN === "true";
+const PRODUCTION_API_MISSING = import.meta.env.PROD && !configuredBackend && !allowSameOrigin;
+const BASE = configuredBackend ? `${configuredBackend}/api` : "/api";
 
 export type AiAdapter = "text" | "glm_ocr" | "qwen3_vl";
 export interface AiJobRequest {
