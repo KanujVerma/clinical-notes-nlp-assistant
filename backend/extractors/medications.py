@@ -52,6 +52,7 @@ _REJECT_PROSE = re.compile(
     r"to\s+(?:hold|withhold|stop|discontinue|start|continue|resume|restart|initiate|begin)\b|"
     r"no\b|not(?:\s+taking)?\b|never\b|without\b|denies?\b|denied\b|"
     r"historical\b|history\s+of\b|previously\b|formerly\b|"
+    r"weight\b|height\b|growth\b|body\s+mass\b|bmi\b|"
     r"return\s+to|follow[\s\-]?up|avoid|drink|if\s+you|go\s+to|call|seek|"
     r"use\s+the|take\s+all|continue\s+medications?|no\s+(home\s+)?meds?|"
     r"see\s+med|nkda|allergies?)",
