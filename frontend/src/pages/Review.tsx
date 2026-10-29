@@ -202,7 +202,15 @@ function flattenExtracted(
 export default function Review() {
   const location = useLocation();
   const { noteId } = useParams();
-  const requestedIssueId = new URLSearchParams(location.search).get("issue");
+  const evidenceParams = new URLSearchParams(location.search);
+  const expectedEvidenceRevision = evidenceParams.get("source_revision_id");
+  const expectedEvidenceExtraction = evidenceParams.get("extraction_id");
+  const expectedEvidenceReview = evidenceParams.get("review_event_id");
+  const evidenceLinkIsBound = Boolean(
+    expectedEvidenceRevision || expectedEvidenceExtraction || expectedEvidenceReview
+  );
+  const evidenceBindingKey = String(noteId) + "|" + location.search;
+  const requestedIssueId = evidenceParams.get("issue");
   const requestedRawField = new URLSearchParams(location.search).get("field");
   const requestedField = requestedRawField?.startsWith("instructions.")
     ? "instr." + requestedRawField.slice("instructions.".length)
@@ -210,6 +218,13 @@ export default function Review() {
       ? "meta." + requestedRawField.slice("metadata.".length)
       : requestedRawField;
   const appliedDeepLinkRef = useRef<string | null>(null);
+  const [evidenceBinding, setEvidenceBinding] = useState<{
+    key: string; status: "current" | "stale" | "error";
+  } | null>(null);
+  const evidenceBindingIsCurrent = !evidenceLinkIsBound || (
+    evidenceBinding?.key === evidenceBindingKey &&
+    evidenceBinding.status === "current"
+  );
   const navigate = useNavigate();
   const fromHistory = (location.state as any)?.from === "history";
   const startTime = useRef(Date.now());
@@ -262,6 +277,39 @@ export default function Review() {
       .then((caps) => setIsHosted(caps.mode === "hosted_demo"))
       .catch(() => setError("Cannot verify server capabilities."));
   }, []);
+
+  // Metrics URLs refer to a particular source/extraction/review snapshot.
+  // They must never silently open whichever newer note happens to be current.
+  // Key the response to the URL so an old successful verification cannot
+  // briefly expose a different note while the next request is pending.
+  useEffect(() => {
+    if (!evidenceLinkIsBound) return;
+    let active = true;
+    if (!expectedEvidenceRevision || !expectedEvidenceExtraction || !noteId) {
+      setEvidenceBinding({ key: evidenceBindingKey, status: "stale" });
+      return () => { active = false; };
+    }
+    api.getNoteState(Number(noteId))
+      .then((state) => {
+        if (!active) return;
+        const sameSnapshot = (
+          state.current_source_revision_id === expectedEvidenceRevision &&
+          state.current_extraction_id === expectedEvidenceExtraction &&
+          (!expectedEvidenceReview || state.review_head?.event_id === expectedEvidenceReview)
+        );
+        setEvidenceBinding({
+          key: evidenceBindingKey,
+          status: sameSnapshot ? "current" : "stale",
+        });
+      })
+      .catch(() => {
+        if (active) setEvidenceBinding({ key: evidenceBindingKey, status: "error" });
+      });
+    return () => { active = false; };
+  }, [
+    noteId, evidenceBindingKey, evidenceLinkIsBound, expectedEvidenceRevision,
+    expectedEvidenceExtraction, expectedEvidenceReview,
+  ]);
 
   // Timer
   useEffect(() => {
@@ -468,6 +516,7 @@ export default function Review() {
   useEffect(() => {
     const token = noteId + location.search;
     if (appliedDeepLinkRef.current === token) return;
+    if (!evidenceBindingIsCurrent) return;
     if (requestedIssueId && /^[0-9a-f-]{36}$/i.test(requestedIssueId)) {
       setIsIssuesDrawerOpen(true);
     }
@@ -476,7 +525,7 @@ export default function Review() {
       setActiveKey(requestedField);
     }
     appliedDeepLinkRef.current = token;
-  }, [noteId, location.search, requestedIssueId, requestedField, fields]);
+  }, [noteId, location.search, requestedIssueId, requestedField, fields, evidenceBindingIsCurrent]);
 
   // Scroll active card into view when activeKey changes
   useEffect(() => {
@@ -821,6 +870,35 @@ export default function Review() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
+
+  // Do not show a current note as evidence for a stale metric result.
+  // Even if separate API calls loaded the new note first, this guard keeps
+  // its source/fields/issue drawer hidden until bindings have been checked.
+  if (evidenceLinkIsBound && !evidenceBindingIsCurrent) {
+    const result = evidenceBinding?.key === evidenceBindingKey
+      ? evidenceBinding.status : "checking";
+    return (
+      <main className="flex h-full items-center justify-center bg-slate-50 p-8">
+        <div className="max-w-lg rounded-lg border border-amber-200 bg-white p-6">
+          <h1 className="text-lg font-semibold text-slate-900">
+            {result === "checking" ? "Checking source evidence…" : "Evidence link needs refreshing"}
+          </h1>
+          <p role={result === "checking" ? "status" : "alert"} className="mt-2 text-sm text-slate-700">
+            {result === "checking"
+              ? "Verifying the exact source revision, extraction and review event."
+              : "The metric evidence no longer matches the current note, or cannot be verified. Return to the dashboard and reopen a current result."}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/metrics")}
+            className="mt-4 rounded border border-cyan-700 px-3 py-2 text-sm font-medium text-cyan-800 hover:bg-cyan-50"
+          >
+            Return to metrics
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   if (!extracted) {
     return (
