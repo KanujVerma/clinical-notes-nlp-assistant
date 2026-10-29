@@ -209,8 +209,11 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
             return "", 0
         raw = reason.group("reason").rstrip()
         stop = re.search(
-            r"\s+(?:if|when|unless|until|before|after|call|contact|"
-            r"monitor|stop|hold|start|resume|continue|follow\s+up)\b",
+            # Relative time/condition words (after, before, when, if)
+            # can be PART of a PRN indication (wheezing after exercise).
+            # Only an explicit separate imperative terminates its scope.
+            r"\s+(?:call|contact|monitor|stop|hold|start|resume|"
+            r"continue|follow\s+up)\b",
             raw, re.IGNORECASE,
         )
         if stop:
