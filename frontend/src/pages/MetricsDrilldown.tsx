@@ -35,7 +35,7 @@ export default function MetricsDrilldown() {
   useEffect(() => { if (!loading && data) titleRef.current?.focus(); }, [loading, data]);
 
   return (
-    <main id="main-content" className="h-full overflow-auto bg-slate-50 p-6">
+    <div className="h-full overflow-auto bg-slate-50 p-6">
       <div className="mx-auto max-w-4xl space-y-5">
         <Link to="/metrics" className="text-sm font-medium text-cyan-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-cyan-600">
           Back to Metrics
@@ -87,6 +87,6 @@ export default function MetricsDrilldown() {
           </section>
         )}
       </div>
-    </main>
+    </div>
   );
 }
