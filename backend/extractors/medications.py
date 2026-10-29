@@ -321,7 +321,8 @@ def _same_source_occurrence(a: dict[str, Any], b: dict[str, Any]) -> bool:
     # then require original-source span overlap to avoid collapsing genuinely
     # separate dose occurrences.
     prefix = re.compile(
-        r"^(?:do\s+not\s+continue|discontinue|withhold|continue|restart|"
+        r"^(?:continue\s+to\s+(?:hold|withhold)|do\s+not\s+continue|"
+        r"discontinue|withhold|continue|restart|"
         r"initiate|administer|prescribe|resume|start|begin|hold|stop|"
         r"cease|give|take|use|apply|inject|inhale)\s+",
         re.IGNORECASE,
