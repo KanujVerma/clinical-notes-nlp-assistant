@@ -125,6 +125,7 @@ def test_explicit_and_full_pipeline_reject_negated_medication_histories(negative
 @pytest.mark.parametrize(
     "source,name,dose,action",
     [
+        ("Medications:\nContinue to hold Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "hold"),
         ("Medications:\nHold Warfarin 2.5 mg PO daily.", "warfarin", "2.5 mg", "hold"),
         ("Medications:\nDo not continue Aspirin 81 mg.", "aspirin", "81 mg", "stop"),
         ("Medications:\nStart Lisinopril 10 mg PO daily.", "lisinopril", "10 mg", "start"),
