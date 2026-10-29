@@ -40,12 +40,14 @@ _LABEL = re.compile(
     r"|^discharge\s+meds?\s+(?=[A-Za-z])", re.IGNORECASE,
 )
 _ACTION = re.compile(
-    r"^(?P<verb>do\s+not\s+continue|discontinue|withhold|"
+    r"^(?P<verb>continue\s+to\s+(?:hold|withhold)|do\s+not\s+continue|discontinue|withhold|"
     r"continue|restart|initiate|administer|prescribe|"
     r"resume|start|begin|hold|stop|cease|give|take|use|"
     r"apply|inject|inhale)\s+", re.IGNORECASE,
 )
 _ACTIONS = {
+    "continue to hold": "hold",
+    "continue to withhold": "hold",
     "do not continue": "stop",
     "discontinue": "stop",
     "stop": "stop",
@@ -72,6 +74,10 @@ _NON_ORDER = re.compile(
     r"pain\s+score|risk)\b", re.IGNORECASE,
 )
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9/-]*(?:\s+[A-Za-z][A-Za-z0-9/-]*){0,4}\Z")
+_NESTED_ACTION = re.compile(
+    r"^(?:to\s+)?(?:continue|hold|withhold|start|stop|discontinue|"
+    r"resume|restart|initiate|begin|prescribe|cease)\b", re.IGNORECASE,
+)
 
 
 def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
@@ -122,7 +128,9 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
 
     name_piece = before_dose[name_start:]
     stripped = name_piece.strip()
-    if not stripped or _NON_ORDER.match(stripped) or not _NAME.fullmatch(stripped):
+    if (not stripped or _NON_ORDER.match(stripped)
+            or _NESTED_ACTION.match(stripped)
+            or not _NAME.fullmatch(stripped)):
         return None
 
     after_dose = body[dose.end():]
