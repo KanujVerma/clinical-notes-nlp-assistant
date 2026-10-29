@@ -16,6 +16,7 @@ export interface Medication {
   frequency: string;
   duration: string;
   qualifier: string;
+  action?: string;
   span: [number, number];
   source: string;
   confidence: number;
