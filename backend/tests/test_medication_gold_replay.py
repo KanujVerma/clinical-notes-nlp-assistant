@@ -71,6 +71,28 @@ def test_cautions_labs_and_unanchored_prose_not_new_orders(line):
     assert parse_order_lines(line) == []
 
 
+def test_multiple_dose_clauses_do_not_cross_bind_route_or_frequency():
+    ambiguous = "Metformin 500 mg and Lisinopril 10 mg PO daily."
+    assert parse_order_lines(ambiguous) == []
+
+    separated = "Metformin 500 mg. Start Lisinopril 10 mg PO daily."
+    meds = parse_order_lines(separated)
+    assert len(meds) == 1
+    assert (meds[0]["name"], meds[0]["dose"], meds[0]["action"]) == (
+        "lisinopril", "10 mg", "start"
+    )
+
+    two_orders = "Hold Warfarin 2.5 mg PO daily; Start Aspirin 81 mg PO daily."
+    meds = parse_order_lines(two_orders)
+    assert [(m["name"], m["dose"], m["action"]) for m in meds] == [
+        ("warfarin", "2.5 mg", "hold"),
+        ("aspirin", "81 mg", "start"),
+    ]
+    for med in meds:
+        start, end = med["span"]
+        assert two_orders[start:end].casefold().startswith(med["name"])
+
+
 def test_discrete_occurrence_spans_and_action_scope():
     text = (
         "Hold Warfarin 2.5 mg PO daily.\n"
