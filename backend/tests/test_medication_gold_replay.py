@@ -311,6 +311,14 @@ def test_as_needed_and_prn_long_indications_survive_precedence_and_spans():
             "Medications:\nAlbuterol 2 puffs q6h PRN cough or shortness of breath.",
             "PRN cough or shortness of breath",
         ),
+        (
+            "Medications:\nAlbuterol 2 puffs q6h PRN wheezing after exercise.",
+            "PRN wheezing after exercise",
+        ),
+        (
+            "Medications:\nAlbuterol 2 puffs q6h PRN symptoms when exposed to smoke.",
+            "PRN symptoms when exposed to smoke",
+        ),
     ]
     for text, qualifier in cases:
         meds = run_pipeline(text)["medications"]
