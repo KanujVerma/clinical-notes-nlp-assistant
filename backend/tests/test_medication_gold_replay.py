@@ -34,6 +34,7 @@ REPORT = ROOT / "artifacts/evaluation/paired_local_17f5737320b78e10.json"
         ("Insulin glargine 20 units SubQ at bedtime.", "insulin glargine", "20 units", "SubQ", "at bedtime", ""),
         ("Lorazepam 0.5 mg PO nightly at bedtime.", "lorazepam", "0.5 mg", "PO", "nightly", ""),
         ("Discharge Meds: Metoprolol Succinate 50 mg PO daily.", "metoprolol succinate", "50 mg", "PO", "daily", ""),
+        ("Benzonatate 100 mg PO TID as needed for cough.", "benzonatate", "100 mg", "PO", "TID as needed", ""),
         ("Ceftriaxone 1 g IV daily for 7 days.", "ceftriaxone", "1 g", "IV", "daily", ""),
         ("Administer Labetalol 20 mg IV push STAT.", "labetalol", "20 mg", "IV", "STAT", ""),
     ],
