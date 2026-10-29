@@ -116,6 +116,9 @@ def test_ambiguous_ocr_frequency_is_not_silently_corrected():
 def test_explicit_and_full_pipeline_reject_negated_medication_histories(negative_line):
     assert parse_order_lines(negative_line) == []
     assert run_pipeline(negative_line)["medications"] == []
+    # Verify that the older section-line fallback cannot reintroduce a
+    # negated order after the explicit parser correctly rejects it.
+    assert run_pipeline("Medications:\n" + negative_line)["medications"] == []
 
 
 @pytest.mark.parametrize(
