@@ -8,6 +8,12 @@ services:
     buildCommand: pip install -r requirements.txt && pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
     startCommand: cd backend && bash start.sh
     envVars:
+      - key: APP_MODE
+        value: hosted_demo
+      - key: ENABLE_EXTERNAL_EXPLAINER
+        value: "false"
+      - key: ENABLE_LOCAL_AI
+        value: "false"
       - key: DATABASE_URL
         sync: false   # set manually in Render dashboard
       - key: FRONTEND_URL

@@ -6,6 +6,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ .
+ENV VITE_ALLOW_SAME_ORIGIN=true
 RUN npm run build
 
 # Stage 2: Python backend + serve frontend
