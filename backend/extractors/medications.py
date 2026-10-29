@@ -350,6 +350,11 @@ def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = Non
         # Contraindication / label warnings are NOT additional orders.
         sentence_start, sentence_end = _find_sentence_bounds(text, ent.start_char)
         sentence = text[sentence_start:sentence_end].strip()
+        # medSpaCy can miss negation scope in "never used"/historical
+        # medication history. Fail closed on explicit negative sentence
+        # prefixes even when its entity attribute is_negated is False.
+        if _REJECT_PROSE.match(sentence):
+            continue
         if re.match(
             r"(?i)^(?:do\s+not\s+(?:dispense|substitute|order|prescribe)|"
             r"caution\s*:|warning\s*:|verify\s+label|confirm\s+dose)",
