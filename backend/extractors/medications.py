@@ -47,7 +47,9 @@ _REJECT_DATE = re.compile(
 )
 _REJECT_ICD = re.compile(r"\b[A-Z]\d{2,3}\.?\d*\b")
 _REJECT_PROSE = re.compile(
-    r"^(return\s+to|follow[\s\-]?up|avoid|drink|if\s+you|go\s+to|call|seek|"
+    r"^(no\b|not(?:\s+taking)?\b|never\b|without\b|denies?\b|denied\b|"
+    r"historical\b|history\s+of\b|previously\b|formerly\b|"
+    r"return\s+to|follow[\s\-]?up|avoid|drink|if\s+you|go\s+to|call|seek|"
     r"use\s+the|take\s+all|continue\s+medications?|no\s+(home\s+)?meds?|"
     r"see\s+med|nkda|allergies?)",
     re.IGNORECASE,
