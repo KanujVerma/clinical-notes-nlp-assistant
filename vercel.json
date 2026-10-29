@@ -15,7 +15,8 @@
       "main": false,
       "feat/hosted-synthetic-release": false,
       "feat/local-vision-evaluation": false,
-      "feat/recorded-evidence-showcase": false
+      "feat/recorded-evidence-showcase": false,
+      "feat/real-vision-benchmark": false
     }
   }
 }
