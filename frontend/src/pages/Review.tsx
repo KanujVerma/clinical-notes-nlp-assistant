@@ -202,6 +202,14 @@ function flattenExtracted(
 export default function Review() {
   const location = useLocation();
   const { noteId } = useParams();
+  const requestedIssueId = new URLSearchParams(location.search).get("issue");
+  const requestedRawField = new URLSearchParams(location.search).get("field");
+  const requestedField = requestedRawField?.startsWith("instructions.")
+    ? "instr." + requestedRawField.slice("instructions.".length)
+    : requestedRawField?.startsWith("metadata.")
+      ? "meta." + requestedRawField.slice("metadata.".length)
+      : requestedRawField;
+  const appliedDeepLinkRef = useRef<string | null>(null);
   const navigate = useNavigate();
   const fromHistory = (location.state as any)?.from === "history";
   const startTime = useRef(Date.now());
@@ -453,6 +461,22 @@ export default function Review() {
     const m = flattenExtracted(extracted);
     setFields(m);
   }, [extracted, reReviewBanner]);
+
+  // A dashboard deep link must resolve only AFTER the actual bound note's
+  // fields are loaded. Apply it once per URL so edits do not repeatedly steal
+  // focus from the reviewer.
+  useEffect(() => {
+    const token = noteId + location.search;
+    if (appliedDeepLinkRef.current === token) return;
+    if (requestedIssueId && /^[0-9a-f-]{36}$/i.test(requestedIssueId)) {
+      setIsIssuesDrawerOpen(true);
+    }
+    if (requestedField && /^[a-zA-Z0-9_.-]{1,120}$/.test(requestedField)) {
+      if (!Object.prototype.hasOwnProperty.call(fields, requestedField)) return;
+      setActiveKey(requestedField);
+    }
+    appliedDeepLinkRef.current = token;
+  }, [noteId, location.search, requestedIssueId, requestedField, fields]);
 
   // Scroll active card into view when activeKey changes
   useEffect(() => {
@@ -1279,6 +1303,7 @@ export default function Review() {
           noteId={noteIdState}
           revisionId={currentRevisionId}
           extractionId={currentExtractionId}
+          focusedIssueId={requestedIssueId}
           isOpen={isIssuesDrawerOpen}
           onToggle={() => setIsIssuesDrawerOpen((o) => !o)}
           onIssuesUpdated={(blockers) => setOpenBlockersCount(blockers)}
