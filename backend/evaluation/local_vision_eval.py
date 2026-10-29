@@ -285,16 +285,19 @@ def run_evaluation(manifest_path: Path, arms: tuple[str, ...], output_dir: Path)
                 }
             if arm in ("tesseract", "glm_ocr"):
                 pipe_out = run_pipeline(prediction)
-                det_meds = [
-                    {
+                det_meds = []
+                for m in pipe_out.get("medications", []):
+                    freq = str(m.get("frequency", "")).strip()
+                    qual = str(m.get("qualifier", "")).strip()
+                    if qual and "prn" in qual.lower() and "prn" not in freq.lower():
+                        freq = f"{freq} PRN".strip() if freq else "PRN"
+                    det_meds.append({
                         "name": m.get("name", ""),
                         "dose": m.get("dose", ""),
                         "route": m.get("route", ""),
-                        "frequency": m.get("frequency", ""),
+                        "frequency": freq,
                         "action": m.get("action", ""),
-                    }
-                    for m in pipe_out.get("medications", [])
-                ]
+                    })
                 det_vitals = []
                 for vtype, vobj in pipe_out.get("vitals", {}).items():
                     val = str(vobj.get("value", "")).strip()

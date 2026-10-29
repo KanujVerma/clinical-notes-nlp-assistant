@@ -157,3 +157,27 @@ def test_rss_memory_marks_unloaded_model_as_unmeasured():
     assert mem["runner_peak_rss_bytes"] > 0
     assert mem["ollama_inference_rss_bytes"] is None
     assert mem["ollama_memory_status"] == "unmeasured_out_of_process_runner"
+
+
+def test_deterministic_medications_adapt_prn_qualifier():
+    source = "Medications:\nAlprazolam 0.25 mg PO TID PRN anxiety."
+    pipe_out = vision.run_pipeline(source)
+    det_meds = []
+    for m in pipe_out.get("medications", []):
+        freq = str(m.get("frequency", "")).strip()
+        qual = str(m.get("qualifier", "")).strip()
+        if qual and "prn" in qual.lower() and "prn" not in freq.lower():
+            freq = f"{freq} PRN".strip() if freq else "PRN"
+        det_meds.append({
+            "name": m.get("name", ""),
+            "dose": m.get("dose", ""),
+            "route": m.get("route", ""),
+            "frequency": freq,
+            "action": m.get("action", ""),
+        })
+    gold = [{"name": "Alprazolam", "dose": "0.25 mg", "route": "PO", "frequency": "TID PRN"}]
+    score = vision.score_occurrences(gold, det_meds, vision.FIELDS, "name")
+    assert score["tp"] == 1
+    assert score["fp"] == 0
+    assert score["fn"] == 0
+    assert score["f1"] == 1.0
