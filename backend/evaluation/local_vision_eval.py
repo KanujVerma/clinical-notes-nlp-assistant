@@ -37,6 +37,7 @@ from PIL import Image  # noqa: E402
 import pytesseract  # noqa: E402
 
 from evaluation.vision_benchmark import load_gold_manifest  # noqa: E402
+from extractors.pipeline import run_pipeline  # noqa: E402
 from services.inference_pipeline import InferenceBindingError, get_installed_model_digest  # noqa: E402
 from services.multimodal_service import glm_ocr_infer, qwen3_vl_infer, calculate_cer_wer  # noqa: E402
 
@@ -194,6 +195,23 @@ def _validate_structured_gold(manifest: dict, cases: list[dict]) -> dict:
     return by_id
 
 
+def _get_rss_bytes() -> dict[str, Any]:
+    info: dict[str, Any] = {}
+    try:
+        import resource
+        raw_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # Linux reports ru_maxrss in KiB; Darwin/macOS reports in bytes.
+        info["runner_peak_rss_bytes"] = raw_rss * 1024 if sys.platform.startswith("linux") else raw_rss
+    except Exception:
+        pass
+    # Local model inference runs out-of-process in Ollama child runners and unloads
+    # with keep_alive=0; mark out-of-process model memory as unmeasured rather than
+    # reporting post-unload daemon RSS.
+    info["ollama_inference_rss_bytes"] = None
+    info["ollama_memory_status"] = "unmeasured_out_of_process_runner"
+    return info
+
+
 def _git_sha() -> str:
     try:
         return subprocess.run(
@@ -222,11 +240,12 @@ def run_evaluation(manifest_path: Path, arms: tuple[str, ...], output_dir: Path)
         model_digests["tesseract"] = str(pytesseract.get_tesseract_version())
 
     outputs: dict[str, list[dict]] = {arm: [] for arm in arms}
-    for case in cases:
-        reference, source_image = case["reference_text"], case["image_bytes"]
-        labeled = gold[case["id"]]
-        for arm in arms:
+    for arm in arms:
+        for idx, case in enumerate(cases, 1):
+            reference, source_image = case["reference_text"], case["image_bytes"]
+            labeled = gold[case["id"]]
             started = time.perf_counter()
+            print(f"[{arm}] ({idx}/{len(cases)}) evaluating case: {case['id']}", flush=True)
             if arm == "tesseract":
                 with Image.open(io.BytesIO(source_image)) as img:
                     prediction = pytesseract.image_to_string(img.convert("RGB"), config="--psm 6")
@@ -264,6 +283,46 @@ def run_evaluation(manifest_path: Path, arms: tuple[str, ...], output_dir: Path)
                     ),
                     "text_metrics": None,  # Qwen candidates are NOT OCR transcriptions.
                 }
+            if arm in ("tesseract", "glm_ocr"):
+                pipe_out = run_pipeline(prediction)
+                det_meds = []
+                for m in pipe_out.get("medications", []):
+                    freq = str(m.get("frequency", "")).strip()
+                    qual = str(m.get("qualifier", "")).strip()
+                    qual_lower = qual.lower()
+                    freq_lower = freq.lower()
+                    if "as needed" in qual_lower and "as needed" not in freq_lower:
+                        freq = f"{freq} as needed".strip() if freq else "as needed"
+                    elif "prn" in qual_lower and "prn" not in freq_lower:
+                        freq = f"{freq} PRN".strip() if freq else "PRN"
+                    det_meds.append({
+                        "name": m.get("name", ""),
+                        "dose": m.get("dose", ""),
+                        "route": m.get("route", ""),
+                        "frequency": freq,
+                        "action": m.get("action", ""),
+                    })
+                det_vitals = []
+                for vtype, vobj in pipe_out.get("vitals", {}).items():
+                    val = str(vobj.get("value", "")).strip()
+                    if val.endswith("%"):
+                        det_vitals.append({"vital_type": vtype, "value": val[:-1].strip(), "unit": "%"})
+                    else:
+                        parts = val.split()
+                        if len(parts) >= 2:
+                            det_vitals.append({"vital_type": vtype, "value": parts[0], "unit": parts[1]})
+                        else:
+                            det_vitals.append({"vital_type": vtype, "value": val, "unit": ""})
+                record["deterministic_pipeline"] = {
+                    "medications": (
+                        score_occurrences(labeled["medications"], det_meds, FIELDS, "name")
+                        if labeled["medications"] is not None else None
+                    ),
+                    "vitals": (
+                        score_occurrences(labeled["vitals"], det_vitals, VITAL_FIELDS, "vital_type")
+                        if labeled["vitals"] is not None else None
+                    ),
+                }
             outputs[arm].append({
                 "case_id": case["id"],
                 "source_sha256": case["source_sha256"],
@@ -274,7 +333,15 @@ def run_evaluation(manifest_path: Path, arms: tuple[str, ...], output_dir: Path)
 
     summaries: dict[str, dict] = {}
     for arm, rows in outputs.items():
-        summary = {"cases": len(rows), "total_latency_ms": sum(r["latency_ms"] for r in rows)}
+        latencies = sorted(r["latency_ms"] for r in rows)
+        p50 = latencies[len(latencies) // 2] if latencies else None
+        p95 = latencies[int(len(latencies) * 0.95)] if latencies else None
+        summary = {
+            "cases": len(rows),
+            "total_latency_ms": sum(r["latency_ms"] for r in rows),
+            "latency_p50_ms": p50,
+            "latency_p95_ms": p95,
+        }
         if arm in ("tesseract", "glm_ocr"):
             metrics = [r["text_metrics"] for r in rows]
             char_errors = sum(m["character_distance"] for m in metrics)
@@ -282,6 +349,16 @@ def run_evaluation(manifest_path: Path, arms: tuple[str, ...], output_dir: Path)
             ref_chars = sum(m["ref_chars"] for m in metrics)
             ref_words = sum(m["ref_words"] for m in metrics)
             critical = [check for m in metrics for check in m["critical_tokens"]]
+            det_med_scores = [
+                r["deterministic_pipeline"]["medications"]
+                for r in rows
+                if r.get("deterministic_pipeline") and r["deterministic_pipeline"]["medications"] is not None
+            ]
+            det_vit_scores = [
+                r["deterministic_pipeline"]["vitals"]
+                for r in rows
+                if r.get("deterministic_pipeline") and r["deterministic_pipeline"]["vitals"] is not None
+            ]
             summary.update({
                 "character_distance": char_errors,
                 "word_distance": word_errors,
@@ -295,6 +372,24 @@ def run_evaluation(manifest_path: Path, arms: tuple[str, ...], output_dir: Path)
                     sum(1 for x in critical if x["recognized"]) / len(critical)
                     if critical else None
                 ),
+                "deterministic_pipeline": {
+                    "medications": {
+                        **_score_counts(
+                            sum(x["tp"] for x in det_med_scores),
+                            sum(x["fp"] for x in det_med_scores),
+                            sum(x["fn"] for x in det_med_scores),
+                        ),
+                        "support": sum(x["support"] for x in det_med_scores),
+                    } if det_med_scores else None,
+                    "vitals": {
+                        **_score_counts(
+                            sum(x["tp"] for x in det_vit_scores),
+                            sum(x["fp"] for x in det_vit_scores),
+                            sum(x["fn"] for x in det_vit_scores),
+                        ),
+                        "support": sum(x["support"] for x in det_vit_scores),
+                    } if det_vit_scores else None,
+                },
             })
         else:
             for category in ("medications", "vitals"):
@@ -331,6 +426,7 @@ def run_evaluation(manifest_path: Path, arms: tuple[str, ...], output_dir: Path)
         "git_sha": _git_sha(),
         "model_digests": model_digests,
         "arms_run": list(arms),
+        "memory_usage": _get_rss_bytes(),
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "summary": summaries,
         "paired_tesseract_glm": paired,

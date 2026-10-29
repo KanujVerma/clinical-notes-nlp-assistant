@@ -148,3 +148,48 @@ def test_handwriting_rejected_without_independent_gold(tmp_path):
     cases, _ = vision.load_gold_manifest(manifest)
     with pytest.raises(ValueError, match="HANDWRITING_GOLD_MUST_BE_INDEPENDENT"):
         vision._validate_structured_gold(raw, cases)
+
+
+def test_rss_memory_marks_unloaded_model_as_unmeasured():
+    mem = vision._get_rss_bytes()
+    assert "runner_peak_rss_bytes" in mem
+    assert isinstance(mem["runner_peak_rss_bytes"], int)
+    assert mem["runner_peak_rss_bytes"] > 0
+    assert mem["ollama_inference_rss_bytes"] is None
+    assert mem["ollama_memory_status"] == "unmeasured_out_of_process_runner"
+
+
+def test_deterministic_medications_adapt_prn_qualifier():
+    for source, expected_gold in [
+        (
+            "Medications:\nAlprazolam 0.25 mg PO TID PRN anxiety.",
+            [{"name": "Alprazolam", "dose": "0.25 mg", "route": "PO", "frequency": "TID PRN"}],
+        ),
+        (
+            "Medications:\nBenzonatate 100 mg PO TID as needed for cough.",
+            [{"name": "Benzonatate", "dose": "100 mg", "route": "PO", "frequency": "TID as needed"}],
+        ),
+    ]:
+        pipe_out = vision.run_pipeline(source)
+        det_meds = []
+        for m in pipe_out.get("medications", []):
+            freq = str(m.get("frequency", "")).strip()
+            qual = str(m.get("qualifier", "")).strip()
+            qual_lower = qual.lower()
+            freq_lower = freq.lower()
+            if "as needed" in qual_lower and "as needed" not in freq_lower:
+                freq = f"{freq} as needed".strip() if freq else "as needed"
+            elif "prn" in qual_lower and "prn" not in freq_lower:
+                freq = f"{freq} PRN".strip() if freq else "PRN"
+            det_meds.append({
+                "name": m.get("name", ""),
+                "dose": m.get("dose", ""),
+                "route": m.get("route", ""),
+                "frequency": freq,
+                "action": m.get("action", ""),
+            })
+        score = vision.score_occurrences(expected_gold, det_meds, vision.FIELDS, "name")
+        assert score["tp"] == 1
+        assert score["fp"] == 0
+        assert score["fn"] == 0
+        assert score["f1"] == 1.0

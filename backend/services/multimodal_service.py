@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import re
 import urllib.request
 import urllib.error
 import hashlib
@@ -11,6 +12,14 @@ from services.ollama_service import is_ollama_available, detect_discrepancies
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 DEFAULT_OCR_MODEL = os.environ.get("OLLAMA_OCR_MODEL", "glm-ocr:q8_0")
 DEFAULT_VL_MODEL = os.environ.get("OLLAMA_VL_MODEL", "qwen3-vl:4b")
+
+
+def _parse_model_json(raw: str) -> Any:
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.I)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    return json.loads(cleaned)
 
 
 def _ensure_local_ollama_endpoint() -> None:
@@ -46,7 +55,7 @@ def query_ollama_multimodal(
         "stream": False,
         "format": "json",
         "keep_alive": 0,
-        "options": {"temperature": 0, "num_predict": 1024},
+        "options": {"temperature": 0, "num_predict": 2048},
     }
     if system:
         payload["system"] = system
@@ -91,13 +100,14 @@ def glm_ocr_infer(
 
     b64_img = base64.b64encode(image_bytes).decode("ascii")
     system_prompt = (
-        "You are an accurate visual OCR document parser (GLM-OCR). "
-        "Extract text and spatial layout from the image into strict JSON format with keys: "
-        "'text' (full transcribed text string), "
+        "You are an accurate visual OCR document transcription model (GLM-OCR). "
+        "Transcribe all text from the image accurately into JSON format with keys: "
+        "'text' (full transcribed text string of all lines), "
         "'boxes' (list of {text, bbox: [x0, y0, x1, y1]}), and "
-        "'confidence' (number between 0 and 1)."
+        "'confidence' (number between 0 and 1). "
+        "Ensure all document lines are included in the 'text' field."
     )
-    prompt = f"Perform OCR layout analysis on page {page_number}."
+    prompt = f"Transcribe all visible text from page {page_number} into JSON now."
 
     try:
         res = query_ollama_multimodal(
@@ -107,7 +117,7 @@ def glm_ocr_infer(
             system=system_prompt,
         )
         raw_output = res.get("response", "{}")
-        parsed = json.loads(raw_output)
+        parsed = _parse_model_json(raw_output)
         if not isinstance(parsed, dict) or not isinstance(parsed.get("text"), str):
             raise ValueError("Malformed visual transcription response")
         transcript = parsed["text"].strip()
@@ -117,19 +127,32 @@ def glm_ocr_infer(
         if not isinstance(raw_boxes, list) or len(raw_boxes) > 1000:
             raise ValueError("Unbounded visual evidence boxes")
         valid_boxes = []
+        box_transcription_lines = []
         for box in raw_boxes:
             if not isinstance(box, dict) or not isinstance(box.get("text"), str):
-                raise ValueError("Malformed visual evidence item")
+                continue
             geometry = box.get("bbox")
-            if (not isinstance(geometry, list) or len(geometry) != 4 or
-                    any(type(v) not in (int, float) for v in geometry) or
-                    not (0 <= geometry[0] < geometry[2] and 0 <= geometry[1] < geometry[3])):
-                raise ValueError("Invalid proposed image rectangle")
-            valid_boxes.append({
-                "text": box["text"][:256],
-                "bbox": geometry,
-                "source_verification": "model_proposed_unverified",
-            })
+            if isinstance(geometry, list) and len(geometry) == 1 and isinstance(geometry[0], dict):
+                d = geometry[0]
+                geometry = [d.get("x0", 0), d.get("y0", 0), d.get("x1", 0), d.get("y1", 0)]
+            elif isinstance(geometry, dict):
+                geometry = [geometry.get("x0", 0), geometry.get("y0", 0), geometry.get("x1", 0), geometry.get("y1", 0)]
+            if (isinstance(geometry, list) and len(geometry) == 4 and
+                    all(type(v) in (int, float) for v in geometry) and
+                    (0 <= geometry[0] < geometry[2] and 0 <= geometry[1] < geometry[3])):
+                valid_boxes.append({
+                    "text": box["text"][:256],
+                    "bbox": geometry,
+                    "source_verification": "model_proposed_unverified",
+                })
+                stripped_box_text = box["text"].strip()
+                if stripped_box_text:
+                    box_transcription_lines.append(stripped_box_text)
+        # If model returned no text in the main field, assemble from validated boxes (untruncated)
+        if not transcript and box_transcription_lines:
+            transcript = "\n".join(box_transcription_lines)
+            if len(transcript) > 32768:
+                raise ValueError("Vision transcription exceeds output limit")
 
         return {
             "status": "completed",
@@ -176,12 +199,12 @@ def qwen3_vl_infer(
     b64_img = base64.b64encode(image_bytes).decode("ascii")
     system_prompt = (
         "You are a clinical vision-language model (Qwen3-VL). "
-        "Extract all medications and vitals visible in this clinical note image into strict JSON: "
-        "'medications' (list of {name, dose, route, frequency, action}), "
-        "'vitals' (list of {vital_type, value, unit}), and "
-        "'visual_evidence' (list of {entity, bbox: [x0, y0, x1, y1]})."
+        "Keep your thinking very brief (under 5 sentences), then output JSON: "
+        "{\"medications\": [{\"name\": \"...\", \"dose\": \"...\", \"route\": \"...\", \"frequency\": \"...\", \"action\": \"...\"}], "
+        "\"vitals\": [{\"vital_type\": \"...\", \"value\": \"...\", \"unit\": \"...\"}]}. "
+        "If an attribute like action is not explicitly stated, use empty string. Use exact names, numbers and units as shown."
     )
-    prompt = "Extract clinical entities from the document image."
+    prompt = "Extract clinical entities from the document image into JSON now. Keep thinking brief."
 
     try:
         res = query_ollama_multimodal(
@@ -191,7 +214,7 @@ def qwen3_vl_infer(
             system=system_prompt,
         )
         raw_output = res.get("response", "{}")
-        parsed = json.loads(raw_output)
+        parsed = _parse_model_json(raw_output)
         if not isinstance(parsed, dict) or not isinstance(parsed.get("medications"), list):
             raise ValueError("Malformed structured vision candidates")
         if len(parsed["medications"]) > 100:
