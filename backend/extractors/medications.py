@@ -191,15 +191,33 @@ def _parse_line(line: str, char_offset: int) -> "dict[str, Any] | None":
 
 
 def _parse_section_lines(section_text: str, section_start: int) -> "list[dict[str, Any]]":
-    """Parse a medications section line-by-line."""
+    """Parse sections with exact LF/CRLF and blank-line source offsets."""
     results = []
-    offset = section_start
-    for line in section_text.splitlines():
-        med = _parse_line(line, offset)
+    for line in re.finditer(r"[^\r\n]+", section_text):
+        med = _parse_line(line.group(), section_start + line.start())
         if med:
             results.append(med)
-        offset += len(line) + 1  # +1 for newline
     return results
+
+
+def _section_content_start(text: str, section: dict[str, Any]) -> int | None:
+    """Resolve the actual retained section text location, not a guessed offset.
+
+    detect_sections strips surrounding whitespace from section["text"] but
+    retains the header and section boundaries. Search for the exact original
+    substring after the header and fail closed when its binding is invalid.
+    """
+    start, end = section.get("start"), section.get("end")
+    heading, content = section.get("header"), section.get("text")
+    if (type(start) is not int or type(end) is not int or
+            not isinstance(heading, str) or not isinstance(content, str) or
+            not (0 <= start < end <= len(text)) or not content):
+        return None
+    header_at = text.find(heading, start, end)
+    if header_at < 0:
+        return None
+    found = text.find(content, header_at + len(heading), end)
+    return found if found >= 0 else None
 
 
 def _find_sentence_bounds(text: str, char_pos: int) -> "tuple[int, int]":
@@ -269,19 +287,28 @@ def _split_prose_sentences(text: str) -> "list[tuple[str, int, int]]":
 def _parse_prose_sections(
     sections: "list[dict[str, Any]]",
     prose_cats: "set[str]",
+    text: str,
 ) -> "list[dict[str, Any]]":
-    """Parse action-verb medication sentences from non-medication prose sections."""
+    """Parse action-verb prose using actual source positions, not stripped lengths."""
     results: list[dict[str, Any]] = []
     for sec in sections:
         if sec["category"] not in prose_cats:
             continue
-        text_start = sec["end"] - len(sec["text"])
-        for sent, s_start, _ in _split_prose_sentences(sec["text"]):
+        text_start = _section_content_start(text, sec)
+        if text_start is None:
+            continue
+        for sent, s_start, s_end in _split_prose_sentences(sec["text"]):
             vm = _PROSE_VERB_RE.match(sent)
             if not vm:
                 continue
+            # _split_prose_sentences strips surrounding whitespace; rebind
+            # the trimmed sentence in the original section before using
+            # any span in an evidence-based deduplication decision.
+            sent_pos = sec["text"].find(sent, s_start, s_end)
+            if sent_pos < 0:
+                continue
             remainder = sent[vm.end():]
-            med = _parse_line(remainder, text_start + s_start)
+            med = _parse_line(remainder, text_start + sent_pos + vm.end())
             if med:
                 results.append(med)
     return results
@@ -332,12 +359,14 @@ def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = Non
 
     for sec in sections:
         if sec["category"] == "medications":
-            header_end = sec["start"] + len(sec["header"]) + 1
-            for candidate in _parse_section_lines(sec["text"], header_end):
+            section_start = _section_content_start(text, sec)
+            if section_start is None:
+                continue
+            for candidate in _parse_section_lines(sec["text"], section_start):
                 add_if_new(candidate)
 
     for candidate in _parse_prose_sections(
-        sections, {"plan", "hpi", "assessment_plan"}
+        sections, {"plan", "hpi", "assessment_plan"}, text
     ):
         add_if_new(candidate)
 
