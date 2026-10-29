@@ -23,7 +23,7 @@ _ROUTE = re.compile(
     r"topical|intranasal|ophthalmic|otic|rectal|pr)\b", re.IGNORECASE,
 )
 _FREQUENCY = re.compile(
-    r"\b(?:every\s+\d+\s+(?:hours?|days?|weeks?)|every\s+morning|"
+    r"\b(?:every\s+\d+\s+(?:minutes?|hours?|days?|weeks?)|every\s+morning|"
     r"every\s+evening|once\s+daily|twice\s+daily|once\s+weekly|"
     r"twice\s+weekly|at\s+bedtime|nightly|at\s+night|"
     r"q\.?\s*\d+\s*h|q\.?\s*d\.?|"
@@ -36,7 +36,8 @@ _BULLET = re.compile(r"^\s*(?:[-*\u2022]\s*|\d{1,3}[.)]\s*)")
 _LABEL = re.compile(
     r"^(?:prescription|discharge\s+med(?:s|ications?)|"
     r"home\s+med(?:s|ications?)|current\s+med(?:s|ications?)|"
-    r"medications?|meds|rx)\s*:\s*", re.IGNORECASE,
+    r"medications?|meds|rx)\s*:\s*"
+    r"|^discharge\s+meds?\s+(?=[A-Za-z])", re.IGNORECASE,
 )
 _ACTION = re.compile(
     r"^(?P<verb>do\s+not\s+continue|discontinue|withhold|"
