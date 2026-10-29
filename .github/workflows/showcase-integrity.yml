@@ -1,0 +1,54 @@
+name: Evidence showcase and restart integrity (no deployment)
+
+on:
+  pull_request:
+    paths:
+      - "backend/services/showcase_evidence.py"
+      - "backend/routes/showcase.py"
+      - "backend/routes/metric_drilldown.py"
+      - "backend/tests/test_showcase_evidence.py"
+      - "backend/tests/test_metric_drilldown.py"
+      - "frontend/src/pages/EvidenceShowcase*"
+      - "frontend/src/pages/MetricsDrilldown*"
+      - "frontend/e2e/showcase.spec.ts"
+      - "scripts/check_restart_persistence.py"
+      - "scripts/freeze_local_showcase_ai.py"
+      - ".github/workflows/showcase-integrity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: showcase-integrity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-integrity-and-real-restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_MODE: local
+      ENABLE_EXTERNAL_EXPLAINER: "false"
+      ENABLE_LOCAL_AI: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install synthetic offline dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr poppler-utils
+          python -m pip install -r requirements.txt
+      - name: Verify current-only drilldowns and published synthetic evidence
+        run: |
+          python -m pytest backend/tests/test_metric_drilldown.py backend/tests/test_showcase_evidence.py -q
+      - name: Restart actual Flask OS process against the same disposable SQLite
+        run: python scripts/check_restart_persistence.py
+      - name: Verify Tesseract-only recording cannot be promoted as AI
+        run: |
+          python -m pytest backend/tests/test_showcase_evidence.py::test_tesseract_only_report_never_promoted_as_ai -q

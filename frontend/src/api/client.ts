@@ -32,6 +32,72 @@ export interface JobStatus {
   result: null | { inference_run_id?: string; source_revision_id?: string; status?: string };
   error_code?: string | null;
 }
+export interface PublicRecordedSample {
+  case_id: string;
+  source_sha256: string;
+  source_type: string;
+  transcription: string;
+  cer: number | null;
+  wer: number | null;
+  critical_tokens: Array<{ token: string; recognized: boolean }>;
+}
+export interface PublicShowcaseEvidence {
+  schema_version: string;
+  synthetic_only: true;
+  ready_for_clinical_use: false;
+  notice: string;
+  baseline: {
+    status: string;
+    model: string;
+    engine_version: string;
+    manifest_sha256: string;
+    case_count: number;
+    cer_micro: number | null;
+    wer_micro: number | null;
+    critical_token_hits: number;
+    critical_token_total: number;
+    cases: PublicRecordedSample[];
+    limitations: string;
+  };
+  recorded_ai: {
+    status: string;
+    message: string;
+    models: Array<{
+      adapter: "glm_ocr" | "qwen3_vl";
+      model_digest: string;
+      cases: Array<{
+        case_id: string;
+        source_sha256: string;
+        transcription?: string;
+        structured_candidates?: Record<string, unknown>;
+      }>;
+    }>;
+  };
+}
+
+export interface MetricEvidenceRow {
+  note_id: number;
+  source_revision_id: string | null;
+  extraction_id: string | null;
+  issue_id?: string;
+  review_event_id?: string;
+  field_path?: string | null;
+  kind: "issues" | "corrections" | "status" | "issue";
+  label: string;
+  severity?: string;
+  detail: string;
+}
+export interface MetricDrilldownResponse {
+  kind: string;
+  title: string;
+  rows: MetricEvidenceRow[];
+  count_returned: number;
+  has_more: boolean;
+  max_rows: number;
+  current_binding_only: boolean;
+  contains_raw_source: false;
+}
+
 export interface InferenceCandidateRun {
   id: string;
   source_revision_id: string;
@@ -152,6 +218,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  getPublicShowcaseEvidence: async (): Promise<PublicShowcaseEvidence> => {
+    if (PRODUCTION_API_MISSING) {
+      throw new Error("Production API backend origin is not configured.");
+    }
+    // This route is intentionally public and synthetic-only; no workspace
+    // capability token or session allocation should be needed to view it.
+    const response = await fetch(BASE + "/showcase-evidence", { cache: "no-store" });
+    if (!response.ok) throw new Error("Published synthetic evidence is unavailable.");
+    return response.json() as Promise<PublicShowcaseEvidence>;
+  },
   extractText: (text: string) =>
     request<any>("/extract", { method: "POST", body: JSON.stringify({ text }) }),
 
@@ -193,6 +269,11 @@ export const api = {
     request<any>(`/history/${id}`),
 
   getMetrics: () => request<any>("/metrics"),
+
+  getMetricDrilldown: (filters: Record<string, string>) => {
+    const params = new URLSearchParams(filters).toString();
+    return request<MetricDrilldownResponse>(`/metrics/drilldown?${params}`);
+  },
 
   seedDemo: () =>
     request<{ loaded: number; skipped: number }>("/seed-demo", { method: "POST" }),

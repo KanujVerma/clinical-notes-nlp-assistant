@@ -77,6 +77,37 @@ describe("OperationalIssuesDrawer durable AI jobs", () => {
     expect(await screen.findByText(/Unverified AI candidate output/i)).toBeInTheDocument();
   });
 
+  it("shows and focuses a resolved current-bound issue without increasing open count", async () => {
+    vi.mocked(api.getIssues).mockResolvedValueOnce([{
+      id: "11111111-1111-1111-1111-111111111111",
+      note_id: 7,
+      source_revision_id: "revision-001",
+      extraction_id: "extraction-001",
+      issue_code: "SYNTHETIC_CANARY",
+      status: "resolved",
+      severity: "warning",
+      safe_explanation: "Synthetic source discrepancy resolved after review.",
+    }] as never);
+
+    render(
+      <OperationalIssuesDrawer
+        noteId={7}
+        revisionId="revision-001"
+        extractionId="extraction-001"
+        focusedIssueId="11111111-1111-1111-1111-111111111111"
+        isOpen={true}
+        onToggle={() => {}}
+      />,
+    );
+    const selected = await screen.findByLabelText("Selected issue SYNTHETIC_CANARY");
+    expect(selected).toBeVisible();
+    expect(selected).toHaveFocus();
+    expect(screen.getByText("Disposition: resolved")).toBeInTheDocument();
+    expect(screen.queryByText("No open issues detected for this revision.")).not.toBeInTheDocument();
+    expect(screen.queryByText("1 open")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+  });
+
   it("blocks local inference controls in hosted mode", async () => {
     vi.mocked(api.getCapabilities).mockResolvedValueOnce({ mode: "hosted_demo" } as never);
     render(

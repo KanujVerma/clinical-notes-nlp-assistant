@@ -8,6 +8,8 @@ import Review from "./pages/Review";
 import OcrPreview from "./pages/OcrPreview";
 import History from "./pages/History";
 import Metrics from "./pages/Metrics";
+import MetricsDrilldown from "./pages/MetricsDrilldown";
+import EvidenceShowcase from "./pages/EvidenceShowcase";
 import ValidationLab from "./pages/ValidationLab";
 
 const router = createBrowserRouter([
@@ -24,6 +26,8 @@ const router = createBrowserRouter([
       { path: "/review/:noteId/preview", element: <OcrPreview /> },
       { path: "/history", element: <History /> },
       { path: "/metrics", element: <Metrics /> },
+      { path: "/metrics/drilldown", element: <MetricsDrilldown /> },
+      { path: "/showcase", element: <EvidenceShowcase /> },
       { path: "/validation-lab", element: <ValidationLab /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],

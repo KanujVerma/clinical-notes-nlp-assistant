@@ -19,7 +19,7 @@ function NavItem({
       to={to}
       end={to === "/"}
       className={({ isActive }) =>
-        `flex items-center justify-between px-3 py-1.5 rounded-md text-sm transition-colors ${
+        `flex items-center justify-between px-3 py-1.5 rounded-md text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${
           isActive
             ? "bg-slate-700 text-slate-100"
             : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -73,6 +73,12 @@ export default function AppShell() {
 
   return (
     <div className="flex h-screen bg-slate-900 overflow-hidden">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-slate-900"
+      >
+        Skip to main content
+      </a>
       {/* Sidebar */}
       <aside className="w-[220px] flex-shrink-0 bg-slate-900 border-r border-slate-700 flex flex-col">
         {/* Logo */}
@@ -102,6 +108,7 @@ export default function AppShell() {
               <NavItem to="/history" label="History" />
               <NavItem to="/metrics" label="Metrics" />
               <NavItem to="/validation-lab" label="Validation Lab" />
+              <NavItem to="/showcase" label="Evidence Showcase" />
             </div>
           </div>
 
@@ -134,7 +141,7 @@ export default function AppShell() {
         {/* Reset workspace */}
         <div className="px-3 py-3 border-t border-slate-700">
           {resetMsg ? (
-            <p className="text-[10px] text-slate-400 leading-tight">{resetMsg}</p>
+            <p role="status" aria-live="polite" className="text-[10px] text-slate-400 leading-tight">{resetMsg}</p>
           ) : (
             <button
               onClick={handleReset}
@@ -147,7 +154,7 @@ export default function AppShell() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden bg-slate-50">
+      <main id="main-content" tabIndex={-1} className="flex-1 overflow-hidden bg-slate-50 focus:outline-none">
         <Outlet />
       </main>
     </div>

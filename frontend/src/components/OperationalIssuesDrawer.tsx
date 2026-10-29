@@ -5,6 +5,7 @@ export default function OperationalIssuesDrawer({
   noteId,
   revisionId,
   extractionId,
+  focusedIssueId,
   isOpen,
   onToggle,
   onIssuesUpdated,
@@ -12,6 +13,7 @@ export default function OperationalIssuesDrawer({
   noteId: number;
   revisionId?: string | null;
   extractionId?: string | null;
+  focusedIssueId?: string | null;
   isOpen: boolean;
   onToggle: () => void;
   onIssuesUpdated?: (openBlockersCount: number) => void;
@@ -27,6 +29,7 @@ export default function OperationalIssuesDrawer({
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiCandidates, setAiCandidates] = useState<Record<string, unknown> | null>(null);
 
+  const selectedIssueRef = useRef<HTMLDivElement | null>(null);
   const currentBindingRef = useRef({ noteId, revisionId, extractionId });
   currentBindingRef.current = { noteId, revisionId, extractionId };
 
@@ -44,6 +47,13 @@ export default function OperationalIssuesDrawer({
     setLoadingAi(false);
     loadIssues();
   }, [noteId, revisionId, extractionId]);
+
+  useEffect(() => {
+    if (isOpen && focusedIssueId && selectedIssueRef.current) {
+      selectedIssueRef.current.focus();
+      selectedIssueRef.current.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [isOpen, focusedIssueId, issues]);
 
   async function loadIssues() {
     try {
@@ -160,10 +170,19 @@ export default function OperationalIssuesDrawer({
 
 
   const openIssues = issues.filter((i) => i.status === "open");
+  const focusedIssue = focusedIssueId
+    ? issues.find((i) => i.id === focusedIssueId) : null;
+  // A resolved/dismissed issue must remain inspectable through its current
+  // evidence link, but must not inflate open issue or blocker counts.
+  const displayIssues = focusedIssue && focusedIssue.status !== "open"
+    ? [...openIssues, focusedIssue] : openIssues;
   const blockerCount = openIssues.filter((i) => i.severity === "critical_blocker").length;
 
   return (
     <div
+      role="region"
+      aria-label="Operational issues for current note"
+      aria-hidden={!isOpen}
       className={`fixed top-0 right-0 z-40 h-full w-[380px] border-l border-slate-700 bg-slate-900 shadow-2xl transition-transform duration-200 ease-in-out ${
         isOpen ? "translate-x-0" : "translate-x-full"
       } flex flex-col text-slate-100`}
@@ -184,6 +203,8 @@ export default function OperationalIssuesDrawer({
           )}
         </div>
         <button
+          type="button"
+          aria-label="Close operational issues"
           onClick={onToggle}
           className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
         >
@@ -198,18 +219,21 @@ export default function OperationalIssuesDrawer({
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Validation Canaries & Checks
           </h4>
-          {openIssues.length === 0 ? (
+          {displayIssues.length === 0 ? (
             <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-center text-xs text-slate-500">
               No open issues detected for this revision.
             </div>
           ) : (
             <div className="space-y-2.5">
-              {openIssues.map((iss) => {
+              {displayIssues.map((iss) => {
                 const isCrit = iss.severity === "critical_blocker";
                 return (
                   <div
                     key={iss.id}
-                    className={`rounded-lg border p-3 ${
+                    ref={(node) => { if (iss.id === focusedIssueId) selectedIssueRef.current = node; }}
+                    tabIndex={iss.id === focusedIssueId ? -1 : undefined}
+                    aria-label={iss.id === focusedIssueId ? `Selected issue ${iss.issue_code}` : undefined}
+                    className={`rounded-lg border p-3 ${iss.id === focusedIssueId ? "ring-2 ring-cyan-400 " : ""}${
                       isCrit
                         ? "border-rose-800/80 bg-rose-950/20 text-rose-200"
                         : "border-amber-800/80 bg-amber-950/20 text-amber-200"
@@ -221,10 +245,15 @@ export default function OperationalIssuesDrawer({
                         {iss.severity.replace("_", " ")}
                       </span>
                     </div>
+                    {iss.status !== "open" && (
+                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                        Disposition: {iss.status}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-slate-300 leading-snug">
                       {iss.safe_explanation}
                     </p>
-                    {!isHosted && (
+                    {!isHosted && iss.status === "open" && (
                     <div className="mt-2.5 flex justify-end space-x-2">
                       <button
                         onClick={() => handleDisposition(iss.id, "dismissed")}
