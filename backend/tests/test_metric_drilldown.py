@@ -148,6 +148,27 @@ def test_invalid_drilldown_filters_fail_closed(client, q):
     assert res.json["code"].startswith(("INVALID", "MISSING"))
 
 
+def test_medication_provenance_metadata_does_not_count_as_a_correction():
+    from routes.metric_drilldown import _changed_paths
+    extracted = {
+        "vitals": {}, "metadata": {}, "instructions": {},
+        "medications": [{
+            "name": "Metformin", "dose": "500 mg",
+            "source_occurrence_id": "med_0", "span": [0, 10],
+        }],
+    }
+    reviewed = {
+        "vitals": {}, "metadata": {}, "instructions": {},
+        "medications": [{
+            "id": "med_0", "source_occurrence_id": "med_0",
+            "name": "Metformin", "dose": "500 mg",
+        }],
+    }
+    assert "medications" not in _changed_paths(extracted, reviewed)
+    reviewed["medications"][0]["dose"] = "5000 mg"
+    assert "medications" in _changed_paths(extracted, reviewed)
+
+
 def test_metric_drilldown_requires_workspace_session(client):
     res = client.get("/api/metrics/drilldown?kind=issues")
     assert res.status_code in (400, 401, 403)
