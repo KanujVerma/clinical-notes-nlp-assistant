@@ -90,9 +90,13 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         cursor += label.end()
 
     body = line[cursor:]
-    dose = _DOSE.search(body)
-    if dose is None:
+    # Multiple dose expressions in a single unsplit clause are ambiguous:
+    # the later route/frequency may belong to a different medication.
+    # Leave those clauses to the entity matcher / human review.
+    doses = list(_DOSE.finditer(body))
+    if len(doses) != 1:
         return None
+    dose = doses[0]
 
     before_dose = body[:dose.start()]
     action_match = _ACTION.match(before_dose)
@@ -154,13 +158,25 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
     }
 
 
+# Split on clear sentence/semicolon boundaries, never the decimal in 0.5.
+# An ambiguous multiple-dose clause deliberately falls through to medSpaCy.
+_CLAUSE_BREAK = re.compile(r";\s*|(?<!\d)[.!?](?!\d)\s+")
+
+
 def parse_order_lines(text: str) -> list[dict[str, Any]]:
-    """Extract independently occurring medication orders, including repeats."""
+    """Extract independent, anchored source clauses including repeated drugs."""
     if not text:
         return []
     entries: list[dict[str, Any]] = []
-    for m in re.finditer(r"[^\r\n]+", text):
-        candidate = parse_order_line(m.group(), m.start())
+    for line in re.finditer(r"[^\r\n]+", text):
+        value = line.group()
+        start = 0
+        for boundary in _CLAUSE_BREAK.finditer(value):
+            candidate = parse_order_line(value[start:boundary.start()], line.start() + start)
+            if candidate is not None:
+                entries.append(candidate)
+            start = boundary.end()
+        candidate = parse_order_line(value[start:], line.start() + start)
         if candidate is not None:
             entries.append(candidate)
     return entries
