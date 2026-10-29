@@ -144,10 +144,10 @@ def glm_ocr_infer(
                     "bbox": geometry,
                     "source_verification": "model_proposed_unverified",
                 })
-        # If model returned no text in the main field, assemble from boxes
-        if not transcript and raw_boxes:
-            box_lines = [b.get("text", "").strip() for b in raw_boxes if isinstance(b, dict) and b.get("text")]
-            transcript = "\n".join(b for b in box_lines if b)
+        # If model returned no text in the main field, assemble from validated boxes
+        if not transcript and valid_boxes:
+            box_lines = [b["text"].strip() for b in valid_boxes if isinstance(b.get("text"), str) and b["text"].strip()]
+            transcript = "\n".join(box_lines)
             if len(transcript) > 32768:
                 raise ValueError("Vision transcription exceeds output limit")
 

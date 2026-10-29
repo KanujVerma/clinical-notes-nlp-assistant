@@ -6272,8 +6272,10 @@
     "dataset_id": "synthetic_printed_visual_ocr_development_v2_expanded",
     "manifest_sha256": "219f4425cb9a2d786c389fc1cb82427ff4a6dce15429fe12c58b96bd4f9a8e1b"
   },
+  "evaluated_branch": "feat/real-vision-benchmark",
+  "backend_tree_sha": "38fb351690f55b50f755f5a625248b86e5236d5a",
   "generated_at_utc": "2026-10-29T20:20:41.082601+00:00",
-  "git_sha": "35d13671483ad9be677d75e6445aa260779ab406",
+  "git_sha": "22f38cc8a4feabb3f9ddddd77539dfcdad6d0d4e",
   "limitations": [
     "Development synthetic printed images are generator-derived, not a held-out dataset",
     "Qwen3-VL structured entity F1 is not character/word OCR accuracy",

@@ -79,6 +79,27 @@ def test_glm_ocr_rejects_assembled_box_transcript_exceeding_limit(monkeypatch):
     assert res["transcribed_text"] == ""
 
 
+def test_glm_ocr_assembles_fallback_from_valid_boxes_ignoring_malformed(monkeypatch):
+    monkeypatch.setattr("services.multimodal_service.is_ollama_available", lambda: True)
+    mock_boxes = [
+        {"text": "Line 1 valid", "bbox": [10, 10, 100, 50]},
+        {"text": 42, "bbox": [10, 60, 100, 90]},  # malformed non-string
+        {"text": "Line 2 valid", "bbox": [10, 100, 100, 140]},
+    ]
+    mock_response = {
+        "response": json.dumps({
+            "text": "",
+            "boxes": mock_boxes,
+        })
+    }
+    monkeypatch.setattr("services.multimodal_service.query_ollama_multimodal", lambda **kwargs: mock_response)
+    dummy_image = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+    res = glm_ocr_infer(dummy_image)
+    assert res["status"] == "completed"
+    assert res["transcribed_text"] == "Line 1 valid\nLine 2 valid"
+    assert len(res["boxes"]) == 2
+
+
 def test_qwen3_vl_offline_graceful_fallback(monkeypatch):
     monkeypatch.setattr("services.multimodal_service.is_ollama_available", lambda: False)
     dummy_image = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
