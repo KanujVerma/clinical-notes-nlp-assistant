@@ -85,7 +85,7 @@ export default function EvidenceShowcase() {
                 {evidence.baseline.cases.map((sample) => (
                   <details key={sample.case_id} className="group px-4 py-3">
                     <summary className="cursor-pointer list-inside text-sm font-semibold text-slate-800 focus-visible:outline-2 focus-visible:outline-cyan-600">
-                      {sample.case_id.replaceAll("_", " ")}
+                      {sample.case_id.replace(/_/g, " ")}
                       <span className="ml-2 font-normal text-slate-600">
                         CER {rate(sample.cer)}, WER {rate(sample.wer)}
                       </span>
@@ -133,7 +133,7 @@ export default function EvidenceShowcase() {
                       <div className="mt-3 divide-y divide-slate-100">
                         {model.cases.map((item) => (
                           <details key={item.case_id} className="py-2">
-                            <summary className="cursor-pointer text-sm text-slate-800">{item.case_id.replaceAll("_", " ")}</summary>
+                            <summary className="cursor-pointer text-sm text-slate-800">{item.case_id.replace(/_/g, " ")}</summary>
                             <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words bg-slate-100 p-3 text-xs text-slate-700">
                               {item.transcription ?? JSON.stringify(item.structured_candidates, null, 2)}
                             </pre>
