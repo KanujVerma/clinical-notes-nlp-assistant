@@ -170,6 +170,12 @@ export default function OperationalIssuesDrawer({
 
 
   const openIssues = issues.filter((i) => i.status === "open");
+  const focusedIssue = focusedIssueId
+    ? issues.find((i) => i.id === focusedIssueId) : null;
+  // A resolved/dismissed issue must remain inspectable through its current
+  // evidence link, but must not inflate open issue or blocker counts.
+  const displayIssues = focusedIssue && focusedIssue.status !== "open"
+    ? [...openIssues, focusedIssue] : openIssues;
   const blockerCount = openIssues.filter((i) => i.severity === "critical_blocker").length;
 
   return (
@@ -213,13 +219,13 @@ export default function OperationalIssuesDrawer({
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Validation Canaries & Checks
           </h4>
-          {openIssues.length === 0 ? (
+          {displayIssues.length === 0 ? (
             <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-center text-xs text-slate-500">
               No open issues detected for this revision.
             </div>
           ) : (
             <div className="space-y-2.5">
-              {openIssues.map((iss) => {
+              {displayIssues.map((iss) => {
                 const isCrit = iss.severity === "critical_blocker";
                 return (
                   <div
@@ -239,10 +245,15 @@ export default function OperationalIssuesDrawer({
                         {iss.severity.replace("_", " ")}
                       </span>
                     </div>
+                    {iss.status !== "open" && (
+                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                        Disposition: {iss.status}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-slate-300 leading-snug">
                       {iss.safe_explanation}
                     </p>
-                    {!isHosted && (
+                    {!isHosted && iss.status === "open" && (
                     <div className="mt-2.5 flex justify-end space-x-2">
                       <button
                         onClick={() => handleDisposition(iss.id, "dismissed")}
