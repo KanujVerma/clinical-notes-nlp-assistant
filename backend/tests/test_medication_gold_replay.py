@@ -36,6 +36,7 @@ REPORT = ROOT / "artifacts/evaluation/paired_local_17f5737320b78e10.json"
         ("Insulin glargine 20 units SubQ at bedtime.", "insulin glargine", "20 units", "SubQ", "at bedtime", ""),
         ("Lorazepam 0.5 mg PO nightly at bedtime.", "lorazepam", "0.5 mg", "PO", "nightly", ""),
         ("Discharge Meds: Metoprolol Succinate 50 mg PO daily.", "metoprolol succinate", "50 mg", "PO", "daily", ""),
+        ("Metformin PO 500 mg BID.", "metformin", "500 mg", "PO", "BID", ""),
         ("Benzonatate 100 mg PO TID as needed for cough.", "benzonatate", "100 mg", "PO", "TID as needed", ""),
         ("Nitroglycerin 400 mcg SL every 5 minutes PRN chest pain.", "nitroglycerin", "400 mcg", "SL", "every 5 minutes PRN", ""),
         ("Discharge Meds Pantoprazole 40 mg PO daily.", "pantoprazole", "40 mg", "PO", "daily", ""),
@@ -241,6 +242,23 @@ def test_two_medications_on_one_line_remain_distinct():
     )["medications"]
     assert "albuterol" in {m["name"] for m in meds}
     assert "omeprazole" in {m["name"] for m in meds}
+
+
+def test_pre_dose_route_not_misclassified_as_medication_identity():
+    for source in (
+        "Metformin PO 500 mg BID.",
+        "Medications:\nMetformin PO 500 mg BID.",
+    ):
+        meds = run_pipeline(source)["medications"]
+        assert len(meds) == 1
+        assert (meds[0]["name"], meds[0]["dose"], meds[0]["route"], meds[0]["frequency"]) == (
+            "metformin", "500 mg", "PO", "BID"
+        )
+        start, end = meds[0]["span"]
+        assert source[start:end].startswith("Metformin PO 500 mg")
+
+    # Do not guess which of two contradictory routes applies.
+    assert parse_order_lines("Metformin IV 500 mg PO BID.") == []
 
 
 def test_remaining_course_duration_and_original_span_survive_section_precedence():
