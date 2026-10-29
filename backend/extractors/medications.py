@@ -287,8 +287,18 @@ def _parse_prose_sections(
 
 def _same_source_occurrence(a: dict[str, Any], b: dict[str, Any]) -> bool:
     """Suppress one source mention twice, not different orders of the same drug."""
-    a_name = a.get("name", "").casefold()
-    b_name = b.get("name", "").casefold()
+    # The legacy section parser sometimes embeds "Hold"/"Discontinue"
+    # inside the name. Normalize only those explicit leading order verbs,
+    # then require original-source span overlap to avoid collapsing genuinely
+    # separate dose occurrences.
+    prefix = re.compile(
+        r"^(?:do\s+not\s+continue|discontinue|withhold|continue|restart|"
+        r"initiate|administer|prescribe|resume|start|begin|hold|stop|"
+        r"cease|give|take|use|apply|inject|inhale)\s+",
+        re.IGNORECASE,
+    )
+    a_name = prefix.sub("", a.get("name", "").casefold())
+    b_name = prefix.sub("", b.get("name", "").casefold())
     if not (a_name == b_name or a_name.startswith(b_name + " ")
             or b_name.startswith(a_name + " ")):
         return False
