@@ -32,6 +32,29 @@ export interface JobStatus {
   result: null | { inference_run_id?: string; source_revision_id?: string; status?: string };
   error_code?: string | null;
 }
+export interface MetricEvidenceRow {
+  note_id: number;
+  source_revision_id: string | null;
+  extraction_id: string | null;
+  issue_id?: string;
+  review_event_id?: string;
+  field_path?: string | null;
+  kind: "issues" | "corrections" | "status" | "issue";
+  label: string;
+  severity?: string;
+  detail: string;
+}
+export interface MetricDrilldownResponse {
+  kind: string;
+  title: string;
+  rows: MetricEvidenceRow[];
+  count_returned: number;
+  has_more: boolean;
+  max_rows: number;
+  current_binding_only: boolean;
+  contains_raw_source: false;
+}
+
 export interface InferenceCandidateRun {
   id: string;
   source_revision_id: string;
@@ -193,6 +216,11 @@ export const api = {
     request<any>(`/history/${id}`),
 
   getMetrics: () => request<any>("/metrics"),
+
+  getMetricDrilldown: (filters: Record<string, string>) => {
+    const params = new URLSearchParams(filters).toString();
+    return request<MetricDrilldownResponse>(`/metrics/drilldown?${params}`);
+  },
 
   seedDemo: () =>
     request<{ loaded: number; skipped: number }>("/seed-demo", { method: "POST" }),
