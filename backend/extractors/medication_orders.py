@@ -69,7 +69,9 @@ _ACTIONS = {
 _NON_ORDER = re.compile(
     r"^(?:no|not|never|denies?|denied|without|formerly|previously|"
     r"historical|history\s+of|stopped\s+taking|is\s+not\s+taking|"
-    r"patient|weight|height|growth|bmi|body\s+mass|taking|"
+    r"patient|currently|taking|takes|using|uses|receives?|received|"
+    r"report(?:s|ed)?|observed|was|were|has|had|is|are|"
+    r"weight|height|growth|bmi|body\s+mass|"
     r"blood|fasting|serum|hemoglobin|hematocrit|"
     r"platelet|glucose|systolic|diastolic|temperature|temp|"
     r"heart|pulse|respiratory|maximum|minimum|daily\s+dose|"
@@ -192,44 +194,37 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
     elif as_needed and "as needed" not in frequency.casefold():
         frequency = (frequency + " as needed").strip()
 
-    # The PRN indication is reviewer-visible information, not just a word
-    # following a dosing frequency. Preserve only explicitly stated words.
+    # Preserve complete (bounded) reviewer-visible indications rather than
+    # cutting off after four words. Stop at punctuation or a new instruction,
+    # and use offsets in ORIGINAL source text for evidence (including tabs).
+    def indication(fragment: str, needs_for: bool) -> tuple[str, int]:
+        pattern = (r"\s+for\s+(?P<reason>[^,;.!?]{1,160})"
+                   if needs_for else r"\s+(?P<reason>[^,;.!?]{1,160})")
+        reason = re.match(pattern, fragment)
+        if not reason:
+            return "", 0
+        raw = reason.group("reason").rstrip()
+        stop = re.search(
+            r"\s+(?:if|when|unless|until|before|after|call|contact|"
+            r"monitor|stop|hold|start|resume|continue|follow\s+up)\b",
+            raw, re.IGNORECASE,
+        )
+        if stop:
+            raw = raw[:stop.start()].rstrip()
+        if not raw or not re.search(r"\w", raw):
+            return "", 0
+        return " ".join(raw.split()), reason.start("reason") + len(raw)
+
     qualifier = ""
     qualifier_end = 0
     if prn:
-        reason = re.match(
-            r"\s+([A-Za-z][A-Za-z0-9/-]*(?:\s+[A-Za-z][A-Za-z0-9/-]*){0,3})",
-            after_dose[prn.end():],
-        )
-        # Reason formatting may include repeated spaces or tabs. Work from
-        # match offsets in the untouched source, not a .find() of the
-        # normalized string, or the end coordinate truncates evidence.
-        words = list(re.finditer(r"[A-Za-z][A-Za-z0-9/-]*", reason.group(1))) if reason else []
-        stop_at = next(
-            (idx for idx, token in enumerate(words)
-             if token.group().casefold() in (
-                 "up", "if", "when", "unless", "until", "before", "after"
-             )),
-            len(words),
-        )
-        words = words[:stop_at]
-        if words:
-            qualifier = "PRN " + " ".join(token.group() for token in words)
-            qualifier_end = prn.end() + reason.start(1) + words[-1].end()
-        else:
-            qualifier = "PRN"
-            qualifier_end = prn.end()
+        phrase, local_end = indication(after_dose[prn.end():], False)
+        qualifier = ("PRN " + phrase) if phrase else "PRN"
+        qualifier_end = prn.end() + local_end if phrase else prn.end()
     elif as_needed:
-        reason = re.match(
-            r"\s+for\s+([A-Za-z][A-Za-z0-9/-]*(?:\s+[A-Za-z][A-Za-z0-9/-]*){0,3})",
-            after_dose[as_needed.end():],
-        )
-        if reason:
-            qualifier = "as needed for " + reason.group(1)
-            qualifier_end = as_needed.end() + reason.end()
-        else:
-            qualifier = "as needed"
-            qualifier_end = as_needed.end()
+        phrase, local_end = indication(after_dose[as_needed.end():], True)
+        qualifier = ("as needed for " + phrase) if phrase else "as needed"
+        qualifier_end = as_needed.end() + local_end if phrase else as_needed.end()
 
     duration = _DURATION.search(after_dose)
     sig_end = max(item.end() for item in doses)
