@@ -19,8 +19,13 @@ test("metrics issue count drills to a source-authorized note and selected issue"
   await page.goto(BASE);
   const seed = page.getByRole("button", { name: /Seed demo data/i });
   await expect(seed).toBeEnabled();
+  const seededResponse = page.waitForResponse((response) =>
+    response.url().endsWith("/api/seed-demo") && response.request().method() === "POST",
+  );
   await seed.click();
-  await expect(page.getByText(/Seeded 10 notes/i)).toBeVisible({ timeout: 15_000 });
+  const seeded = await (await seededResponse).json();
+  expect(seeded.loaded).toBeGreaterThan(0);
+  await expect(page).toHaveURL(/\/queue/, { timeout: 15_000 });
   await page.goto(BASE + "/metrics");
   const warningLink = page.getByRole("link", {
     name: "Inspect current open warning issues and source evidence",
