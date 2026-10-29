@@ -127,6 +127,7 @@ def glm_ocr_infer(
         if not isinstance(raw_boxes, list) or len(raw_boxes) > 1000:
             raise ValueError("Unbounded visual evidence boxes")
         valid_boxes = []
+        box_transcription_lines = []
         for box in raw_boxes:
             if not isinstance(box, dict) or not isinstance(box.get("text"), str):
                 continue
@@ -144,10 +145,12 @@ def glm_ocr_infer(
                     "bbox": geometry,
                     "source_verification": "model_proposed_unverified",
                 })
-        # If model returned no text in the main field, assemble from validated boxes
-        if not transcript and valid_boxes:
-            box_lines = [b["text"].strip() for b in valid_boxes if isinstance(b.get("text"), str) and b["text"].strip()]
-            transcript = "\n".join(box_lines)
+                stripped_box_text = box["text"].strip()
+                if stripped_box_text:
+                    box_transcription_lines.append(stripped_box_text)
+        # If model returned no text in the main field, assemble from validated boxes (untruncated)
+        if not transcript and box_transcription_lines:
+            transcript = "\n".join(box_transcription_lines)
             if len(transcript) > 32768:
                 raise ValueError("Vision transcription exceeds output limit")
 

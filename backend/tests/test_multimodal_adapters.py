@@ -100,6 +100,26 @@ def test_glm_ocr_assembles_fallback_from_valid_boxes_ignoring_malformed(monkeypa
     assert len(res["boxes"]) == 2
 
 
+def test_glm_ocr_fallback_preserves_untruncated_text_for_transcription_while_bounding_box_preview(monkeypatch):
+    monkeypatch.setattr("services.multimodal_service.is_ollama_available", lambda: True)
+    long_instruction = "Warfarin 2.5 mg PO daily at bedtime. " * 15  # 555 chars (> 256)
+    mock_boxes = [
+        {"text": long_instruction, "bbox": [10, 10, 200, 80]},
+    ]
+    mock_response = {
+        "response": json.dumps({
+            "text": "",
+            "boxes": mock_boxes,
+        })
+    }
+    monkeypatch.setattr("services.multimodal_service.query_ollama_multimodal", lambda **kwargs: mock_response)
+    dummy_image = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+    res = glm_ocr_infer(dummy_image)
+    assert res["status"] == "completed"
+    assert res["transcribed_text"] == long_instruction.strip()
+    assert len(res["boxes"][0]["text"]) == 256
+
+
 def test_qwen3_vl_offline_graceful_fallback(monkeypatch):
     monkeypatch.setattr("services.multimodal_service.is_ollama_available", lambda: False)
     dummy_image = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
