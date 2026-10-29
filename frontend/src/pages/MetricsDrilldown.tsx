@@ -4,6 +4,11 @@ import { api, type MetricDrilldownResponse, type MetricEvidenceRow } from "../ap
 
 function evidenceUrl(row: MetricEvidenceRow): string {
   const params = new URLSearchParams();
+  // Bind the navigation to the SAME immutable source, extraction and,
+  // when applicable, completed review that generated this metric row.
+  if (row.source_revision_id) params.set("source_revision_id", row.source_revision_id);
+  if (row.extraction_id) params.set("extraction_id", row.extraction_id);
+  if (row.review_event_id) params.set("review_event_id", row.review_event_id);
   if (row.kind === "issue" && row.issue_id) params.set("issue", row.issue_id);
   if (row.field_path) params.set("field", row.field_path);
   return `/review/${row.note_id}${params.size ? `?${params.toString()}` : ""}`;
