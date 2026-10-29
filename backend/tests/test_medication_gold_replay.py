@@ -76,6 +76,7 @@ def test_cautions_labs_and_unanchored_prose_not_new_orders(line):
 def test_multiple_dose_clauses_do_not_cross_bind_route_or_frequency():
     ambiguous = "Metformin 500 mg and Lisinopril 10 mg PO daily."
     assert parse_order_lines(ambiguous) == []
+    assert parse_order_lines("Metformin 500 mg PO and Aspirin 1 tablet daily.") == []
 
     separated = "Metformin 500 mg. Start Lisinopril 10 mg PO daily."
     meds = parse_order_lines(separated)
