@@ -162,15 +162,21 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
             r"\s+([A-Za-z][A-Za-z0-9/-]*(?:\s+[A-Za-z][A-Za-z0-9/-]*){0,3})",
             after_dose[prn.end():],
         )
-        words = reason.group(1).split() if reason else []
-        for stop in ("up", "if", "when", "unless", "until", "before", "after"):
-            if stop in [word.casefold() for word in words]:
-                words = words[:[word.casefold() for word in words].index(stop)]
-                break
+        # Reason formatting may include repeated spaces or tabs. Work from
+        # match offsets in the untouched source, not a .find() of the
+        # normalized string, or the end coordinate truncates evidence.
+        words = list(re.finditer(r"[A-Za-z][A-Za-z0-9/-]*", reason.group(1))) if reason else []
+        stop_at = next(
+            (idx for idx, token in enumerate(words)
+             if token.group().casefold() in (
+                 "up", "if", "when", "unless", "until", "before", "after"
+             )),
+            len(words),
+        )
+        words = words[:stop_at]
         if words:
-            reason_text = " ".join(words)
-            qualifier = "PRN " + reason_text
-            qualifier_end = prn.end() + after_dose[prn.end():].find(reason_text) + len(reason_text)
+            qualifier = "PRN " + " ".join(token.group() for token in words)
+            qualifier_end = prn.end() + reason.start(1) + words[-1].end()
         else:
             qualifier = "PRN"
             qualifier_end = prn.end()
