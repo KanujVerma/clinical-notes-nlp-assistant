@@ -44,7 +44,7 @@ describe("MetricsDrilldown current evidence navigation", () => {
     renderRoute("kind=issues&severity=warning&state=open");
     expect(await screen.findByRole("heading", { name: "Warning issues (open)" })).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /Inspect source and evidence for note 42/ });
-    expect(link).toHaveAttribute("href", "/review/42?issue=11111111-1111-1111-1111-111111111111");
+    expect(link).toHaveAttribute("href", "/review/42?source_revision_id=rev-42&extraction_id=ext-42&issue=11111111-1111-1111-1111-111111111111");
     expect(screen.getByText("Source review recommended")).toBeInTheDocument();
     expect(screen.queryByText(/raw patient/i)).toBeNull();
     expect(api.getMetricDrilldown).toHaveBeenCalledWith({
@@ -71,7 +71,7 @@ describe("MetricsDrilldown current evidence navigation", () => {
     renderRoute("kind=corrections&field=vitals.blood_pressure");
     expect(await screen.findByRole("heading", { name: /Corrected field: vitals.blood_pressure/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Inspect source and evidence for note 12/ }))
-      .toHaveAttribute("href", "/review/12?field=vitals.blood_pressure");
+      .toHaveAttribute("href", "/review/12?source_revision_id=rev&extraction_id=ext&review_event_id=event-123&field=vitals.blood_pressure");
   });
 
   it("renders an accessible empty state when no current notes match", async () => {
