@@ -36,6 +36,9 @@ REPORT = ROOT / "artifacts/evaluation/paired_local_17f5737320b78e10.json"
         ("Insulin glargine 20 units SubQ at bedtime.", "insulin glargine", "20 units", "SubQ", "at bedtime", ""),
         ("Lorazepam 0.5 mg PO nightly at bedtime.", "lorazepam", "0.5 mg", "PO", "nightly", ""),
         ("Discharge Meds: Metoprolol Succinate 50 mg PO daily.", "metoprolol succinate", "50 mg", "PO", "daily", ""),
+        ("Metformin BID 500 mg PO.", "metformin", "500 mg", "PO", "BID", ""),
+        ("Metformin PO BID 500 mg.", "metformin", "500 mg", "PO", "BID", ""),
+        ("Insulin glargine 20 units SQ bedtime.", "insulin glargine", "20 units", "SQ", "bedtime", ""),
         ("Metformin PO 500 mg BID.", "metformin", "500 mg", "PO", "BID", ""),
         ("Benzonatate 100 mg PO TID as needed for cough.", "benzonatate", "100 mg", "PO", "TID as needed", ""),
         ("Nitroglycerin 400 mcg SL every 5 minutes PRN chest pain.", "nitroglycerin", "400 mcg", "SL", "every 5 minutes PRN", ""),
@@ -242,6 +245,24 @@ def test_two_medications_on_one_line_remain_distinct():
     )["medications"]
     assert "albuterol" in {m["name"] for m in meds}
     assert "omeprazole" in {m["name"] for m in meds}
+
+
+def test_legacy_pre_dose_schedules_and_bedtime_remain_reviewable():
+    cases = [
+        ("Medications:\nMetformin BID 500 mg PO.", ("metformin", "PO", "BID")),
+        ("Medications:\nMetformin PO BID 500 mg.", ("metformin", "PO", "BID")),
+        ("Medications:\nInsulin glargine 20 units SQ bedtime.", ("insulin glargine", "SQ", "bedtime")),
+    ]
+    for source, expected in cases:
+        medications = run_pipeline(source)["medications"]
+        assert len(medications) == 1, source
+        med = medications[0]
+        assert (med["name"], med["route"], med["frequency"]) == expected
+        start, end = med["span"]
+        assert source[start:end].casefold().startswith(expected[0])
+
+    # Competing schedules must not be merged or silently normalized.
+    assert parse_order_lines("Metformin BID 500 mg PO TID.") == []
 
 
 def test_pre_dose_route_not_misclassified_as_medication_identity():
