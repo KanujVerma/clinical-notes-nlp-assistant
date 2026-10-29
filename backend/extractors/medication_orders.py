@@ -169,6 +169,10 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         return None
 
     after_dose = body[dose.end():]
+    # This clause contains another explicit instruction for a different
+    # mention; never borrow PRN/frequency from that next instruction.
+    if _SECONDARY_DIRECTIVE.search(after_dose):
+        return None
     route_match = _ROUTE.search(after_dose)
     freq_match = _FREQUENCY.search(after_dose)
     if (pre_route and route_match
@@ -256,7 +260,17 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
 
 # Split on clear sentence/semicolon boundaries, never the decimal in 0.5.
 # An ambiguous multiple-dose clause deliberately falls through to medSpaCy.
-_CLAUSE_BREAK = re.compile(r";\s*|(?<!\d)[.!?](?!\d)\s+")
+_SECONDARY_DIRECTIVE = re.compile(
+    r"\b(?:and|then)\s+(?:start|stop|hold|discontinue|continue|"
+    r"resume|take|use|administer|give|apply|inject|inhale)\b",
+    re.IGNORECASE,
+)
+_CLAUSE_BREAK = re.compile(
+    r";\s*|(?<!\d)[.!?](?!\d)\s+|"
+    r"\s+(?:and|then)\s+(?=(?:start|stop|hold|discontinue|continue|"
+    r"resume|take|use|administer|give|apply|inject|inhale)\b)",
+    re.IGNORECASE,
+)
 
 
 def parse_order_lines(text: str) -> list[dict[str, Any]]:
