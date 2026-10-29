@@ -52,7 +52,7 @@ _REJECT_PROSE = re.compile(
     r"to\s+(?:hold|withhold|stop|discontinue|start|continue|resume|restart|initiate|begin)\b|"
     r"no\b|not(?:\s+taking)?\b|never\b|without\b|denies?\b|denied\b|"
     r"historical\b|history\s+of\b|previously\b|formerly\b|"
-    r"currently\b|taking\b|takes?\b|using\b|uses\b|"
+    r"currently\b|taking\b|takes\b|using\b|uses\b|"
     r"receives?\b|received\b|reports?\b|reported\b|"
     r"weight\b|height\b|growth\b|body\s+mass\b|bmi\b|"
     r"return\s+to|follow[\s\-]?up|avoid|drink|if\s+you|go\s+to|call|seek|"
@@ -123,6 +123,13 @@ def _parse_line(line: str, char_offset: int) -> "dict[str, Any] | None":
     clean = re.sub(r"^[\s\-\u2022*\d.)\]]+", "", line).strip()
     if _is_rejected(clean):
         return None
+
+    # Preserve dose-free imperative instructions, e.g. "Take aspirin daily".
+    # "takes" (narrative use) remains excluded; directives must not become
+    # part of the drug identity when the legacy section fallback is used.
+    directive = re.match(r"(?i)^(?:take|use)\s+(?!the\b)", clean)
+    if directive:
+        clean = clean[directive.end():]
 
     dm = _DOSE_RE.search(clean)
     rm = _ROUTE_RE.search(clean)
