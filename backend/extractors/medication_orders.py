@@ -130,16 +130,30 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         name_start = action_match.end()
 
     name_piece = before_dose[name_start:]
+    # A route can precede the strength ("Metformin PO 500 mg BID").
+    # Do not silently put PO/IV/etc. into drug identity. Strip only one
+    # explicit TRAILING route and reject residual/mismatched route tokens.
+    pre_route = None
+    route_hits = list(_ROUTE.finditer(name_piece))
+    if route_hits:
+        last = route_hits[-1]
+        if not name_piece[last.end():].strip():
+            pre_route = last
+            name_piece = name_piece[:last.start()]
     stripped = name_piece.strip()
     if (not stripped or _NON_ORDER.match(stripped)
             or _NESTED_ACTION.match(stripped)
+            or _ROUTE.search(stripped)
             or not _NAME.fullmatch(stripped)):
         return None
 
     after_dose = body[dose.end():]
     route_match = _ROUTE.search(after_dose)
     freq_match = _FREQUENCY.search(after_dose)
-    if not (action or route_match or freq_match or action_match):
+    if (pre_route and route_match
+            and pre_route.group().casefold() != route_match.group().casefold()):
+        return None
+    if not (action or pre_route or route_match or freq_match or action_match):
         return None
 
     # Do not attach a dose to an unrelated later order in the same line.
@@ -211,7 +225,8 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
     return {
         "name": stripped.casefold(),
         "dose": dose.group("dose").strip(),
-        "route": route_match.group().strip() if route_match else "",
+        "route": (route_match.group().strip() if route_match else
+                  pre_route.group().strip() if pre_route else ""),
         "frequency": frequency,
         "duration": duration.group().strip() if duration else "",
         "qualifier": qualifier,
