@@ -2,7 +2,7 @@
 
 A **full-stack, synthetic clinical-note extraction and human-review prototype** built with React, TypeScript, Flask, SQLAlchemy, spaCy/medSpaCy, and deterministic rules. It extracts structured fields, lets a reviewer inspect and correct them against the source, and records reviewer activity.
 
-> **Draft feature branch — undergoing independent verification.** Validation-workbench changes have not been merged to `main` or verified in the hosted deployment. The recorded local test counts precede more recent source edits and are not a release certificate.
+> **Code and deployment are separate.** The validation workbench, synthetic showcase, and 30-image local vision benchmark are merged on `main`. Production Vercel and Render auto-deploys remain disabled. A passing code gate does not establish that the hosted demo runs this revision.
 
 > **Synthetic engineering demo — not for clinical use.** Do not submit real patient information. This is not clinically validated, does not verify patient identity, and is not an EHR or prescribing tool. Session-based workspace separation is not authentication.
 
@@ -63,7 +63,7 @@ brew install tesseract poppler
 
 git clone https://github.com/KanujVerma/clinical-notes-nlp-assistant.git
 cd clinical-notes-nlp-assistant
-git switch feat/clinical-validation-workbench
+git switch main
 
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -112,7 +112,7 @@ The reviewer can inspect medications, vitals, instructions, and metadata. Medica
 
 ## Validation Workbench & Verification Architecture
 
-In addition to the baseline pipeline, this branch includes the **Clinical NLP Validation Workbench** (`docs/validation/`), establishing immutable lineage, defensive verification, and statistical evaluation:
+In addition to the baseline pipeline, this repository includes the **Clinical NLP Validation Workbench** (`docs/validation/`), establishing immutable lineage, defensive verification, and statistical evaluation:
 
 - **Immutable Lineage & Append-Only Event Store**: Ingestion hashes source assets into content-addressed storage (SHA-256). Transcription edits create an incremented `NoteRevision` chain. Review events cite parent pointers, lock versions (optimistic concurrency), and idempotency keys.
 - **Independent Quality Canaries**: Pure validation rules independently check extracted entities for half-open interval coordinate bounds, exact quote integrity (`A08`), decimal dose formatting risks (`A09`), duplicate medication conflicts (`A02`), missing vital units (`A03`), and contradictory instructions (`A04`).
@@ -127,6 +127,8 @@ Comprehensive documentation is available in [`docs/validation/`](docs/validation
 - [Requirements & Boundaries](docs/validation/requirements.md)
 - [Engineering Demonstration Script](docs/validation/demo-script.md)
 - [Contribution Changelog](docs/validation/contribution-changelog.md)
+- [30-case Real Vision Benchmark Audit](docs/validation/THIRTY_CASE_BENCHMARK_AUDIT.md)
+- [Medication Parser Gold/OCR Replay](docs/validation/MEDICATION_GOLD_REPLAY.md)
 
 ## Verification
 
@@ -152,10 +154,10 @@ npx playwright test
 
 - **Synthetic only:** The system is restricted to synthetic, de-identified clinical scenarios. It is not HIPAA-certified, does not connect to EHRs, does not verify patient identity, and must never be used for real clinical decision-making.
 - **Extraction bounds:** Ambiguous clinical phrasing, novel abbreviations, and unformatted narrative text require human verification. The deterministic pipeline flags anomalies via canaries rather than making autonomous clinical decisions.
-- **Optional local AI:** This branch includes GLM-OCR and Qwen3-VL image-input adapters as well as text-only suggestions. All model outputs remain proposals, separate from reviewed state. The unit tests use mocked model responses; no actual on-device handwriting accuracy benchmark has been verified. Vision requests without an original image source now fail closed. Paid terminology explanation remains disabled without explicit opt-in.
-- **Live synthetic OCR benchmark:** The repo now has a deterministic **printed** synthetic image generator. Run `python backend/evaluation/generate_synthetic_visual_cases.py --output data/vision_gold`, then, if `glm-ocr:q8_0` is installed in local Ollama, run `python backend/evaluation/vision_benchmark.py --manifest data/vision_gold/manifest.json`. The runner records source hashes, the installed model digest, predictions, critical-token differences, and CER/WER; it fails when the model is unavailable. Generated printed images are not handwriting and are not a held-out set. Real handwriting requires separate images and separately verified gold transcription. The previously reported handwritten CER/WER values came from handcrafted example strings, NOT model inference.
+- **Optional local AI:** On-device GLM-OCR and Qwen3-VL adapters exist. PR #5 records real local inference on 30 hash-pinned generator-derived printed/noisy/photographed-effect synthetic images, **not** handwriting or an independent holdout. Model suggestions remain separate from reviewer-approved state. Vision requests without an original image source fail closed; paid terminology explanation stays opt-in.
+- **Real synthetic model benchmark:** Original image/source hashes, saved local predictions, model digests, CER/WER, critical tokens, and strict entity scores are in `artifacts/evaluation/paired_local_17f5737320b78e10.json`. See the [independent source audit](docs/validation/THIRTY_CASE_BENCHMARK_AUDIT.md). The [medication parser replay](docs/validation/MEDICATION_GOLD_REPLAY.md) separately scores the current deterministic extractor against perfect synthetic transcripts and those saved OCR predictions. None of these development scores is a held-out or clinical validation estimate.
 - **Evaluation limits:** The historical 20-note synthetic corpus was inspected during development and is not a held-out or clinically adjudicated set. Older saved benchmark artifacts use earlier matching rules and cannot be treated as a comparable strict baseline.
-- **Release status:** The [acceptance matrix](docs/validation/acceptance-matrix.md) records pending final-SHA verification; project readiness, migration compatibility and browser UX should not be inferred from a passing old smoke suite.
+- **Release status:** GitHub Actions verifies synthetic/offline and hosted-mode contracts on each changed PR head. The [acceptance matrix](docs/validation/acceptance-matrix.md) contains historical verification snapshots; production deployment, migrations, EHR integration, and handling actual patient information remain unapproved.
 
 ## Project scope and contributions
 
