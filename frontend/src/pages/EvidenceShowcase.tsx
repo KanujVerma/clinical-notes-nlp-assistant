@@ -24,7 +24,7 @@ export default function EvidenceShowcase() {
   }, []);
 
   return (
-    <main id="main-content" className="h-full overflow-y-auto bg-slate-50 p-6">
+    <div className="h-full overflow-y-auto bg-slate-50 p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700">Validation workbench · recorded evidence</p>
@@ -154,6 +154,6 @@ export default function EvidenceShowcase() {
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 }
