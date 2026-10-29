@@ -46,7 +46,7 @@ _ACTION = re.compile(
     r"^(?P<verb>continue\s+to\s+(?:hold|withhold)|do\s+not\s+continue|discontinue|withhold|"
     r"continue|restart|initiate|administer|prescribe|"
     r"resume|start|begin|hold|stop|cease|give|take|use|"
-    r"apply|inject|inhale)\s+", re.IGNORECASE,
+    r"apply|inject|inhale)(?:\s+taking)?\s+", re.IGNORECASE,
 )
 _ACTIONS = {
     "continue to hold": "hold",
@@ -69,7 +69,8 @@ _ACTIONS = {
 _NON_ORDER = re.compile(
     r"^(?:no|not|never|denies?|denied|without|formerly|previously|"
     r"historical|history\s+of|stopped\s+taking|is\s+not\s+taking|"
-    r"patient|blood|fasting|serum|hemoglobin|hematocrit|"
+    r"patient|weight|height|growth|bmi|body\s+mass|taking|"
+    r"blood|fasting|serum|hemoglobin|hematocrit|"
     r"platelet|glucose|systolic|diastolic|temperature|temp|"
     r"heart|pulse|respiratory|maximum|minimum|daily\s+dose|"
     r"dose|caution|warning|verify|confirm|do\s+not|avoid|"
@@ -125,7 +126,7 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
     name_start = 0
     if action_match:
         action = _ACTIONS.get(
-            " ".join(action_match.group("verb").casefold().split()), ""
+            re.sub(r"\s+taking$", "", " ".join(action_match.group("verb").casefold().split())), ""
         )
         name_start = action_match.end()
 
