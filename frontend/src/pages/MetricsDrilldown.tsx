@@ -6,7 +6,7 @@ function evidenceUrl(row: MetricEvidenceRow): string {
   const params = new URLSearchParams();
   if (row.kind === "issue" && row.issue_id) params.set("issue", row.issue_id);
   if (row.field_path) params.set("field", row.field_path);
-  return \`/review/\${row.note_id}\${params.size ? \`?\${params.toString()}\` : ""}\`;
+  return `/review/${row.note_id}${params.size ? `?${params.toString()}` : ""}`;
 }
 
 /** A bounded index of current note evidence, never a public PHI/data export. */
@@ -54,14 +54,14 @@ export default function MetricsDrilldown() {
           <section aria-label="Evidence results" className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-4 text-sm text-slate-600" aria-live="polite">
               {data.count_returned} current record{data.count_returned === 1 ? "" : "s"}
-              {data.has_more ? \` (first \${data.max_rows} shown)\` : ""}
+              {data.has_more ? ` (first ${data.max_rows} shown)` : ""}
             </div>
             {data.rows.length === 0 ? (
               <p className="p-6 text-sm text-slate-600">No current records match this filter.</p>
             ) : (
               <ul className="divide-y divide-slate-100">
                 {data.rows.map((row, index) => (
-                  <li key={row.issue_id ?? row.review_event_id ?? \`\${row.note_id}-\${index}\`} className="p-4">
+                  <li key={row.issue_id ?? row.review_event_id ?? `${row.note_id}-${index}`} className="p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-sm text-slate-900">
@@ -75,7 +75,7 @@ export default function MetricsDrilldown() {
                       <Link
                         to={evidenceUrl(row)}
                         className="shrink-0 rounded-md border border-cyan-700 px-3 py-2 text-sm font-medium text-cyan-800 hover:bg-cyan-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600"
-                        aria-label={\`Inspect source and evidence for note \${row.note_id}: \${row.label}\`}
+                        aria-label={`Inspect source and evidence for note ${row.note_id}: ${row.label}`}
                       >
                         Inspect source
                       </Link>
