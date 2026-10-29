@@ -27,8 +27,8 @@ MAX_TEXT_BYTES = 2 * 1024 * 1024
 SUPPORTED_ADAPTERS = ("text", "glm_ocr", "qwen3_vl")
 PROMPT_VERSIONS = {
     "text": "semantic_candidates_v1",
-    "glm_ocr": "glm_ocr_visual_v1",
-    "qwen3_vl": "qwen3_vl_visual_v1",
+    "glm_ocr": "glm_ocr_visual_v2",
+    "qwen3_vl": "qwen3_vl_visual_v2",
 }
 
 

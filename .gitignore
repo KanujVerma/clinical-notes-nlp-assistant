@@ -25,3 +25,4 @@ frontend/test-results/
 backend/data/storage/
 *.lock
 data/vision_gold/
+data/vision_gold_smoke/

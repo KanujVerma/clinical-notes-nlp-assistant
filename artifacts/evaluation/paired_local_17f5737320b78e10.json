@@ -1,0 +1,6604 @@
+{
+  "arms_run": [
+    "tesseract",
+    "glm_ocr",
+    "qwen3_vl"
+  ],
+  "cases": {
+    "glm_ocr": [
+      {
+        "case_id": "clean_01_routine_hypertension",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 25023,
+        "source_sha256": "0ad119de71aa297617c136c3a1ee5694ad9515bf0b3d0565e54f20e4b173e5a6",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.0,
+          "character_distance": 0,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "10 mg"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "128/82"
+            },
+            {
+              "recognized": true,
+              "token": "72 bpm"
+            }
+          ],
+          "ref_chars": 165,
+          "ref_words": 26,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nPrescription: Lisinopril 10 mg PO daily.\nHydrochlorothiazide 25 mg PO daily.\nBlood pressure 128/82 mmHg. Heart rate 72 bpm."
+      },
+      {
+        "case_id": "clean_02_decimal_warfarin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 1,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "warfarin",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "dose": {
+                    "expected": "2.5 mg",
+                    "predicted": ""
+                  },
+                  "route": {
+                    "expected": "PO",
+                    "predicted": ""
+                  },
+                  "frequency": {
+                    "expected": "daily",
+                    "predicted": ""
+                  },
+                  "action": {
+                    "expected": "hold",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 7360,
+        "source_sha256": "fb70dbb53691215ab8d5122ad4472c2a57656615752ddcf44238fa27e9002d58",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.014814814814814815,
+          "character_distance": 2,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "2.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": true,
+              "token": "Do not"
+            }
+          ],
+          "ref_chars": 135,
+          "ref_words": 25,
+          "wer": 0.08,
+          "word_distance": 2
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nHold Warfarin 2.5 mg PO daily.\nDo not dispense Warfarin 25 mg.\nINRcheck scheduled in 3 days."
+      },
+      {
+        "case_id": "clean_03_duplicate_prednisone_taper",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8077,
+        "source_sha256": "b892ecc34eb8d47ef8ee255d7fadc92a732d6750a628efa7c3fde3ac708ff519",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.024,
+          "character_distance": 3,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "20 mg"
+            },
+            {
+              "recognized": true,
+              "token": "10 mg"
+            },
+            {
+              "recognized": true,
+              "token": "QAM"
+            },
+            {
+              "recognized": true,
+              "token": "QPM"
+            }
+          ],
+          "ref_chars": 125,
+          "ref_words": 24,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nPrednisone 20 mg PO QAM.\n\nPrednisone 10 mg PO QPM with dinner.\n\nTaper by 5 mg weekly."
+      },
+      {
+        "case_id": "clean_04_microgram_levothyroxine",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 1,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "levothyroxine",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "frequency": {
+                    "expected": "every morning",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8954,
+        "source_sha256": "f8fcd7823f237879785d6cda87ab37e5c02dee4a430ceb77f27e074d48bd5347",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.006369426751592357,
+          "character_distance": 1,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "75 mcg"
+            },
+            {
+              "recognized": true,
+              "token": "75 mg"
+            },
+            {
+              "recognized": true,
+              "token": "before breakfast"
+            }
+          ],
+          "ref_chars": 157,
+          "ref_words": 28,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nLevothyroxine 75 mcg PO every morning before breakfast.\nDo not confuse 75 mcg with 75 mg.\nTSH follow-up in 6 weeks."
+      },
+      {
+        "case_id": "clean_05_decimal_haloperidol",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "haloperidol",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8175,
+        "source_sha256": "c5c3c563267751a9291b6313868ecfa09ff59c5fa11795130892902f918fc1bf",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.018072289156626505,
+          "character_distance": 3,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "BID PRN"
+            },
+            {
+              "recognized": true,
+              "token": "2 mg"
+            }
+          ],
+          "ref_chars": 166,
+          "ref_words": 30,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nAdminister Haloperidol 0.5 mg PO BID PRN agitation.\n\nMaximum daily dose 2 mg. Do not exceed 5 mg.\n\nMonitor QT interval on ECG."
+      },
+      {
+        "case_id": "clean_06_continue_discontinue_diabetes",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "glipizide",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "metformin",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "continue",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "blood_glucose",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 7804,
+        "source_sha256": "7bf20d0199d181d71301c47e7da75f904da96cb452a15916f13c615ad81c6521",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.020689655172413793,
+          "character_distance": 3,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Continue"
+            },
+            {
+              "recognized": true,
+              "token": "Discontinue"
+            },
+            {
+              "recognized": true,
+              "token": "500 mg"
+            },
+            {
+              "recognized": true,
+              "token": "5 mg"
+            }
+          ],
+          "ref_chars": 145,
+          "ref_words": 24,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nContinue Metformin 500 mg PO BID.\n\nDiscontinue Glipizide 5 mg PO daily.\n\nFasting blood glucose 118 mg/dL."
+      },
+      {
+        "case_id": "clean_07_multiple_vitals_panel",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 4,
+            "fp": 1,
+            "fn": 1,
+            "precision": 0.8,
+            "recall": 0.8,
+            "f1": 0.8000000000000002,
+            "support": 5,
+            "mismatches": [
+              {
+                "name": "respiratory_rate",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "unit": {
+                    "expected": "bpm",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 12310,
+        "source_sha256": "d3eb80b46710aa3df4d09a4997311846047491c5967fea48e726870f92cdbf07",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.018633540372670808,
+          "character_distance": 3,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "118/76"
+            },
+            {
+              "recognized": true,
+              "token": "68 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "16 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "98%"
+            },
+            {
+              "recognized": true,
+              "token": "98.4 F"
+            }
+          ],
+          "ref_chars": 161,
+          "ref_words": 30,
+          "wer": 0.13333333333333333,
+          "word_distance": 4
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nVitals: BP 118/76 mmHg, HR68 bpm, RR16 bpm.\nSpO2 98% on room air, Temp 98.4 F.\nPatient resting comfortably in triage."
+      },
+      {
+        "case_id": "clean_08_hold_start_cardiac",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 2,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "amlodipine",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "start",
+                    "predicted": ""
+                  }
+                }
+              },
+              {
+                "name": "metoprolol",
+                "type": "occurrence_count_mismatch",
+                "expected": 0,
+                "predicted": 1
+              },
+              {
+                "name": "metoprolol tartrate",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 7481,
+        "source_sha256": "ca84f4fc5a6d816b8012c5f53dbe9832d5742b9d4e8ce9fc6f5f958e63413e60",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.01675977653631285,
+          "character_distance": 3,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": true,
+              "token": "Start"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "5 mg"
+            }
+          ],
+          "ref_chars": 179,
+          "ref_words": 31,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nHold Metoprolol Tartrate 25 mg PO BID today.\n\nStart Amlodipine 5 mg PO daily tomorrow morning.\n\nCall clinic if systolic BP drops below 100."
+      },
+      {
+        "case_id": "clean_09_duplicate_insulin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "insulin glargine",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "insulin lispro",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 7047,
+        "source_sha256": "185ab9e85a674f6d5ee3c27376468bf4ba1dc61195d1145699c1fb0741e1de96",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.0,
+          "character_distance": 0,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "20 units"
+            },
+            {
+              "recognized": true,
+              "token": "4 units"
+            },
+            {
+              "recognized": true,
+              "token": "SubQ"
+            },
+            {
+              "recognized": true,
+              "token": "TID"
+            }
+          ],
+          "ref_chars": 167,
+          "ref_words": 28,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nInsulin glargine 20 units SubQ at bedtime.\nInsulin lispro 4 units SubQ with meals TID.\nCheck fingerstick BG before each meal."
+      },
+      {
+        "case_id": "clean_10_stat_antibiotic_iv",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "azithromycin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "ceftriaxone",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 7743,
+        "source_sha256": "7e8bec95a8fea3c9f102adffc0df5e660cbd1361a6de595bddfc9c7e747d21da",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.006711409395973154,
+          "character_distance": 1,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "1 g"
+            },
+            {
+              "recognized": true,
+              "token": "IV"
+            },
+            {
+              "recognized": true,
+              "token": "500 mg"
+            },
+            {
+              "recognized": true,
+              "token": "95%"
+            }
+          ],
+          "ref_chars": 149,
+          "ref_words": 29,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nCeftriaxone 1 g IV daily for 7 days.\nAzithromycin 500 mg PO daily for 3 days.\nSpO2 95% on 2L nasal cannula."
+      },
+      {
+        "case_id": "degraded_01_amoxicillin_aspirin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "amoxicillin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "aspirin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 7924,
+        "source_sha256": "4fb4c42a5b8be139ddc0686824353c93e683c250272da0ec8ece44c1a4f9c7c5",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.015037593984962405,
+          "character_distance": 2,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "500 mg"
+            },
+            {
+              "recognized": true,
+              "token": "10 days"
+            },
+            {
+              "recognized": true,
+              "token": "Do not"
+            },
+            {
+              "recognized": true,
+              "token": "81 mg"
+            }
+          ],
+          "ref_chars": 133,
+          "ref_words": 26,
+          "wer": 0.11538461538461539,
+          "word_distance": 3
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FOR CLINICAL USE\nAmoxicillin 500 mg PO TID for 10 days\nDo not continue Aspirin 81 mg.\nFollow up in 2 weeks."
+      },
+      {
+        "case_id": "degraded_02_decimal_digoxin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "digoxin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 12797,
+        "source_sha256": "97acc3e5b89aad276cb27a9c8a0914f9989c56abd14acfd6b6bb9b1b3f42c0e0",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.0,
+          "character_distance": 0,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.125 mg"
+            },
+            {
+              "recognized": true,
+              "token": "0.25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "64 bpm"
+            }
+          ],
+          "ref_chars": 121,
+          "ref_words": 22,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nDigoxin 0.125 mg PO daily.\nCaution: do not dispense 0.25 mg.\nHeart rate 64 bpm."
+      },
+      {
+        "case_id": "degraded_03_duplicate_lorazepam",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "lorazepam",
+                "type": "occurrence_count_mismatch",
+                "expected": 2,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 12106,
+        "source_sha256": "7a4af0f8a85fc147dbe2e31bcb11656c0761f728fad09c808d641880f857e45b",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.030864197530864196,
+          "character_distance": 5,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "1 mg"
+            },
+            {
+              "recognized": true,
+              "token": "nightly"
+            },
+            {
+              "recognized": true,
+              "token": "PRN"
+            },
+            {
+              "recognized": true,
+              "token": "Hold"
+            }
+          ],
+          "ref_chars": 162,
+          "ref_words": 28,
+          "wer": 0.14285714285714285,
+          "word_distance": 4
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\n\nLorazepam 0.5 mg PO nightly at bedtime.\n\nLorazepam 1 mg PO every 6 hours PRN severe anxiety.\n\nHold if excessively sedated."
+      },
+      {
+        "case_id": "degraded_04_microgram_fentanyl",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "fentanyl",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 12159,
+        "source_sha256": "0489007cee7aa73d915daed31bb54710c25735c003e3cfaa893aad49afd16b46",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.0,
+          "character_distance": 0,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "25 mcg/hr"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "every 72 hours"
+            }
+          ],
+          "ref_chars": 131,
+          "ref_words": 23,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nFentanyl 25 mcg/hr transdermal patch every 72 hours.\nDo not order 25 mg.\nPain score 4/10."
+      },
+      {
+        "case_id": "degraded_05_decimal_clonazepam",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "clonazepam",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 12082,
+        "source_sha256": "bb8bf64cf427bb03fec2ef5cb52c54ef0d6514a2d93a626446841fa2c44e91e8",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.017241379310344827,
+          "character_distance": 3,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "2.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "BID"
+            }
+          ],
+          "ref_chars": 174,
+          "ref_words": 28,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nClonazepam 0.25 mg PO BID for panic attacks.\n\nConfirm dose is not 2.5 mg before dispensing.\n\nPatient counseled on driving precautions."
+      },
+      {
+        "case_id": "degraded_06_continue_hold_statin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 2,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "atorvastatin",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "continue",
+                    "predicted": ""
+                  }
+                }
+              },
+              {
+                "name": "clopidogrel",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "hold",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 25181,
+        "source_sha256": "226f7d79ea3ebd21f9838ae91bf89224186f75bc7c37d86a5e2b16f09c45c831",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.024844720496894408,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Continue"
+            },
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": true,
+              "token": "40 mg"
+            },
+            {
+              "recognized": true,
+              "token": "75 mg"
+            }
+          ],
+          "ref_chars": 161,
+          "ref_words": 28,
+          "wer": 0.07142857142857142,
+          "word_distance": 2
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nContinue Atorvastatin 40 mg PO QHS.\n\nHold Clopidogrel 75 mg PO daily for 5 days prior to surgery.\n\nPlate let count stable."
+      },
+      {
+        "case_id": "degraded_07_vitals_hypertensive_crisis",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "labetalol",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 15798,
+        "source_sha256": "981d5e2f917013e93c5da4861a776ca2c36f56b5cb88c7bded0cdb89b1831a0c",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.017964071856287425,
+          "character_distance": 3,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "186/112"
+            },
+            {
+              "recognized": true,
+              "token": "104 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "20 mg"
+            },
+            {
+              "recognized": true,
+              "token": "IV"
+            }
+          ],
+          "ref_chars": 167,
+          "ref_words": 27,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nBlood pressure 186/112 mmHg. Pulse 104 bpm.\n\nAdminister Labetalol 20 mg IV push STAT.\n\nRecheck blood pressure every 15 minutes."
+      },
+      {
+        "case_id": "degraded_08_discontinue_start_ace_arb",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 2,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "enalapril",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "stop",
+                    "predicted": ""
+                  }
+                }
+              },
+              {
+                "name": "losartan",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "start",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 10177,
+        "source_sha256": "d468f9938b59c0c1450151413895c489ece972b014b4091bfdbeb87963d110fa",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.025157232704402517,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Discontinue"
+            },
+            {
+              "recognized": true,
+              "token": "Start"
+            },
+            {
+              "recognized": true,
+              "token": "10 mg"
+            },
+            {
+              "recognized": true,
+              "token": "50 mg"
+            }
+          ],
+          "ref_chars": 159,
+          "ref_words": 28,
+          "wer": 0.07142857142857142,
+          "word_distance": 2
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FOR CLINICAL USE\n\nDiscontinue Enalapril 10 mg PO daily due to cough.\n\nStart Losartan 50 mg PO daily.\n\nRepeat serum creatinine in 2 weeks."
+      },
+      {
+        "case_id": "degraded_09_duplicate_diltiazem",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "diltiazem",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "diltiazem cd",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 7797,
+        "source_sha256": "a151d096f58a4f4cb4f968b4f07eacc04bfb13a3f9a0328b8413536a5234fc7f",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.0,
+          "character_distance": 0,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "180 mg"
+            },
+            {
+              "recognized": true,
+              "token": "30 mg"
+            },
+            {
+              "recognized": true,
+              "token": "daily"
+            },
+            {
+              "recognized": true,
+              "token": "TID PRN"
+            }
+          ],
+          "ref_chars": 153,
+          "ref_words": 25,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nDiltiazem CD 180 mg PO daily.\nDiltiazem 30 mg PO TID PRN breakthrough palpitations.\nBlood pressure 130/84 mmHg."
+      },
+      {
+        "case_id": "degraded_10_steroid_burst",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "dexamethasone",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 7697,
+        "source_sha256": "9ebd0f44868fb416477397ae0f801723a6de722f123ab1720f2c6cab8a33b770",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.015748031496062992,
+          "character_distance": 2,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.75 mg"
+            },
+            {
+              "recognized": true,
+              "token": "7.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "99.1 F"
+            }
+          ],
+          "ref_chars": 127,
+          "ref_words": 23,
+          "wer": 0.17391304347826086,
+          "word_distance": 4
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nDexamethasone 0.75 mg PO BID for 3 days.\nDo not prescribe 7.5 mg.\nTemperature 99.1 F."
+      },
+      {
+        "case_id": "photo_01_discharge_summary",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 1,
+            "fp": 1,
+            "fn": 1,
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "metoprolol",
+                "type": "occurrence_count_mismatch",
+                "expected": 0,
+                "predicted": 1
+              },
+              {
+                "name": "metoprolol succinate",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 9010,
+        "source_sha256": "48365ea5527105ffe472b9fd93bb20446dfb293b07059cd2fc8f43828e1fd975",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.023529411764705882,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "40 mg"
+            },
+            {
+              "recognized": true,
+              "token": "50 mg"
+            },
+            {
+              "recognized": true,
+              "token": "122/78"
+            },
+            {
+              "recognized": true,
+              "token": "66 bpm"
+            }
+          ],
+          "ref_chars": 170,
+          "ref_words": 28,
+          "wer": 0.03571428571428571,
+          "word_distance": 1
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nDischarge Meds Pantoprazole 40 mg PO daily.\n\nMetoprolol Succinate 50 mg PO daily.\n\nBlood pressure 122/78 mmHg. Heart rate 66 bpm."
+      },
+      {
+        "case_id": "photo_02_decimal_levothyroxine_dose",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "levothyroxine",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8907,
+        "source_sha256": "72d85c1c247bb70d917431999ee0d06bb88636e49b8cc8eb58c510c3798b1e65",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.0,
+          "character_distance": 0,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.05 mg"
+            },
+            {
+              "recognized": true,
+              "token": "0.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "empty stomach"
+            }
+          ],
+          "ref_chars": 164,
+          "ref_words": 29,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nLevothyroxine 0.05 mg PO daily on empty stomach.\nVerify label says 0.05 mg, never 0.5 mg.\nRepeat thyroid panel in 8 weeks."
+      },
+      {
+        "case_id": "photo_03_duplicate_morphine",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "morphine",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "morphine er",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 1,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "respiratory_rate",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "unit": {
+                    "expected": "bpm",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 9009,
+        "source_sha256": "0d7e86614f74f3cdf768bde1223b430c7b32288c39d4b87c3af54b59dec0c5ff",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.006329113924050633,
+          "character_distance": 1,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "30 mg"
+            },
+            {
+              "recognized": true,
+              "token": "15 mg"
+            },
+            {
+              "recognized": true,
+              "token": "every 12 hours"
+            },
+            {
+              "recognized": true,
+              "token": "PRN"
+            },
+            {
+              "recognized": true,
+              "token": "14 bpm"
+            }
+          ],
+          "ref_chars": 158,
+          "ref_words": 29,
+          "wer": 0.06896551724137931,
+          "word_distance": 2
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nMorphine ER30 mg PO every 12 hours.\nMorphine 15 mg PO every 4 hours PRN breakthrough pain.\nRespiratory rate 14 bpm."
+      },
+      {
+        "case_id": "photo_04_microgram_nitrostat",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "nitroglycerin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 9340,
+        "source_sha256": "17c109c37aa736fc3209a0c08a3a5595bbc50e26d8b8a2c8df2ace7f5339b444",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.00546448087431694,
+          "character_distance": 1,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "400 mcg"
+            },
+            {
+              "recognized": true,
+              "token": "SL"
+            },
+            {
+              "recognized": true,
+              "token": "up to 3 doses"
+            },
+            {
+              "recognized": true,
+              "token": "110/70"
+            }
+          ],
+          "ref_chars": 183,
+          "ref_words": 32,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nNitroglycerin 400 mcg SL every 5 minutes PRN chest pain up to 3 doses.\nDo not use with PDE5 inhibitors.\nBP 110/70 mmHg before administration."
+      },
+      {
+        "case_id": "photo_05_decimal_alprazolam",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "alprazolam",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8577,
+        "source_sha256": "9d250d94c9e41f77acdbbe2f3e1233dc88d64b0271d0a4345a5aa7de9a418f57",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.0070921985815602835,
+          "character_distance": 1,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "2.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "TID PRN"
+            }
+          ],
+          "ref_chars": 141,
+          "ref_words": 27,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nAlprazolam 0.25 mg PO TID PRN anxiety.\nWarning: high risk if taken at 2.5 mg.\nFollow up in 1 month."
+      },
+      {
+        "case_id": "photo_06_continue_discontinue_anticoagulation",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "apixaban",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "aspirin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8109,
+        "source_sha256": "f4fef9c9bbcf85aa41f30a25505460d043756e4fc3d336078ef7e62195b7e89d",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.03816793893129771,
+          "character_distance": 5,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Continue"
+            },
+            {
+              "recognized": true,
+              "token": "Discontinue"
+            },
+            {
+              "recognized": true,
+              "token": "5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "325 mg"
+            }
+          ],
+          "ref_chars": 131,
+          "ref_words": 22,
+          "wer": 0.13636363636363635,
+          "word_distance": 3
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FOR CLINICAL USE\n\nContinue Apixaban 5 mg PO BID.\n\nDiscontinue Aspirin 325 mg PO daily.\n\nHemoglobin 13.8 g/dL"
+      },
+      {
+        "case_id": "photo_07_complete_icu_vitals",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "acetaminophen",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 4,
+            "fp": 1,
+            "fn": 1,
+            "precision": 0.8,
+            "recall": 0.8,
+            "f1": 0.8000000000000002,
+            "support": 5,
+            "mismatches": [
+              {
+                "name": "respiratory_rate",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "unit": {
+                    "expected": "bpm",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8267,
+        "source_sha256": "baeb48b4e81f41e2cda560a8ba3b42688e1e6fec229bbb252ac038aa51c2012e",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.025477707006369428,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "142/88"
+            },
+            {
+              "recognized": true,
+              "token": "88 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "20 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "96%"
+            },
+            {
+              "recognized": true,
+              "token": "100.8 F"
+            },
+            {
+              "recognized": true,
+              "token": "650 mg"
+            }
+          ],
+          "ref_chars": 157,
+          "ref_words": 30,
+          "wer": 0.16666666666666666,
+          "word_distance": 5
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nICU Flowsheet BP 142/88 mmHg, HR88 bpm.\nRR 20 bpm, SpO2 96% Temp 100.8 F.\nAcetaminophen 650 mg PO O6H PRN fever."
+      },
+      {
+        "case_id": "photo_08_hold_start_nephrology",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "sodium polystyrene sulfonate",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "spironolactone",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "hold",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8198,
+        "source_sha256": "bf9cc463288f7789fd7546eb2d72262981f105672c06f809e7259c1939aaf872",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.022857142857142857,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": true,
+              "token": "Start"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "15 g"
+            }
+          ],
+          "ref_chars": 175,
+          "ref_words": 27,
+          "wer": 0.07407407407407407,
+          "word_distance": 2
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FOR CLINICAL USE\n\nHold Spironolactone 25 mg PO daily due to hyperkalemia.\n\nStart Sodium polystyrene sulfonate 15 g PO daily.\n\nRecheck potassium tomorrow."
+      },
+      {
+        "case_id": "photo_09_duplicate_gabapentin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 1,
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6666666666666666,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "gabapentin",
+                "type": "occurrence_count_mismatch",
+                "expected": 2,
+                "predicted": 1
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 8105,
+        "source_sha256": "45bc4b3f227f7a5ac6b2d34f6ac205b213c1b530363b2412158aa4ee4ccf9a83",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.021897810218978103,
+          "character_distance": 3,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "300 mg"
+            },
+            {
+              "recognized": true,
+              "token": "TID"
+            },
+            {
+              "recognized": true,
+              "token": "600 mg"
+            },
+            {
+              "recognized": true,
+              "token": "QHS"
+            }
+          ],
+          "ref_chars": 137,
+          "ref_words": 23,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nGabapentin 300 mg PO TID.\n\nGabapentin 600 mg PO QHS.\n\nAvoid alcohol while taking this medication."
+      },
+      {
+        "case_id": "photo_10_inhaler_combination",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "albuterol",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "fluticasone/salmeterol",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 10303,
+        "source_sha256": "61a1132597a885f16c7ca871c39ca6f8301509594395207ee1d84d0ecda63fc9",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.0056179775280898875,
+          "character_distance": 1,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "250/50 mcg"
+            },
+            {
+              "recognized": true,
+              "token": "1 puff"
+            },
+            {
+              "recognized": true,
+              "token": "90 mcg"
+            },
+            {
+              "recognized": true,
+              "token": "2 puffs"
+            },
+            {
+              "recognized": true,
+              "token": "94%"
+            }
+          ],
+          "ref_chars": 178,
+          "ref_words": 30,
+          "wer": 0.0,
+          "word_distance": 0
+        },
+        "transcription": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\n\nFluticasone/Salmeterol 250/50 mcg inhaled 1 puff BID.\nAlbuterol 90 mcg inhaled 2 puffs every 4 hours PRN wheezing.\nSpO2 94% on room air."
+      }
+    ],
+    "qwen3_vl": [
+      {
+        "case_id": "clean_01_routine_hypertension",
+        "latency_ms": 21143,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2,
+          "tp": 2
+        },
+        "source_sha256": "0ad119de71aa297617c136c3a1ee5694ad9515bf0b3d0565e54f20e4b173e5a6",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "10 mg",
+              "frequency": "daily",
+              "name": "Lisinopril",
+              "route": "PO"
+            },
+            {
+              "action": "",
+              "dose": "25 mg",
+              "frequency": "daily",
+              "name": "Hydrochlorothiazide",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mmHg",
+              "value": "128/82",
+              "vital_type": "blood pressure"
+            },
+            {
+              "unit": "bpm",
+              "value": "72",
+              "vital_type": "heart rate"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 2,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "blood pressure",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "blood_pressure",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "heart rate",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "heart_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 2,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_02_decimal_warfarin",
+        "latency_ms": 67332,
+        "medications": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "mismatches": [
+            {
+              "expected": 1,
+              "name": "warfarin",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        },
+        "source_sha256": "fb70dbb53691215ab8d5122ad4472c2a57656615752ddcf44238fa27e9002d58",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_03_duplicate_prednisone_taper",
+        "latency_ms": 18750,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2,
+          "tp": 2
+        },
+        "source_sha256": "b892ecc34eb8d47ef8ee255d7fadc92a732d6750a628efa7c3fde3ac708ff519",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "20 mg",
+              "frequency": "QAM",
+              "name": "Prednisone",
+              "route": "PO"
+            },
+            {
+              "action": "with dinner",
+              "dose": "10 mg",
+              "frequency": "QPM",
+              "name": "Prednisone",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_04_microgram_levothyroxine",
+        "latency_ms": 24781,
+        "medications": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "every morning",
+                  "predicted": "every morning before breakfast"
+                }
+              },
+              "name": "levothyroxine",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        },
+        "source_sha256": "f8fcd7823f237879785d6cda87ab37e5c02dee4a430ceb77f27e074d48bd5347",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "75 mcg",
+              "frequency": "every morning before breakfast",
+              "name": "Levothyroxine",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_05_decimal_haloperidol",
+        "latency_ms": 25110,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 1,
+          "tp": 1
+        },
+        "source_sha256": "c5c3c563267751a9291b6313868ecfa09ff59c5fa11795130892902f918fc1bf",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "agitation",
+              "dose": "0.5 mg",
+              "frequency": "BID PRN",
+              "name": "Haloperidol",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "",
+              "value": "",
+              "vital_type": "QT interval"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "qt interval",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_06_continue_discontinue_diabetes",
+        "latency_ms": 14762,
+        "medications": {
+          "f1": 0.5,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "action": {
+                  "expected": "stop",
+                  "predicted": "Discontinue"
+                }
+              },
+              "name": "glipizide",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.5,
+          "recall": 0.5,
+          "support": 2,
+          "tp": 1
+        },
+        "source_sha256": "7bf20d0199d181d71301c47e7da75f904da96cb452a15916f13c615ad81c6521",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "Continue",
+              "dose": "500 mg",
+              "frequency": "BID",
+              "name": "Metformin",
+              "route": "PO"
+            },
+            {
+              "action": "Discontinue",
+              "dose": "5 mg",
+              "frequency": "daily",
+              "name": "Glipizide",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mg/dL",
+              "value": "118",
+              "vital_type": "fasting blood glucose"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 1,
+              "name": "blood_glucose",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "fasting blood glucose",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_07_multiple_vitals_panel",
+        "latency_ms": 38533,
+        "medications": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        },
+        "source_sha256": "d3eb80b46710aa3df4d09a4997311846047491c5967fea48e726870f92cdbf07",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mmHg",
+              "value": "118/78",
+              "vital_type": "BP"
+            },
+            {
+              "unit": "bpm",
+              "value": "68",
+              "vital_type": "HR"
+            },
+            {
+              "unit": "bpm",
+              "value": "16",
+              "vital_type": "RR"
+            },
+            {
+              "unit": "%",
+              "value": "98%",
+              "vital_type": "SpO2"
+            },
+            {
+              "unit": "F",
+              "value": "98.4",
+              "vital_type": "Temp"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 5,
+          "mismatches": [
+            {
+              "expected": 1,
+              "name": "blood_pressure",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "bp",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "heart_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "hr",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "oxygen_saturation",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "respiratory_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "rr",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "spo2",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "temp",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "temperature",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 5,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_08_hold_start_cardiac",
+        "latency_ms": 20941,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2,
+          "tp": 2
+        },
+        "source_sha256": "ca84f4fc5a6d816b8012c5f53dbe9832d5742b9d4e8ce9fc6f5f958e63413e60",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "Hold",
+              "dose": "25 mg",
+              "frequency": "BID",
+              "name": "Metoprolol Tartrate",
+              "route": "PO"
+            },
+            {
+              "action": "Start",
+              "dose": "5 mg",
+              "frequency": "daily",
+              "name": "Amlodipine",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mmHg",
+              "value": "100",
+              "vital_type": "systolic BP"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "systolic bp",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_09_duplicate_insulin",
+        "latency_ms": 56438,
+        "medications": {
+          "f1": 0.5,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "TID",
+                  "predicted": "with meals TID"
+                }
+              },
+              "name": "insulin lispro",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.5,
+          "recall": 0.5,
+          "support": 2,
+          "tp": 1
+        },
+        "source_sha256": "185ab9e85a674f6d5ee3c27376468bf4ba1dc61195d1145699c1fb0741e1de96",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "20 units",
+              "frequency": "at bedtime",
+              "name": "Insulin glargine",
+              "route": "SubQ"
+            },
+            {
+              "action": "",
+              "dose": "4 units",
+              "frequency": "with meals TID",
+              "name": "Insulin lispro",
+              "route": "SubQ"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "",
+              "value": "",
+              "vital_type": "blood glucose"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "blood glucose",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "clean_10_stat_antibiotic_iv",
+        "latency_ms": 46551,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2,
+          "tp": 2
+        },
+        "source_sha256": "7e8bec95a8fea3c9f102adffc0df5e660cbd1361a6de595bddfc9c7e747d21da",
+        "source_type": "printed_clean",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "for 7 days",
+              "dose": "1 g",
+              "frequency": "daily",
+              "name": "Ceftriaxone",
+              "route": "IV"
+            },
+            {
+              "action": "for 3 days",
+              "dose": "500 mg",
+              "frequency": "daily",
+              "name": "Azithromycin",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "%",
+              "value": "95%",
+              "vital_type": "SpO2"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 1,
+              "name": "oxygen_saturation",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "spo2",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_01_amoxicillin_aspirin",
+        "latency_ms": 20570,
+        "medications": {
+          "f1": 0.5,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "action": {
+                  "expected": "stop",
+                  "predicted": "Do not continue"
+                }
+              },
+              "name": "aspirin",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.5,
+          "recall": 0.5,
+          "support": 2,
+          "tp": 1
+        },
+        "source_sha256": "4fb4c42a5b8be139ddc0686824353c93e683c250272da0ec8ece44c1a4f9c7c5",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "for 10 days",
+              "dose": "500 mg",
+              "frequency": "TID",
+              "name": "Amoxicillin",
+              "route": "PO"
+            },
+            {
+              "action": "Do not continue",
+              "dose": "81 mg",
+              "frequency": "",
+              "name": "Aspirin",
+              "route": ""
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_02_decimal_digoxin",
+        "latency_ms": 13932,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 1,
+          "tp": 1
+        },
+        "source_sha256": "97acc3e5b89aad276cb27a9c8a0914f9989c56abd14acfd6b6bb9b1b3f42c0e0",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "0.125 mg",
+              "frequency": "daily",
+              "name": "Digoxin",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "bpm",
+              "value": "64",
+              "vital_type": "heart rate"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "heart rate",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "heart_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_03_duplicate_lorazepam",
+        "latency_ms": 34196,
+        "medications": {
+          "f1": 0.5,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "nightly",
+                  "predicted": "nightly at bedtime"
+                }
+              },
+              "name": "lorazepam",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.5,
+          "recall": 0.5,
+          "support": 2,
+          "tp": 1
+        },
+        "source_sha256": "7a4af0f8a85fc147dbe2e31bcb11656c0761f728fad09c808d641880f857e45b",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "0.5 mg",
+              "frequency": "nightly at bedtime",
+              "name": "Lorazepam",
+              "route": "PO"
+            },
+            {
+              "action": "severe anxiety",
+              "dose": "1 mg",
+              "frequency": "every 6 hours PRN",
+              "name": "Lorazepam",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_04_microgram_fentanyl",
+        "latency_ms": 17312,
+        "medications": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "route": {
+                  "expected": "transdermal",
+                  "predicted": "transdermal patch"
+                }
+              },
+              "name": "fentanyl",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        },
+        "source_sha256": "0489007cee7aa73d915daed31bb54710c25735c003e3cfaa893aad49afd16b46",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "25 mcg/hr",
+              "frequency": "every 72 hours",
+              "name": "Fentanyl",
+              "route": "transdermal patch"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "/10",
+              "value": "4",
+              "vital_type": "Pain score"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "pain score",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_05_decimal_clonazepam",
+        "latency_ms": 23380,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 1,
+          "tp": 1
+        },
+        "source_sha256": "bb8bf64cf427bb03fec2ef5cb52c54ef0d6514a2d93a626446841fa2c44e91e8",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "for panic attacks",
+              "dose": "0.25 mg",
+              "frequency": "BID",
+              "name": "Clonazepam",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_06_continue_hold_statin",
+        "latency_ms": 66361,
+        "medications": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 0,
+          "mismatches": [
+            {
+              "expected": 1,
+              "name": "atorvastatin",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "clopidogrel",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": 0.0,
+          "support": 2,
+          "tp": 0
+        },
+        "source_sha256": "226f7d79ea3ebd21f9838ae91bf89224186f75bc7c37d86a5e2b16f09c45c831",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_07_vitals_hypertensive_crisis",
+        "latency_ms": 25687,
+        "medications": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "route": {
+                  "expected": "IV",
+                  "predicted": "IV push"
+                }
+              },
+              "name": "labetalol",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        },
+        "source_sha256": "981d5e2f917013e93c5da4861a776ca2c36f56b5cb88c7bded0cdb89b1831a0c",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "Administer",
+              "dose": "20 mg",
+              "frequency": "STAT",
+              "name": "Labetalol",
+              "route": "IV push"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mmHg",
+              "value": "186/112",
+              "vital_type": "Blood pressure"
+            },
+            {
+              "unit": "bpm",
+              "value": "104",
+              "vital_type": "Pulse"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 2,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "blood pressure",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "blood_pressure",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "heart_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "pulse",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 2,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_08_discontinue_start_ace_arb",
+        "latency_ms": 20709,
+        "medications": {
+          "f1": 0.5,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "action": {
+                  "expected": "stop",
+                  "predicted": "discontinue"
+                }
+              },
+              "name": "enalapril",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.5,
+          "recall": 0.5,
+          "support": 2,
+          "tp": 1
+        },
+        "source_sha256": "d468f9938b59c0c1450151413895c489ece972b014b4091bfdbeb87963d110fa",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "discontinue",
+              "dose": "10 mg",
+              "frequency": "daily",
+              "name": "Enalapril",
+              "route": "PO"
+            },
+            {
+              "action": "start",
+              "dose": "50 mg",
+              "frequency": "daily",
+              "name": "Losartan",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_09_duplicate_diltiazem",
+        "latency_ms": 15744,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2,
+          "tp": 2
+        },
+        "source_sha256": "a151d096f58a4f4cb4f968b4f07eacc04bfb13a3f9a0328b8413536a5234fc7f",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "180 mg",
+              "frequency": "daily",
+              "name": "Diltiazem CD",
+              "route": "PO"
+            },
+            {
+              "action": "breakthrough palpitations",
+              "dose": "30 mg",
+              "frequency": "TID PRN",
+              "name": "Diltiazem",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mmHg",
+              "value": "130/84",
+              "vital_type": "blood pressure"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "blood pressure",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "blood_pressure",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "degraded_10_steroid_burst",
+        "latency_ms": 21446,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 1,
+          "tp": 1
+        },
+        "source_sha256": "9ebd0f44868fb416477397ae0f801723a6de722f123ab1720f2c6cab8a33b770",
+        "source_type": "printed_degraded",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "for 3 days",
+              "dose": "0.75 mg",
+              "frequency": "BID",
+              "name": "Dexamethasone",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "F",
+              "value": "99.1",
+              "vital_type": "Temperature"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 1,
+          "tp": 1
+        }
+      },
+      {
+        "case_id": "photo_01_discharge_summary",
+        "latency_ms": 18935,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2,
+          "tp": 2
+        },
+        "source_sha256": "48365ea5527105ffe472b9fd93bb20446dfb293b07059cd2fc8f43828e1fd975",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "40 mg",
+              "frequency": "daily",
+              "name": "Pantoprazole",
+              "route": "PO"
+            },
+            {
+              "action": "",
+              "dose": "50 mg",
+              "frequency": "daily",
+              "name": "Metoprolol Succinate",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mmHg",
+              "value": "122/78",
+              "vital_type": "blood pressure"
+            },
+            {
+              "unit": "bpm",
+              "value": "66",
+              "vital_type": "heart rate"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 2,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "blood pressure",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "blood_pressure",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "heart rate",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "heart_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 2,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_02_decimal_levothyroxine_dose",
+        "latency_ms": 17518,
+        "medications": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "levothyroxina",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "levothyroxine",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        },
+        "source_sha256": "72d85c1c247bb70d917431999ee0d06bb88636e49b8cc8eb58c510c3798b1e65",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "on empty stomach",
+              "dose": "0.05 mg",
+              "frequency": "daily",
+              "name": "Levothyroxina",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_03_duplicate_morphine",
+        "latency_ms": 17325,
+        "medications": {
+          "f1": 0.5,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "every 4 hours PRN",
+                  "predicted": "every 4 hours"
+                }
+              },
+              "name": "morphine",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.5,
+          "recall": 0.5,
+          "support": 2,
+          "tp": 1
+        },
+        "source_sha256": "0d7e86614f74f3cdf768bde1223b430c7b32288c39d4b87c3af54b59dec0c5ff",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "30 mg",
+              "frequency": "every 12 hours",
+              "name": "Morphine ER",
+              "route": "PO"
+            },
+            {
+              "action": "PRN breakthrough pain",
+              "dose": "15 mg",
+              "frequency": "every 4 hours",
+              "name": "Morphine",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "bpm",
+              "value": "14",
+              "vital_type": "respiratory rate"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "respiratory rate",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "respiratory_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_04_microgram_nitrostat",
+        "latency_ms": 15631,
+        "medications": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "every 5 minutes PRN",
+                  "predicted": "every 5 minutes"
+                }
+              },
+              "name": "nitroglycerin",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        },
+        "source_sha256": "17c109c37aa736fc3209a0c08a3a5595bbc50e26d8b8a2c8df2ace7f5339b444",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "PRN chest pain up to 3 doses",
+              "dose": "400 mcg",
+              "frequency": "every 5 minutes",
+              "name": "Nitroglycerin",
+              "route": "SL"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mmHg",
+              "value": "110/70",
+              "vital_type": "BP"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 1,
+              "name": "blood_pressure",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "bp",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_05_decimal_alprazolam",
+        "latency_ms": 16553,
+        "medications": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "TID PRN",
+                  "predicted": "TID"
+                }
+              },
+              "name": "alprazolam",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        },
+        "source_sha256": "9d250d94c9e41f77acdbbe2f3e1233dc88d64b0271d0a4345a5aa7de9a418f57",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "PRN anxiety",
+              "dose": "0.25 mg",
+              "frequency": "TID",
+              "name": "Alprazolam",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_06_continue_discontinue_anticoagulation",
+        "latency_ms": 17427,
+        "medications": {
+          "f1": 0.5,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "action": {
+                  "expected": "stop",
+                  "predicted": "Discontinue"
+                }
+              },
+              "name": "aspirin",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.5,
+          "recall": 0.5,
+          "support": 2,
+          "tp": 1
+        },
+        "source_sha256": "f4fef9c9bbcf85aa41f30a25505460d043756e4fc3d336078ef7e62195b7e89d",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "Continue",
+              "dose": "5 mg",
+              "frequency": "BID",
+              "name": "Apixaban",
+              "route": "PO"
+            },
+            {
+              "action": "Discontinue",
+              "dose": "325 mg",
+              "frequency": "daily",
+              "name": "Aspirin",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "g/dL",
+              "value": "13.8",
+              "vital_type": "Hemoglobin"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 0,
+              "name": "hemoglobin",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_07_complete_icu_vitals",
+        "latency_ms": 24351,
+        "medications": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "Q6H PRN",
+                  "predicted": "Q6H"
+                }
+              },
+              "name": "acetaminophen",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        },
+        "source_sha256": "baeb48b4e81f41e2cda560a8ba3b42688e1e6fec229bbb252ac038aa51c2012e",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "PRN fever",
+              "dose": "650 mg",
+              "frequency": "Q6H",
+              "name": "Acetaminophen",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "mmHg",
+              "value": "142/88",
+              "vital_type": "BP"
+            },
+            {
+              "unit": "bpm",
+              "value": "88",
+              "vital_type": "HR"
+            },
+            {
+              "unit": "bpm",
+              "value": "20",
+              "vital_type": "RR"
+            },
+            {
+              "unit": "%",
+              "value": "96%",
+              "vital_type": "SpO2"
+            },
+            {
+              "unit": "F",
+              "value": "100.8",
+              "vital_type": "Temp"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 5,
+          "mismatches": [
+            {
+              "expected": 1,
+              "name": "blood_pressure",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "bp",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "heart_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "hr",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "oxygen_saturation",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "respiratory_rate",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "rr",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "spo2",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "temp",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 1,
+              "name": "temperature",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 5,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_08_hold_start_nephrology",
+        "latency_ms": 21157,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2,
+          "tp": 2
+        },
+        "source_sha256": "bf9cc463288f7789fd7546eb2d72262981f105672c06f809e7259c1939aaf872",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "hold",
+              "dose": "25 mg",
+              "frequency": "daily",
+              "name": "Spironolactone",
+              "route": "PO"
+            },
+            {
+              "action": "start",
+              "dose": "15 g",
+              "frequency": "daily",
+              "name": "Sodium polystyrene sulfonate",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_09_duplicate_gabapentin",
+        "latency_ms": 65903,
+        "medications": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2,
+          "tp": 2
+        },
+        "source_sha256": "45bc4b3f227f7a5ac6b2d34f6ac205b213c1b530363b2412158aa4ee4ccf9a83",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "Avoid alcohol while taking this medication.",
+              "dose": "300 mg",
+              "frequency": "TID",
+              "name": "Gabapentin",
+              "route": "PO"
+            },
+            {
+              "action": "Avoid alcohol while taking this medication.",
+              "dose": "600 mg",
+              "frequency": "QHS",
+              "name": "Gabapentin",
+              "route": "PO"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": []
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": null,
+          "fn": 0,
+          "fp": 0,
+          "mismatches": [],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": null,
+          "recall": null,
+          "support": 0,
+          "tp": 0
+        }
+      },
+      {
+        "case_id": "photo_10_inhaler_combination",
+        "latency_ms": 23197,
+        "medications": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 2,
+          "mismatches": [
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "every 4 hours PRN",
+                  "predicted": "2 puffs every 4 hours"
+                }
+              },
+              "name": "albuterol",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            },
+            {
+              "attributes": {
+                "frequency": {
+                  "expected": "BID",
+                  "predicted": "1 puff BID"
+                }
+              },
+              "name": "fluticasone/salmeterol",
+              "occurrence_index": 0,
+              "type": "wrong_attributes"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 2,
+          "tp": 0
+        },
+        "source_sha256": "61a1132597a885f16c7ca871c39ca6f8301509594395207ee1d84d0ecda63fc9",
+        "source_type": "photographed",
+        "structured_candidates": {
+          "medications": [
+            {
+              "action": "",
+              "dose": "250/50 mcg",
+              "frequency": "1 puff BID",
+              "name": "Fluticasone/Salmeterol",
+              "route": "inhaled"
+            },
+            {
+              "action": "PRN wheezing",
+              "dose": "90 mcg",
+              "frequency": "2 puffs every 4 hours",
+              "name": "Albuterol",
+              "route": "inhaled"
+            }
+          ],
+          "visual_evidence": [],
+          "vitals": [
+            {
+              "unit": "%",
+              "value": "94",
+              "vital_type": "SpO2"
+            }
+          ]
+        },
+        "text_metrics": null,
+        "vitals": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 1,
+          "mismatches": [
+            {
+              "expected": 1,
+              "name": "oxygen_saturation",
+              "predicted": 0,
+              "type": "occurrence_count_mismatch"
+            },
+            {
+              "expected": 0,
+              "name": "spo2",
+              "predicted": 1,
+              "type": "occurrence_count_mismatch"
+            }
+          ],
+          "pairing_policy": "name_then_source_occurrence_order",
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 1,
+          "tp": 0
+        }
+      }
+    ],
+    "tesseract": [
+      {
+        "case_id": "clean_01_routine_hypertension",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "hydrochlorothiazide",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "lisinopril",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "route": {
+                    "expected": "PO",
+                    "predicted": ""
+                  },
+                  "frequency": {
+                    "expected": "daily",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 1112,
+        "source_sha256": "0ad119de71aa297617c136c3a1ee5694ad9515bf0b3d0565e54f20e4b173e5a6",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.03636363636363636,
+          "character_distance": 6,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "10 mg"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "128/82"
+            },
+            {
+              "recognized": true,
+              "token": "72 bpm"
+            }
+          ],
+          "ref_chars": 165,
+          "ref_words": 26,
+          "wer": 0.2692307692307692,
+          "word_distance": 7
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nPrescription: Lisinopril 10 mg POdaily.\nHydrochlorathiazide 25 mg PO daily.\n\nBlood pressure 128/82 mmHg. Heart rate 72 bpm.\n"
+      },
+      {
+        "case_id": "clean_02_decimal_warfarin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "warfarin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 176,
+        "source_sha256": "fb70dbb53691215ab8d5122ad4472c2a57656615752ddcf44238fa27e9002d58",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.05925925925925926,
+          "character_distance": 8,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "2.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": false,
+              "token": "Do not"
+            }
+          ],
+          "ref_chars": 135,
+          "ref_words": 25,
+          "wer": 0.4,
+          "word_distance": 10
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nHold Warfarin 2.5 mg POdaily.\n\nDo notdispense Warfarin 25 mg.\n\nINRcheck scheduled in 3 days.\n"
+      },
+      {
+        "case_id": "clean_03_duplicate_prednisone_taper",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "prednisone",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "dose": {
+                    "expected": "20 mg",
+                    "predicted": "10 mg"
+                  },
+                  "route": {
+                    "expected": "PO",
+                    "predicted": ""
+                  },
+                  "frequency": {
+                    "expected": "QAM",
+                    "predicted": ""
+                  }
+                }
+              },
+              {
+                "name": "prednisone",
+                "type": "occurrence_count_mismatch",
+                "expected": 2,
+                "predicted": 1
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 173,
+        "source_sha256": "b892ecc34eb8d47ef8ee255d7fadc92a732d6750a628efa7c3fde3ac708ff519",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.064,
+          "character_distance": 8,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "20 mg"
+            },
+            {
+              "recognized": true,
+              "token": "10 mg"
+            },
+            {
+              "recognized": false,
+              "token": "QAM"
+            },
+            {
+              "recognized": false,
+              "token": "QPM"
+            }
+          ],
+          "ref_chars": 125,
+          "ref_words": 24,
+          "wer": 0.3333333333333333,
+          "word_distance": 8
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nPrednisone 20 mg POGAM.\n\nPrednisone 10 mg POOPM with dinner.\nTaper by 5 mg weekly.\n"
+      },
+      {
+        "case_id": "clean_04_microgram_levothyroxine",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "levothyroxine",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 183,
+        "source_sha256": "f8fcd7823f237879785d6cda87ab37e5c02dee4a430ceb77f27e074d48bd5347",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.05732484076433121,
+          "character_distance": 9,
+          "critical_tokens": [
+            {
+              "recognized": false,
+              "token": "75 mcg"
+            },
+            {
+              "recognized": true,
+              "token": "75 mg"
+            },
+            {
+              "recognized": true,
+              "token": "before breakfast"
+            }
+          ],
+          "ref_chars": 157,
+          "ref_words": 28,
+          "wer": 0.35714285714285715,
+          "word_distance": 10
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nLevothyroxine 75 meg POevery morning before breakfast\nDo not confuse 75 meg with 75 mg.\n\nTSH follow-up in 6 weeks\n"
+      },
+      {
+        "case_id": "clean_05_decimal_haloperidol",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "haloperidol",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 192,
+        "source_sha256": "c5c3c563267751a9291b6313868ecfa09ff59c5fa11795130892902f918fc1bf",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.03614457831325301,
+          "character_distance": 6,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "BID PRN"
+            },
+            {
+              "recognized": true,
+              "token": "2 mg"
+            }
+          ],
+          "ref_chars": 166,
+          "ref_words": 30,
+          "wer": 0.3,
+          "word_distance": 9
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nAdminister Haloperidol 0.5 mg PO BID PRN agitation.\nMaximum daily dose 2 mg. Do notexceed 5 mg.\nMonitor OT intervalon ECG.\n"
+      },
+      {
+        "case_id": "clean_06_continue_discontinue_diabetes",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "glipizide",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "metformin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "blood_glucose",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 181,
+        "source_sha256": "7bf20d0199d181d71301c47e7da75f904da96cb452a15916f13c615ad81c6521",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.041379310344827586,
+          "character_distance": 6,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Continue"
+            },
+            {
+              "recognized": true,
+              "token": "Discontinue"
+            },
+            {
+              "recognized": true,
+              "token": "500 mg"
+            },
+            {
+              "recognized": true,
+              "token": "5 mg"
+            }
+          ],
+          "ref_chars": 145,
+          "ref_words": 24,
+          "wer": 0.25,
+          "word_distance": 6
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nContinue Metformin 500 mg PO BID.\n\nDiscontinue Glipizide 5 mg POdaily.\n\nFasting blood glucose 118 mg/dL.\n"
+      },
+      {
+        "case_id": "clean_07_multiple_vitals_panel",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 3,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.75,
+            "recall": 0.6,
+            "f1": 0.6666666666666665,
+            "support": 5,
+            "mismatches": [
+              {
+                "name": "oxygen_saturation",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "respiratory_rate",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "unit": {
+                    "expected": "bpm",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 186,
+        "source_sha256": "d3eb80b46710aa3df4d09a4997311846047491c5967fea48e726870f92cdbf07",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.043478260869565216,
+          "character_distance": 7,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "118/76"
+            },
+            {
+              "recognized": true,
+              "token": "68 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "16 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "98%"
+            },
+            {
+              "recognized": true,
+              "token": "98.4 F"
+            }
+          ],
+          "ref_chars": 161,
+          "ref_words": 30,
+          "wer": 0.26666666666666666,
+          "word_distance": 8
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nVitals BP 118/76 mmHg, HR68 bpm, RR 16 bpm.\n5pO2 98% on room air, Temp 98.4 F.\n\nPatient resting comfortably in triage.\n"
+      },
+      {
+        "case_id": "clean_08_hold_start_cardiac",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "amlodipine",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "start",
+                    "predicted": ""
+                  }
+                }
+              },
+              {
+                "name": "metoprolol tartrate",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 288,
+        "source_sha256": "ca84f4fc5a6d816b8012c5f53dbe9832d5742b9d4e8ce9fc6f5f958e63413e60",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.0223463687150838,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": true,
+              "token": "Start"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "5 mg"
+            }
+          ],
+          "ref_chars": 179,
+          "ref_words": 31,
+          "wer": 0.12903225806451613,
+          "word_distance": 4
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nHold Metoprolol Tartrate 25 mg PO BID today.\n\nStart Amlodipine 5 mg PO daily tomorrow morning.\nCall clinic if systolic BP drops below 100.\n"
+      },
+      {
+        "case_id": "clean_09_duplicate_insulin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "insulin glargine",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "insulin lispro",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 188,
+        "source_sha256": "185ab9e85a674f6d5ee3c27376468bf4ba1dc61195d1145699c1fb0741e1de96",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.04790419161676647,
+          "character_distance": 8,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "20 units"
+            },
+            {
+              "recognized": true,
+              "token": "4 units"
+            },
+            {
+              "recognized": true,
+              "token": "SubQ"
+            },
+            {
+              "recognized": true,
+              "token": "TID"
+            }
+          ],
+          "ref_chars": 167,
+          "ref_words": 28,
+          "wer": 0.2857142857142857,
+          "word_distance": 8
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nInsulin glargine 20 units SubQ at bedtime.\n\nInsulin lispro4 units SubQ with meals TID,\n\nCheck fingerstick BG before each meal\n"
+      },
+      {
+        "case_id": "clean_10_stat_antibiotic_iv",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "azithromycin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "ceftriaxone",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "oxygen_saturation",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 184,
+        "source_sha256": "7e8bec95a8fea3c9f102adffc0df5e660cbd1361a6de595bddfc9c7e747d21da",
+        "source_type": "printed_clean",
+        "text_metrics": {
+          "cer": 0.06711409395973154,
+          "character_distance": 10,
+          "critical_tokens": [
+            {
+              "recognized": false,
+              "token": "1 g"
+            },
+            {
+              "recognized": true,
+              "token": "IV"
+            },
+            {
+              "recognized": true,
+              "token": "500 mg"
+            },
+            {
+              "recognized": true,
+              "token": "95%"
+            }
+          ],
+          "ref_chars": 149,
+          "ref_words": 29,
+          "wer": 0.3793103448275862,
+          "word_distance": 11
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORGCLINIGAL USE\nCeftriaxone 1g IV daily for? days.\n\nAzithromycin 500 mg PO daily for 3 days.\n\n5pO2 95% on 2L nasalcannula.\n"
+      },
+      {
+        "case_id": "degraded_01_amoxicillin_aspirin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "amoxicillin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "aspirin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 211,
+        "source_sha256": "4fb4c42a5b8be139ddc0686824353c93e683c250272da0ec8ece44c1a4f9c7c5",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.05263157894736842,
+          "character_distance": 7,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "500 mg"
+            },
+            {
+              "recognized": true,
+              "token": "10 days"
+            },
+            {
+              "recognized": true,
+              "token": "Do not"
+            },
+            {
+              "recognized": true,
+              "token": "81 mg"
+            }
+          ],
+          "ref_chars": 133,
+          "ref_words": 26,
+          "wer": 0.3076923076923077,
+          "word_distance": 8
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nAmoxicillin 500 mg PO TID for 10 days,\n\nDo not continue Aspirin 81 mg.\n\nFollow upin 2 weeks\n"
+      },
+      {
+        "case_id": "degraded_02_decimal_digoxin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "digoxin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 187,
+        "source_sha256": "97acc3e5b89aad276cb27a9c8a0914f9989c56abd14acfd6b6bb9b1b3f42c0e0",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.03305785123966942,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.125 mg"
+            },
+            {
+              "recognized": true,
+              "token": "0.25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "64 bpm"
+            }
+          ],
+          "ref_chars": 121,
+          "ref_words": 22,
+          "wer": 0.18181818181818182,
+          "word_distance": 4
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nDigoxin 0.125 mg PO daily.\n\nCaution: do not dispense 0.25 mg.\n\nHeart rate 64 bpm.\n"
+      },
+      {
+        "case_id": "degraded_03_duplicate_lorazepam",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "lorazepam",
+                "type": "occurrence_count_mismatch",
+                "expected": 2,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 204,
+        "source_sha256": "7a4af0f8a85fc147dbe2e31bcb11656c0761f728fad09c808d641880f857e45b",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.043209876543209874,
+          "character_distance": 7,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "1 mg"
+            },
+            {
+              "recognized": true,
+              "token": "nightly"
+            },
+            {
+              "recognized": true,
+              "token": "PRN"
+            },
+            {
+              "recognized": true,
+              "token": "Hold"
+            }
+          ],
+          "ref_chars": 162,
+          "ref_words": 28,
+          "wer": 0.32142857142857145,
+          "word_distance": 9
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nLorazepam 0.5 mg PO nightly at bedtime.\n\nLorazepam 1 mg POeveryé hours PRN severe anxiety.\nHold ifexcessively sedated.\n"
+      },
+      {
+        "case_id": "degraded_04_microgram_fentanyl",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "fentanyl",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 187,
+        "source_sha256": "0489007cee7aa73d915daed31bb54710c25735c003e3cfaa893aad49afd16b46",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.04580152671755725,
+          "character_distance": 6,
+          "critical_tokens": [
+            {
+              "recognized": false,
+              "token": "25 mcg/hr"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "every 72 hours"
+            }
+          ],
+          "ref_chars": 131,
+          "ref_words": 23,
+          "wer": 0.34782608695652173,
+          "word_distance": 8
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nFentanyl 25 meg/hr transdermal patch every 72 hours\nDo notorder 25 mg.\n\nPain score 4/10.\n"
+      },
+      {
+        "case_id": "degraded_05_decimal_clonazepam",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "clonazepam",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 208,
+        "source_sha256": "bb8bf64cf427bb03fec2ef5cb52c54ef0d6514a2d93a626446841fa2c44e91e8",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.022988505747126436,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "2.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "BID"
+            }
+          ],
+          "ref_chars": 174,
+          "ref_words": 28,
+          "wer": 0.25,
+          "word_distance": 7
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nClonazepam 0.25 mg PO BID for panicattacks.\nConfirm dose is not 2.5 mg before dispensing.\nPatient counseled on driving precautions\n"
+      },
+      {
+        "case_id": "degraded_06_continue_hold_statin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "atorvastatin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "clopidogrel",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "route": {
+                    "expected": "PO",
+                    "predicted": ""
+                  },
+                  "frequency": {
+                    "expected": "daily",
+                    "predicted": ""
+                  },
+                  "action": {
+                    "expected": "hold",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 200,
+        "source_sha256": "226f7d79ea3ebd21f9838ae91bf89224186f75bc7c37d86a5e2b16f09c45c831",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.049689440993788817,
+          "character_distance": 8,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Continue"
+            },
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": true,
+              "token": "40 mg"
+            },
+            {
+              "recognized": true,
+              "token": "75 mg"
+            }
+          ],
+          "ref_chars": 161,
+          "ref_words": 28,
+          "wer": 0.5,
+          "word_distance": 14
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nContinue Atorvastatin 40 mg POOQHS.\n\nHold Clopidogrel 75 mg POdaily for5 days prior tosurgery.\nPlatelet countstable.\n"
+      },
+      {
+        "case_id": "degraded_07_vitals_hypertensive_crisis",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "labetalol",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 227,
+        "source_sha256": "981d5e2f917013e93c5da4861a776ca2c36f56b5cb88c7bded0cdb89b1831a0c",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.023952095808383235,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "186/112"
+            },
+            {
+              "recognized": true,
+              "token": "104 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "20 mg"
+            },
+            {
+              "recognized": false,
+              "token": "IV"
+            }
+          ],
+          "ref_chars": 167,
+          "ref_words": 27,
+          "wer": 0.2222222222222222,
+          "word_distance": 6
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nBlood pressure 186/112 mmHg. Pulse 104 bpm.\nAdminister Labetalol 20 mg WV push STAT.\nRecheck blood pressure every 15 minutes\n"
+      },
+      {
+        "case_id": "degraded_08_discontinue_start_ace_arb",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "enalapril",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "losartan",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "action": {
+                    "expected": "start",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 195,
+        "source_sha256": "d468f9938b59c0c1450151413895c489ece972b014b4091bfdbeb87963d110fa",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.0440251572327044,
+          "character_distance": 7,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Discontinue"
+            },
+            {
+              "recognized": true,
+              "token": "Start"
+            },
+            {
+              "recognized": true,
+              "token": "10 mg"
+            },
+            {
+              "recognized": true,
+              "token": "50 mg"
+            }
+          ],
+          "ref_chars": 159,
+          "ref_words": 28,
+          "wer": 0.39285714285714285,
+          "word_distance": 11
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nDiscontinue Enalapril 10 mg POdaily due tocough.\nStart Losartan 50 mg PO daily.\n\nRepeatserum creatinine in 2 weeks,\n"
+      },
+      {
+        "case_id": "degraded_09_duplicate_diltiazem",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "diltiazem",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "diltiazem cd",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 1,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "blood_pressure",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "value": {
+                    "expected": "130/84",
+                    "predicted": "130/34"
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 208,
+        "source_sha256": "a151d096f58a4f4cb4f968b4f07eacc04bfb13a3f9a0328b8413536a5234fc7f",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.0392156862745098,
+          "character_distance": 6,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "180 mg"
+            },
+            {
+              "recognized": true,
+              "token": "30 mg"
+            },
+            {
+              "recognized": false,
+              "token": "daily"
+            },
+            {
+              "recognized": true,
+              "token": "TID PRN"
+            }
+          ],
+          "ref_chars": 153,
+          "ref_words": 25,
+          "wer": 0.32,
+          "word_distance": 8
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nDiltiazem CD 180 mg POdaily.\n\nDiltiazem 30 mg PO TID PRN breakthrough palpitations\nBlood pressure 130/34 mmHg.\n"
+      },
+      {
+        "case_id": "degraded_10_steroid_burst",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "dexamethasone",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 181,
+        "source_sha256": "9ebd0f44868fb416477397ae0f801723a6de722f123ab1720f2c6cab8a33b770",
+        "source_type": "printed_degraded",
+        "text_metrics": {
+          "cer": 0.031496062992125984,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.75 mg"
+            },
+            {
+              "recognized": true,
+              "token": "7.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "99.1 F"
+            }
+          ],
+          "ref_chars": 127,
+          "ref_words": 23,
+          "wer": 0.21739130434782608,
+          "word_distance": 5
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nDexamethasone 0.75 mg PO BID for 3 days\n\nDo not prescribe 7.5 mg.\n\nTemperature 99.1 F.\n"
+      },
+      {
+        "case_id": "photo_01_discharge_summary",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "metoprolol succinate",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "pantoprazole",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 232,
+        "source_sha256": "48365ea5527105ffe472b9fd93bb20446dfb293b07059cd2fc8f43828e1fd975",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.041176470588235294,
+          "character_distance": 7,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "40 mg"
+            },
+            {
+              "recognized": true,
+              "token": "50 mg"
+            },
+            {
+              "recognized": true,
+              "token": "122/78"
+            },
+            {
+              "recognized": true,
+              "token": "66 bpm"
+            }
+          ],
+          "ref_chars": 170,
+          "ref_words": 28,
+          "wer": 0.32142857142857145,
+          "word_distance": 9
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINIGAL USE\nDischarge Meds Pantoprazole 40 mg POdaily.\nMetoprolol Succinate 50 mg POdaily.\n\nBlood pressure 122/78 mmHg. Heart rate 66 bpm.\n"
+      },
+      {
+        "case_id": "photo_02_decimal_levothyroxine_dose",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "levothyroxine",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 226,
+        "source_sha256": "72d85c1c247bb70d917431999ee0d06bb88636e49b8cc8eb58c510c3798b1e65",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.042682926829268296,
+          "character_distance": 7,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.05 mg"
+            },
+            {
+              "recognized": true,
+              "token": "0.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "empty stomach"
+            }
+          ],
+          "ref_chars": 164,
+          "ref_words": 29,
+          "wer": 0.20689655172413793,
+          "word_distance": 6
+        },
+        "transcription": "SYNTHETIC DOCUMENT-NOTFORCLINIGAL USE\nLevothyroxine 0.05 mg PO daily on empty stomach.\nVerify label says 0.05 mg, never 0.5 mg.\n\nRepeat thyroid panel in 8 weeks\n"
+      },
+      {
+        "case_id": "photo_03_duplicate_morphine",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "morphine",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "morphine er",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 1,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "respiratory_rate",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "unit": {
+                    "expected": "bpm",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 228,
+        "source_sha256": "0d7e86614f74f3cdf768bde1223b430c7b32288c39d4b87c3af54b59dec0c5ff",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.03164556962025317,
+          "character_distance": 5,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "30 mg"
+            },
+            {
+              "recognized": true,
+              "token": "15 mg"
+            },
+            {
+              "recognized": false,
+              "token": "every 12 hours"
+            },
+            {
+              "recognized": true,
+              "token": "PRN"
+            },
+            {
+              "recognized": true,
+              "token": "14 bpm"
+            }
+          ],
+          "ref_chars": 158,
+          "ref_words": 29,
+          "wer": 0.3103448275862069,
+          "word_distance": 9
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nMorphine ER30 mg POevery 12 hours\n\nMorphine 15 mg PO every 4 hours PRN breakthrough pain.\nRespiratory rate 14 bpm.\n"
+      },
+      {
+        "case_id": "photo_04_microgram_nitrostat",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "nitroglycerin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 251,
+        "source_sha256": "17c109c37aa736fc3209a0c08a3a5595bbc50e26d8b8a2c8df2ace7f5339b444",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.07103825136612021,
+          "character_distance": 13,
+          "critical_tokens": [
+            {
+              "recognized": false,
+              "token": "400 mcg"
+            },
+            {
+              "recognized": false,
+              "token": "SL"
+            },
+            {
+              "recognized": false,
+              "token": "up to 3 doses"
+            },
+            {
+              "recognized": true,
+              "token": "110/70"
+            }
+          ],
+          "ref_chars": 183,
+          "ref_words": 32,
+          "wer": 0.40625,
+          "word_distance": 13
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINIGAL USE\n\nNitroglycerin 400 meg SLevery5 minutes PRN chest pain upto doses.\nDo not use with PDES inhibitors,\n\nBP 110/70 mmHg before administration.\n"
+      },
+      {
+        "case_id": "photo_05_decimal_alprazolam",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "alprazolam",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 220,
+        "source_sha256": "9d250d94c9e41f77acdbbe2f3e1233dc88d64b0271d0a4345a5aa7de9a418f57",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.07092198581560284,
+          "character_distance": 10,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "0.25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "2.5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "TID PRN"
+            }
+          ],
+          "ref_chars": 141,
+          "ref_words": 27,
+          "wer": 0.37037037037037035,
+          "word_distance": 10
+        },
+        "transcription": "SYNTHETIC DOCUMENT-NOTFORCLINIGAL USE\nAlprazolam 0.25 mg PO TID PRN anxiety,\n\nWarning: high risk iftaken at 2.5 mg.\n\nFollow upin 1 month.\n"
+      },
+      {
+        "case_id": "photo_06_continue_discontinue_anticoagulation",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "apixaban",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "aspirin",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 233,
+        "source_sha256": "f4fef9c9bbcf85aa41f30a25505460d043756e4fc3d336078ef7e62195b7e89d",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.030534351145038167,
+          "character_distance": 4,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Continue"
+            },
+            {
+              "recognized": true,
+              "token": "Discontinue"
+            },
+            {
+              "recognized": true,
+              "token": "5 mg"
+            },
+            {
+              "recognized": true,
+              "token": "325 mg"
+            }
+          ],
+          "ref_chars": 131,
+          "ref_words": 22,
+          "wer": 0.18181818181818182,
+          "word_distance": 4
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nContinue Apixaban 5 mg PO BID.\n\nDiscontinue Aspirin 325 Mg PO daily.\nHemoglobin 13.8 g/dL.\n"
+      },
+      {
+        "case_id": "photo_07_complete_icu_vitals",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1,
+            "mismatches": [
+              {
+                "name": "acetaminophen",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 3,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.75,
+            "recall": 0.6,
+            "f1": 0.6666666666666665,
+            "support": 5,
+            "mismatches": [
+              {
+                "name": "oxygen_saturation",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "respiratory_rate",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "unit": {
+                    "expected": "bpm",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 230,
+        "source_sha256": "baeb48b4e81f41e2cda560a8ba3b42688e1e6fec229bbb252ac038aa51c2012e",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.08280254777070063,
+          "character_distance": 13,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "142/88"
+            },
+            {
+              "recognized": true,
+              "token": "88 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "20 bpm"
+            },
+            {
+              "recognized": true,
+              "token": "96%"
+            },
+            {
+              "recognized": true,
+              "token": "100.8 F"
+            },
+            {
+              "recognized": false,
+              "token": "650 mg"
+            }
+          ],
+          "ref_chars": 157,
+          "ref_words": 30,
+          "wer": 0.4,
+          "word_distance": 12
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nICU Flowsheet BP 142/88 mmHg, HR88 bpm.\n\nRR 20 bpm, 8p? 96% Temp 100.8 F.\nAcetaminophen 850 mg POOSH PRN fever.\n"
+      },
+      {
+        "case_id": "photo_08_hold_start_nephrology",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "sodium polystyrene sulfonate",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "spironolactone",
+                "occurrence_index": 0,
+                "type": "wrong_attributes",
+                "attributes": {
+                  "route": {
+                    "expected": "PO",
+                    "predicted": ""
+                  },
+                  "frequency": {
+                    "expected": "daily",
+                    "predicted": ""
+                  },
+                  "action": {
+                    "expected": "hold",
+                    "predicted": ""
+                  }
+                }
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 235,
+        "source_sha256": "bf9cc463288f7789fd7546eb2d72262981f105672c06f809e7259c1939aaf872",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.04,
+          "character_distance": 7,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "Hold"
+            },
+            {
+              "recognized": true,
+              "token": "Start"
+            },
+            {
+              "recognized": true,
+              "token": "25 mg"
+            },
+            {
+              "recognized": true,
+              "token": "15 g"
+            }
+          ],
+          "ref_chars": 175,
+          "ref_words": 27,
+          "wer": 0.37037037037037035,
+          "word_distance": 10
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\n\nHold Spironolactone 25 mg POdaily due to hyperkalemia,\nStart Sodium polystyrene sulfonate 15 g POdaily.\nRecheck potassium tomorrow,\n"
+      },
+      {
+        "case_id": "photo_09_duplicate_gabapentin",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "gabapentin",
+                "type": "occurrence_count_mismatch",
+                "expected": 2,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "support": 0,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 231,
+        "source_sha256": "45bc4b3f227f7a5ac6b2d34f6ac205b213c1b530363b2412158aa4ee4ccf9a83",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.058394160583941604,
+          "character_distance": 8,
+          "critical_tokens": [
+            {
+              "recognized": true,
+              "token": "300 mg"
+            },
+            {
+              "recognized": true,
+              "token": "TID"
+            },
+            {
+              "recognized": false,
+              "token": "600 mg"
+            },
+            {
+              "recognized": false,
+              "token": "QHS"
+            }
+          ],
+          "ref_chars": 137,
+          "ref_words": 23,
+          "wer": 0.30434782608695654,
+          "word_distance": 7
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINIGAL USE\nGabapentin 300 mg PO TID.\n\nGabapentin 00 mg POOHS.\n\nAvoid alcohol while taking this medication.\n"
+      },
+      {
+        "case_id": "photo_10_inhaler_combination",
+        "deterministic_pipeline": {
+          "medications": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2,
+            "mismatches": [
+              {
+                "name": "albuterol",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              },
+              {
+                "name": "fluticasone/salmeterol",
+                "type": "occurrence_count_mismatch",
+                "expected": 1,
+                "predicted": 0
+              }
+            ],
+            "pairing_policy": "name_then_source_occurrence_order"
+          },
+          "vitals": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "mismatches": [],
+            "pairing_policy": "name_then_source_occurrence_order"
+          }
+        },
+        "latency_ms": 235,
+        "source_sha256": "61a1132597a885f16c7ca871c39ca6f8301509594395207ee1d84d0ecda63fc9",
+        "source_type": "photographed",
+        "text_metrics": {
+          "cer": 0.056179775280898875,
+          "character_distance": 10,
+          "critical_tokens": [
+            {
+              "recognized": false,
+              "token": "250/50 mcg"
+            },
+            {
+              "recognized": false,
+              "token": "1 puff"
+            },
+            {
+              "recognized": false,
+              "token": "90 mcg"
+            },
+            {
+              "recognized": false,
+              "token": "2 puffs"
+            },
+            {
+              "recognized": true,
+              "token": "94%"
+            }
+          ],
+          "ref_chars": 178,
+          "ref_words": 30,
+          "wer": 0.4,
+          "word_distance": 12
+        },
+        "transcription": "SYNTHETIC DOCUMENT- NOT FORCLINICAL USE\nFluticasone/Salmeterol 260/50 meg inhaled 1 pult BID.\nAlbuterol 90 meg inhaled 2 puffsevery 4 hours PRN wheezing.\nSpO2 94% 0n room alr.\n"
+      }
+    ]
+  },
+  "dataset": {
+    "annotation_status": "synthetic_generator_ground_truth",
+    "case_count": 30,
+    "dataset_id": "synthetic_printed_visual_ocr_development_v2_expanded",
+    "manifest_sha256": "219f4425cb9a2d786c389fc1cb82427ff4a6dce15429fe12c58b96bd4f9a8e1b"
+  },
+  "generated_at_utc": "2026-10-29T20:20:41.082601+00:00",
+  "git_sha": "35d13671483ad9be677d75e6445aa260779ab406",
+  "limitations": [
+    "Development synthetic printed images are generator-derived, not a held-out dataset",
+    "Qwen3-VL structured entity F1 is not character/word OCR accuracy",
+    "No handwritten clinical accuracy unless independently transcribed real handwriting cases were run",
+    "Local model runtime memory is not estimated from the Python runner's RSS",
+    "Critical token presence is not negation or medication-status comprehension"
+  ],
+  "memory_usage": {
+    "ollama_rss_bytes": 17252352,
+    "runner_peak_rss_bytes": 235503616
+  },
+  "model_digests": {
+    "glm_ocr": "6e5935a916fc8d6878a67c60c2b99648f54e10b4a4af4cbbfb2c308953000e5f",
+    "qwen3_vl": "a1b29c246319cdcb1f3842f36d29f198f737c0cf516ba1bcba34b1b974e87980",
+    "tesseract": "5.5.2"
+  },
+  "not_clinical_validation": true,
+  "paired_tesseract_glm": [
+    {
+      "case_id": "clean_01_routine_hypertension",
+      "glm_ocr_cer": 0.0,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.03636363636363636,
+      "tesseract_wer": 0.2692307692307692
+    },
+    {
+      "case_id": "clean_02_decimal_warfarin",
+      "glm_ocr_cer": 0.014814814814814815,
+      "glm_ocr_wer": 0.08,
+      "tesseract_cer": 0.05925925925925926,
+      "tesseract_wer": 0.4
+    },
+    {
+      "case_id": "clean_03_duplicate_prednisone_taper",
+      "glm_ocr_cer": 0.024,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.064,
+      "tesseract_wer": 0.3333333333333333
+    },
+    {
+      "case_id": "clean_04_microgram_levothyroxine",
+      "glm_ocr_cer": 0.006369426751592357,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.05732484076433121,
+      "tesseract_wer": 0.35714285714285715
+    },
+    {
+      "case_id": "clean_05_decimal_haloperidol",
+      "glm_ocr_cer": 0.018072289156626505,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.03614457831325301,
+      "tesseract_wer": 0.3
+    },
+    {
+      "case_id": "clean_06_continue_discontinue_diabetes",
+      "glm_ocr_cer": 0.020689655172413793,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.041379310344827586,
+      "tesseract_wer": 0.25
+    },
+    {
+      "case_id": "clean_07_multiple_vitals_panel",
+      "glm_ocr_cer": 0.018633540372670808,
+      "glm_ocr_wer": 0.13333333333333333,
+      "tesseract_cer": 0.043478260869565216,
+      "tesseract_wer": 0.26666666666666666
+    },
+    {
+      "case_id": "clean_08_hold_start_cardiac",
+      "glm_ocr_cer": 0.01675977653631285,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.0223463687150838,
+      "tesseract_wer": 0.12903225806451613
+    },
+    {
+      "case_id": "clean_09_duplicate_insulin",
+      "glm_ocr_cer": 0.0,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.04790419161676647,
+      "tesseract_wer": 0.2857142857142857
+    },
+    {
+      "case_id": "clean_10_stat_antibiotic_iv",
+      "glm_ocr_cer": 0.006711409395973154,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.06711409395973154,
+      "tesseract_wer": 0.3793103448275862
+    },
+    {
+      "case_id": "degraded_01_amoxicillin_aspirin",
+      "glm_ocr_cer": 0.015037593984962405,
+      "glm_ocr_wer": 0.11538461538461539,
+      "tesseract_cer": 0.05263157894736842,
+      "tesseract_wer": 0.3076923076923077
+    },
+    {
+      "case_id": "degraded_02_decimal_digoxin",
+      "glm_ocr_cer": 0.0,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.03305785123966942,
+      "tesseract_wer": 0.18181818181818182
+    },
+    {
+      "case_id": "degraded_03_duplicate_lorazepam",
+      "glm_ocr_cer": 0.030864197530864196,
+      "glm_ocr_wer": 0.14285714285714285,
+      "tesseract_cer": 0.043209876543209874,
+      "tesseract_wer": 0.32142857142857145
+    },
+    {
+      "case_id": "degraded_04_microgram_fentanyl",
+      "glm_ocr_cer": 0.0,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.04580152671755725,
+      "tesseract_wer": 0.34782608695652173
+    },
+    {
+      "case_id": "degraded_05_decimal_clonazepam",
+      "glm_ocr_cer": 0.017241379310344827,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.022988505747126436,
+      "tesseract_wer": 0.25
+    },
+    {
+      "case_id": "degraded_06_continue_hold_statin",
+      "glm_ocr_cer": 0.024844720496894408,
+      "glm_ocr_wer": 0.07142857142857142,
+      "tesseract_cer": 0.049689440993788817,
+      "tesseract_wer": 0.5
+    },
+    {
+      "case_id": "degraded_07_vitals_hypertensive_crisis",
+      "glm_ocr_cer": 0.017964071856287425,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.023952095808383235,
+      "tesseract_wer": 0.2222222222222222
+    },
+    {
+      "case_id": "degraded_08_discontinue_start_ace_arb",
+      "glm_ocr_cer": 0.025157232704402517,
+      "glm_ocr_wer": 0.07142857142857142,
+      "tesseract_cer": 0.0440251572327044,
+      "tesseract_wer": 0.39285714285714285
+    },
+    {
+      "case_id": "degraded_09_duplicate_diltiazem",
+      "glm_ocr_cer": 0.0,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.0392156862745098,
+      "tesseract_wer": 0.32
+    },
+    {
+      "case_id": "degraded_10_steroid_burst",
+      "glm_ocr_cer": 0.015748031496062992,
+      "glm_ocr_wer": 0.17391304347826086,
+      "tesseract_cer": 0.031496062992125984,
+      "tesseract_wer": 0.21739130434782608
+    },
+    {
+      "case_id": "photo_01_discharge_summary",
+      "glm_ocr_cer": 0.023529411764705882,
+      "glm_ocr_wer": 0.03571428571428571,
+      "tesseract_cer": 0.041176470588235294,
+      "tesseract_wer": 0.32142857142857145
+    },
+    {
+      "case_id": "photo_02_decimal_levothyroxine_dose",
+      "glm_ocr_cer": 0.0,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.042682926829268296,
+      "tesseract_wer": 0.20689655172413793
+    },
+    {
+      "case_id": "photo_03_duplicate_morphine",
+      "glm_ocr_cer": 0.006329113924050633,
+      "glm_ocr_wer": 0.06896551724137931,
+      "tesseract_cer": 0.03164556962025317,
+      "tesseract_wer": 0.3103448275862069
+    },
+    {
+      "case_id": "photo_04_microgram_nitrostat",
+      "glm_ocr_cer": 0.00546448087431694,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.07103825136612021,
+      "tesseract_wer": 0.40625
+    },
+    {
+      "case_id": "photo_05_decimal_alprazolam",
+      "glm_ocr_cer": 0.0070921985815602835,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.07092198581560284,
+      "tesseract_wer": 0.37037037037037035
+    },
+    {
+      "case_id": "photo_06_continue_discontinue_anticoagulation",
+      "glm_ocr_cer": 0.03816793893129771,
+      "glm_ocr_wer": 0.13636363636363635,
+      "tesseract_cer": 0.030534351145038167,
+      "tesseract_wer": 0.18181818181818182
+    },
+    {
+      "case_id": "photo_07_complete_icu_vitals",
+      "glm_ocr_cer": 0.025477707006369428,
+      "glm_ocr_wer": 0.16666666666666666,
+      "tesseract_cer": 0.08280254777070063,
+      "tesseract_wer": 0.4
+    },
+    {
+      "case_id": "photo_08_hold_start_nephrology",
+      "glm_ocr_cer": 0.022857142857142857,
+      "glm_ocr_wer": 0.07407407407407407,
+      "tesseract_cer": 0.04,
+      "tesseract_wer": 0.37037037037037035
+    },
+    {
+      "case_id": "photo_09_duplicate_gabapentin",
+      "glm_ocr_cer": 0.021897810218978103,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.058394160583941604,
+      "tesseract_wer": 0.30434782608695654
+    },
+    {
+      "case_id": "photo_10_inhaler_combination",
+      "glm_ocr_cer": 0.0056179775280898875,
+      "glm_ocr_wer": 0.0,
+      "tesseract_cer": 0.056179775280898875,
+      "tesseract_wer": 0.4
+    }
+  ],
+  "status": "completed_local_actual_predictions",
+  "summary": {
+    "glm_ocr": {
+      "cases": 30,
+      "cer_micro": 0.014251781472684086,
+      "character_distance": 66,
+      "critical_token_hits": 119,
+      "critical_token_recall": 1.0,
+      "critical_token_total": 119,
+      "deterministic_pipeline": {
+        "medications": {
+          "tp": 6,
+          "fp": 11,
+          "fn": 40,
+          "precision": 0.35294117647058826,
+          "recall": 0.13043478260869565,
+          "f1": 0.1904761904761905,
+          "support": 46
+        },
+        "vitals": {
+          "tp": 20,
+          "fp": 3,
+          "fn": 4,
+          "precision": 0.8695652173913043,
+          "recall": 0.8333333333333334,
+          "f1": 0.851063829787234,
+          "support": 24
+        }
+      },
+      "latency_p50_ms": 8907,
+      "latency_p95_ms": 25023,
+      "reference_characters": 4631,
+      "reference_words": 810,
+      "total_latency_ms": 311517,
+      "wer_micro": 0.04197530864197531,
+      "word_distance": 34
+    },
+    "qwen3_vl": {
+      "cases": 30,
+      "latency_p50_ms": 21157,
+      "latency_p95_ms": 66361,
+      "medications": {
+        "f1": 0.6067415730337078,
+        "fn": 19,
+        "fp": 16,
+        "precision": 0.627906976744186,
+        "recall": 0.5869565217391305,
+        "support": 46,
+        "tp": 27
+      },
+      "total_latency_ms": 831675,
+      "vitals": {
+        "f1": 0.03773584905660377,
+        "fn": 23,
+        "fp": 28,
+        "precision": 0.034482758620689655,
+        "recall": 0.041666666666666664,
+        "support": 24,
+        "tp": 1
+      }
+    },
+    "tesseract": {
+      "cases": 30,
+      "cer_micro": 0.04599438566184409,
+      "character_distance": 213,
+      "critical_token_hits": 100,
+      "critical_token_recall": 0.8403361344537815,
+      "critical_token_total": 119,
+      "deterministic_pipeline": {
+        "medications": {
+          "tp": 0,
+          "fp": 6,
+          "fn": 46,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 46
+        },
+        "vitals": {
+          "tp": 16,
+          "fp": 4,
+          "fn": 8,
+          "precision": 0.8,
+          "recall": 0.6666666666666666,
+          "f1": 0.7272727272727272,
+          "support": 24
+        }
+      },
+      "latency_p50_ms": 208,
+      "latency_p95_ms": 288,
+      "reference_characters": 4631,
+      "reference_words": 810,
+      "total_latency_ms": 7192,
+      "wer_micro": 0.31234567901234567,
+      "word_distance": 253
+    }
+  },
+  "synthetic_only": true
+}

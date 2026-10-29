@@ -1,0 +1,914 @@
+{
+  "dataset_id": "synthetic_printed_visual_ocr_development_v2_expanded",
+  "synthetic_only": true,
+  "annotation_status": "synthetic_generator_ground_truth",
+  "cases": [
+    {
+      "id": "clean_01_routine_hypertension",
+      "image": "images/clean_01_routine_hypertension.png",
+      "sha256": "0ad119de71aa297617c136c3a1ee5694ad9515bf0b3d0565e54f20e4b173e5a6",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nPrescription: Lisinopril 10 mg PO daily.\nHydrochlorothiazide 25 mg PO daily.\nBlood pressure 128/82 mmHg. Heart rate 72 bpm.",
+      "critical_tokens": [
+        "10 mg",
+        "25 mg",
+        "128/82",
+        "72 bpm"
+      ],
+      "expected_medications": [
+        {
+          "name": "Lisinopril",
+          "dose": "10 mg",
+          "route": "PO",
+          "frequency": "daily"
+        },
+        {
+          "name": "Hydrochlorothiazide",
+          "dose": "25 mg",
+          "route": "PO",
+          "frequency": "daily"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "blood_pressure",
+          "value": "128/82",
+          "unit": "mmHg"
+        },
+        {
+          "vital_type": "heart_rate",
+          "value": "72",
+          "unit": "bpm"
+        }
+      ],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_02_decimal_warfarin",
+      "image": "images/clean_02_decimal_warfarin.png",
+      "sha256": "fb70dbb53691215ab8d5122ad4472c2a57656615752ddcf44238fa27e9002d58",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nHold Warfarin 2.5 mg PO daily.\nDo not dispense Warfarin 25 mg.\nINR check scheduled in 3 days.",
+      "critical_tokens": [
+        "2.5 mg",
+        "25 mg",
+        "Hold",
+        "Do not"
+      ],
+      "expected_medications": [
+        {
+          "name": "Warfarin",
+          "dose": "2.5 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "hold"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_03_duplicate_prednisone_taper",
+      "image": "images/clean_03_duplicate_prednisone_taper.png",
+      "sha256": "b892ecc34eb8d47ef8ee255d7fadc92a732d6750a628efa7c3fde3ac708ff519",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nPrednisone 20 mg PO QAM.\nPrednisone 10 mg PO QPM with dinner.\nTaper by 5 mg weekly.",
+      "critical_tokens": [
+        "20 mg",
+        "10 mg",
+        "QAM",
+        "QPM"
+      ],
+      "expected_medications": [
+        {
+          "name": "Prednisone",
+          "dose": "20 mg",
+          "route": "PO",
+          "frequency": "QAM"
+        },
+        {
+          "name": "Prednisone",
+          "dose": "10 mg",
+          "route": "PO",
+          "frequency": "QPM"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_04_microgram_levothyroxine",
+      "image": "images/clean_04_microgram_levothyroxine.png",
+      "sha256": "f8fcd7823f237879785d6cda87ab37e5c02dee4a430ceb77f27e074d48bd5347",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nLevothyroxine 75 mcg PO every morning before breakfast.\nDo not confuse 75 mcg with 75 mg.\nTSH follow-up in 6 weeks.",
+      "critical_tokens": [
+        "75 mcg",
+        "75 mg",
+        "before breakfast"
+      ],
+      "expected_medications": [
+        {
+          "name": "Levothyroxine",
+          "dose": "75 mcg",
+          "route": "PO",
+          "frequency": "every morning"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_05_decimal_haloperidol",
+      "image": "images/clean_05_decimal_haloperidol.png",
+      "sha256": "c5c3c563267751a9291b6313868ecfa09ff59c5fa11795130892902f918fc1bf",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nAdminister Haloperidol 0.5 mg PO BID PRN agitation.\nMaximum daily dose 2 mg. Do not exceed 5 mg.\nMonitor QT interval on ECG.",
+      "critical_tokens": [
+        "0.5 mg",
+        "5 mg",
+        "BID PRN",
+        "2 mg"
+      ],
+      "expected_medications": [
+        {
+          "name": "Haloperidol",
+          "dose": "0.5 mg",
+          "route": "PO",
+          "frequency": "BID PRN"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_06_continue_discontinue_diabetes",
+      "image": "images/clean_06_continue_discontinue_diabetes.png",
+      "sha256": "7bf20d0199d181d71301c47e7da75f904da96cb452a15916f13c615ad81c6521",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nContinue Metformin 500 mg PO BID.\nDiscontinue Glipizide 5 mg PO daily.\nFasting blood glucose 118 mg/dL.",
+      "critical_tokens": [
+        "Continue",
+        "Discontinue",
+        "500 mg",
+        "5 mg"
+      ],
+      "expected_medications": [
+        {
+          "name": "Metformin",
+          "dose": "500 mg",
+          "route": "PO",
+          "frequency": "BID",
+          "action": "continue"
+        },
+        {
+          "name": "Glipizide",
+          "dose": "5 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "stop"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "blood_glucose",
+          "value": "118",
+          "unit": "mg/dL"
+        }
+      ],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_07_multiple_vitals_panel",
+      "image": "images/clean_07_multiple_vitals_panel.png",
+      "sha256": "d3eb80b46710aa3df4d09a4997311846047491c5967fea48e726870f92cdbf07",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nVitals: BP 118/76 mmHg, HR 68 bpm, RR 16 bpm.\nSpO2 98% on room air, Temp 98.4 F.\nPatient resting comfortably in triage.",
+      "critical_tokens": [
+        "118/76",
+        "68 bpm",
+        "16 bpm",
+        "98%",
+        "98.4 F"
+      ],
+      "expected_medications": [],
+      "expected_vitals": [
+        {
+          "vital_type": "blood_pressure",
+          "value": "118/76",
+          "unit": "mmHg"
+        },
+        {
+          "vital_type": "heart_rate",
+          "value": "68",
+          "unit": "bpm"
+        },
+        {
+          "vital_type": "respiratory_rate",
+          "value": "16",
+          "unit": "bpm"
+        },
+        {
+          "vital_type": "oxygen_saturation",
+          "value": "98",
+          "unit": "%"
+        },
+        {
+          "vital_type": "temperature",
+          "value": "98.4",
+          "unit": "F"
+        }
+      ],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_08_hold_start_cardiac",
+      "image": "images/clean_08_hold_start_cardiac.png",
+      "sha256": "ca84f4fc5a6d816b8012c5f53dbe9832d5742b9d4e8ce9fc6f5f958e63413e60",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nHold Metoprolol Tartrate 25 mg PO BID today.\nStart Amlodipine 5 mg PO daily tomorrow morning.\nCall clinic if systolic BP drops below 100.",
+      "critical_tokens": [
+        "Hold",
+        "Start",
+        "25 mg",
+        "5 mg"
+      ],
+      "expected_medications": [
+        {
+          "name": "Metoprolol Tartrate",
+          "dose": "25 mg",
+          "route": "PO",
+          "frequency": "BID",
+          "action": "hold"
+        },
+        {
+          "name": "Amlodipine",
+          "dose": "5 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "start"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_09_duplicate_insulin",
+      "image": "images/clean_09_duplicate_insulin.png",
+      "sha256": "185ab9e85a674f6d5ee3c27376468bf4ba1dc61195d1145699c1fb0741e1de96",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nInsulin glargine 20 units SubQ at bedtime.\nInsulin lispro 4 units SubQ with meals TID.\nCheck fingerstick BG before each meal.",
+      "critical_tokens": [
+        "20 units",
+        "4 units",
+        "SubQ",
+        "TID"
+      ],
+      "expected_medications": [
+        {
+          "name": "Insulin glargine",
+          "dose": "20 units",
+          "route": "SubQ",
+          "frequency": "at bedtime"
+        },
+        {
+          "name": "Insulin lispro",
+          "dose": "4 units",
+          "route": "SubQ",
+          "frequency": "TID"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "clean_10_stat_antibiotic_iv",
+      "image": "images/clean_10_stat_antibiotic_iv.png",
+      "sha256": "7e8bec95a8fea3c9f102adffc0df5e660cbd1361a6de595bddfc9c7e747d21da",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nCeftriaxone 1 g IV daily for 7 days.\nAzithromycin 500 mg PO daily for 3 days.\nSpO2 95% on 2L nasal cannula.",
+      "critical_tokens": [
+        "1 g",
+        "IV",
+        "500 mg",
+        "95%"
+      ],
+      "expected_medications": [
+        {
+          "name": "Ceftriaxone",
+          "dose": "1 g",
+          "route": "IV",
+          "frequency": "daily"
+        },
+        {
+          "name": "Azithromycin",
+          "dose": "500 mg",
+          "route": "PO",
+          "frequency": "daily"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "oxygen_saturation",
+          "value": "95",
+          "unit": "%"
+        }
+      ],
+      "source_type": "printed_clean"
+    },
+    {
+      "id": "degraded_01_amoxicillin_aspirin",
+      "image": "images/degraded_01_amoxicillin_aspirin.png",
+      "sha256": "4fb4c42a5b8be139ddc0686824353c93e683c250272da0ec8ece44c1a4f9c7c5",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nAmoxicillin 500 mg PO TID for 10 days.\nDo not continue Aspirin 81 mg.\nFollow up in 2 weeks.",
+      "critical_tokens": [
+        "500 mg",
+        "10 days",
+        "Do not",
+        "81 mg"
+      ],
+      "expected_medications": [
+        {
+          "name": "Amoxicillin",
+          "dose": "500 mg",
+          "route": "PO",
+          "frequency": "TID"
+        },
+        {
+          "name": "Aspirin",
+          "dose": "81 mg",
+          "route": "",
+          "frequency": "",
+          "action": "stop"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_02_decimal_digoxin",
+      "image": "images/degraded_02_decimal_digoxin.png",
+      "sha256": "97acc3e5b89aad276cb27a9c8a0914f9989c56abd14acfd6b6bb9b1b3f42c0e0",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nDigoxin 0.125 mg PO daily.\nCaution: do not dispense 0.25 mg.\nHeart rate 64 bpm.",
+      "critical_tokens": [
+        "0.125 mg",
+        "0.25 mg",
+        "64 bpm"
+      ],
+      "expected_medications": [
+        {
+          "name": "Digoxin",
+          "dose": "0.125 mg",
+          "route": "PO",
+          "frequency": "daily"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "heart_rate",
+          "value": "64",
+          "unit": "bpm"
+        }
+      ],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_03_duplicate_lorazepam",
+      "image": "images/degraded_03_duplicate_lorazepam.png",
+      "sha256": "7a4af0f8a85fc147dbe2e31bcb11656c0761f728fad09c808d641880f857e45b",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nLorazepam 0.5 mg PO nightly at bedtime.\nLorazepam 1 mg PO every 6 hours PRN severe anxiety.\nHold if excessively sedated.",
+      "critical_tokens": [
+        "0.5 mg",
+        "1 mg",
+        "nightly",
+        "PRN",
+        "Hold"
+      ],
+      "expected_medications": [
+        {
+          "name": "Lorazepam",
+          "dose": "0.5 mg",
+          "route": "PO",
+          "frequency": "nightly"
+        },
+        {
+          "name": "Lorazepam",
+          "dose": "1 mg",
+          "route": "PO",
+          "frequency": "every 6 hours PRN"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_04_microgram_fentanyl",
+      "image": "images/degraded_04_microgram_fentanyl.png",
+      "sha256": "0489007cee7aa73d915daed31bb54710c25735c003e3cfaa893aad49afd16b46",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nFentanyl 25 mcg/hr transdermal patch every 72 hours.\nDo not order 25 mg.\nPain score 4/10.",
+      "critical_tokens": [
+        "25 mcg/hr",
+        "25 mg",
+        "every 72 hours"
+      ],
+      "expected_medications": [
+        {
+          "name": "Fentanyl",
+          "dose": "25 mcg/hr",
+          "route": "transdermal",
+          "frequency": "every 72 hours"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_05_decimal_clonazepam",
+      "image": "images/degraded_05_decimal_clonazepam.png",
+      "sha256": "bb8bf64cf427bb03fec2ef5cb52c54ef0d6514a2d93a626446841fa2c44e91e8",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nClonazepam 0.25 mg PO BID for panic attacks.\nConfirm dose is not 2.5 mg before dispensing.\nPatient counseled on driving precautions.",
+      "critical_tokens": [
+        "0.25 mg",
+        "2.5 mg",
+        "BID"
+      ],
+      "expected_medications": [
+        {
+          "name": "Clonazepam",
+          "dose": "0.25 mg",
+          "route": "PO",
+          "frequency": "BID"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_06_continue_hold_statin",
+      "image": "images/degraded_06_continue_hold_statin.png",
+      "sha256": "226f7d79ea3ebd21f9838ae91bf89224186f75bc7c37d86a5e2b16f09c45c831",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nContinue Atorvastatin 40 mg PO QHS.\nHold Clopidogrel 75 mg PO daily for 5 days prior to surgery.\nPlatelet count stable.",
+      "critical_tokens": [
+        "Continue",
+        "Hold",
+        "40 mg",
+        "75 mg"
+      ],
+      "expected_medications": [
+        {
+          "name": "Atorvastatin",
+          "dose": "40 mg",
+          "route": "PO",
+          "frequency": "QHS",
+          "action": "continue"
+        },
+        {
+          "name": "Clopidogrel",
+          "dose": "75 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "hold"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_07_vitals_hypertensive_crisis",
+      "image": "images/degraded_07_vitals_hypertensive_crisis.png",
+      "sha256": "981d5e2f917013e93c5da4861a776ca2c36f56b5cb88c7bded0cdb89b1831a0c",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nBlood pressure 186/112 mmHg. Pulse 104 bpm.\nAdminister Labetalol 20 mg IV push STAT.\nRecheck blood pressure every 15 minutes.",
+      "critical_tokens": [
+        "186/112",
+        "104 bpm",
+        "20 mg",
+        "IV"
+      ],
+      "expected_medications": [
+        {
+          "name": "Labetalol",
+          "dose": "20 mg",
+          "route": "IV",
+          "frequency": "STAT"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "blood_pressure",
+          "value": "186/112",
+          "unit": "mmHg"
+        },
+        {
+          "vital_type": "heart_rate",
+          "value": "104",
+          "unit": "bpm"
+        }
+      ],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_08_discontinue_start_ace_arb",
+      "image": "images/degraded_08_discontinue_start_ace_arb.png",
+      "sha256": "d468f9938b59c0c1450151413895c489ece972b014b4091bfdbeb87963d110fa",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nDiscontinue Enalapril 10 mg PO daily due to cough.\nStart Losartan 50 mg PO daily.\nRepeat serum creatinine in 2 weeks.",
+      "critical_tokens": [
+        "Discontinue",
+        "Start",
+        "10 mg",
+        "50 mg"
+      ],
+      "expected_medications": [
+        {
+          "name": "Enalapril",
+          "dose": "10 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "stop"
+        },
+        {
+          "name": "Losartan",
+          "dose": "50 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "start"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_09_duplicate_diltiazem",
+      "image": "images/degraded_09_duplicate_diltiazem.png",
+      "sha256": "a151d096f58a4f4cb4f968b4f07eacc04bfb13a3f9a0328b8413536a5234fc7f",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nDiltiazem CD 180 mg PO daily.\nDiltiazem 30 mg PO TID PRN breakthrough palpitations.\nBlood pressure 130/84 mmHg.",
+      "critical_tokens": [
+        "180 mg",
+        "30 mg",
+        "daily",
+        "TID PRN"
+      ],
+      "expected_medications": [
+        {
+          "name": "Diltiazem CD",
+          "dose": "180 mg",
+          "route": "PO",
+          "frequency": "daily"
+        },
+        {
+          "name": "Diltiazem",
+          "dose": "30 mg",
+          "route": "PO",
+          "frequency": "TID PRN"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "blood_pressure",
+          "value": "130/84",
+          "unit": "mmHg"
+        }
+      ],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "degraded_10_steroid_burst",
+      "image": "images/degraded_10_steroid_burst.png",
+      "sha256": "9ebd0f44868fb416477397ae0f801723a6de722f123ab1720f2c6cab8a33b770",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nDexamethasone 0.75 mg PO BID for 3 days.\nDo not prescribe 7.5 mg.\nTemperature 99.1 F.",
+      "critical_tokens": [
+        "0.75 mg",
+        "7.5 mg",
+        "99.1 F"
+      ],
+      "expected_medications": [
+        {
+          "name": "Dexamethasone",
+          "dose": "0.75 mg",
+          "route": "PO",
+          "frequency": "BID"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "temperature",
+          "value": "99.1",
+          "unit": "F"
+        }
+      ],
+      "source_type": "printed_degraded"
+    },
+    {
+      "id": "photo_01_discharge_summary",
+      "image": "images/photo_01_discharge_summary.png",
+      "sha256": "48365ea5527105ffe472b9fd93bb20446dfb293b07059cd2fc8f43828e1fd975",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nDischarge Meds: Pantoprazole 40 mg PO daily.\nMetoprolol Succinate 50 mg PO daily.\nBlood pressure 122/78 mmHg. Heart rate 66 bpm.",
+      "critical_tokens": [
+        "40 mg",
+        "50 mg",
+        "122/78",
+        "66 bpm"
+      ],
+      "expected_medications": [
+        {
+          "name": "Pantoprazole",
+          "dose": "40 mg",
+          "route": "PO",
+          "frequency": "daily"
+        },
+        {
+          "name": "Metoprolol Succinate",
+          "dose": "50 mg",
+          "route": "PO",
+          "frequency": "daily"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "blood_pressure",
+          "value": "122/78",
+          "unit": "mmHg"
+        },
+        {
+          "vital_type": "heart_rate",
+          "value": "66",
+          "unit": "bpm"
+        }
+      ],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_02_decimal_levothyroxine_dose",
+      "image": "images/photo_02_decimal_levothyroxine_dose.png",
+      "sha256": "72d85c1c247bb70d917431999ee0d06bb88636e49b8cc8eb58c510c3798b1e65",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nLevothyroxine 0.05 mg PO daily on empty stomach.\nVerify label says 0.05 mg, never 0.5 mg.\nRepeat thyroid panel in 8 weeks.",
+      "critical_tokens": [
+        "0.05 mg",
+        "0.5 mg",
+        "empty stomach"
+      ],
+      "expected_medications": [
+        {
+          "name": "Levothyroxine",
+          "dose": "0.05 mg",
+          "route": "PO",
+          "frequency": "daily"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_03_duplicate_morphine",
+      "image": "images/photo_03_duplicate_morphine.png",
+      "sha256": "0d7e86614f74f3cdf768bde1223b430c7b32288c39d4b87c3af54b59dec0c5ff",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nMorphine ER 30 mg PO every 12 hours.\nMorphine 15 mg PO every 4 hours PRN breakthrough pain.\nRespiratory rate 14 bpm.",
+      "critical_tokens": [
+        "30 mg",
+        "15 mg",
+        "every 12 hours",
+        "PRN",
+        "14 bpm"
+      ],
+      "expected_medications": [
+        {
+          "name": "Morphine ER",
+          "dose": "30 mg",
+          "route": "PO",
+          "frequency": "every 12 hours"
+        },
+        {
+          "name": "Morphine",
+          "dose": "15 mg",
+          "route": "PO",
+          "frequency": "every 4 hours PRN"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "respiratory_rate",
+          "value": "14",
+          "unit": "bpm"
+        }
+      ],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_04_microgram_nitrostat",
+      "image": "images/photo_04_microgram_nitrostat.png",
+      "sha256": "17c109c37aa736fc3209a0c08a3a5595bbc50e26d8b8a2c8df2ace7f5339b444",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nNitroglycerin 400 mcg SL every 5 minutes PRN chest pain up to 3 doses.\nDo not use with PDE5 inhibitors.\nBP 110/70 mmHg before administration.",
+      "critical_tokens": [
+        "400 mcg",
+        "SL",
+        "up to 3 doses",
+        "110/70"
+      ],
+      "expected_medications": [
+        {
+          "name": "Nitroglycerin",
+          "dose": "400 mcg",
+          "route": "SL",
+          "frequency": "every 5 minutes PRN"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "blood_pressure",
+          "value": "110/70",
+          "unit": "mmHg"
+        }
+      ],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_05_decimal_alprazolam",
+      "image": "images/photo_05_decimal_alprazolam.png",
+      "sha256": "9d250d94c9e41f77acdbbe2f3e1233dc88d64b0271d0a4345a5aa7de9a418f57",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nAlprazolam 0.25 mg PO TID PRN anxiety.\nWarning: high risk if taken at 2.5 mg.\nFollow up in 1 month.",
+      "critical_tokens": [
+        "0.25 mg",
+        "2.5 mg",
+        "TID PRN"
+      ],
+      "expected_medications": [
+        {
+          "name": "Alprazolam",
+          "dose": "0.25 mg",
+          "route": "PO",
+          "frequency": "TID PRN"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_06_continue_discontinue_anticoagulation",
+      "image": "images/photo_06_continue_discontinue_anticoagulation.png",
+      "sha256": "f4fef9c9bbcf85aa41f30a25505460d043756e4fc3d336078ef7e62195b7e89d",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nContinue Apixaban 5 mg PO BID.\nDiscontinue Aspirin 325 mg PO daily.\nHemoglobin 13.8 g/dL.",
+      "critical_tokens": [
+        "Continue",
+        "Discontinue",
+        "5 mg",
+        "325 mg"
+      ],
+      "expected_medications": [
+        {
+          "name": "Apixaban",
+          "dose": "5 mg",
+          "route": "PO",
+          "frequency": "BID",
+          "action": "continue"
+        },
+        {
+          "name": "Aspirin",
+          "dose": "325 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "stop"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_07_complete_icu_vitals",
+      "image": "images/photo_07_complete_icu_vitals.png",
+      "sha256": "baeb48b4e81f41e2cda560a8ba3b42688e1e6fec229bbb252ac038aa51c2012e",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nICU Flowsheet: BP 142/88 mmHg, HR 88 bpm.\nRR 20 bpm, SpO2 96%, Temp 100.8 F.\nAcetaminophen 650 mg PO Q6H PRN fever.",
+      "critical_tokens": [
+        "142/88",
+        "88 bpm",
+        "20 bpm",
+        "96%",
+        "100.8 F",
+        "650 mg"
+      ],
+      "expected_medications": [
+        {
+          "name": "Acetaminophen",
+          "dose": "650 mg",
+          "route": "PO",
+          "frequency": "Q6H PRN"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "blood_pressure",
+          "value": "142/88",
+          "unit": "mmHg"
+        },
+        {
+          "vital_type": "heart_rate",
+          "value": "88",
+          "unit": "bpm"
+        },
+        {
+          "vital_type": "respiratory_rate",
+          "value": "20",
+          "unit": "bpm"
+        },
+        {
+          "vital_type": "oxygen_saturation",
+          "value": "96",
+          "unit": "%"
+        },
+        {
+          "vital_type": "temperature",
+          "value": "100.8",
+          "unit": "F"
+        }
+      ],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_08_hold_start_nephrology",
+      "image": "images/photo_08_hold_start_nephrology.png",
+      "sha256": "bf9cc463288f7789fd7546eb2d72262981f105672c06f809e7259c1939aaf872",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nHold Spironolactone 25 mg PO daily due to hyperkalemia.\nStart Sodium polystyrene sulfonate 15 g PO daily.\nRecheck potassium tomorrow.",
+      "critical_tokens": [
+        "Hold",
+        "Start",
+        "25 mg",
+        "15 g"
+      ],
+      "expected_medications": [
+        {
+          "name": "Spironolactone",
+          "dose": "25 mg",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "hold"
+        },
+        {
+          "name": "Sodium polystyrene sulfonate",
+          "dose": "15 g",
+          "route": "PO",
+          "frequency": "daily",
+          "action": "start"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_09_duplicate_gabapentin",
+      "image": "images/photo_09_duplicate_gabapentin.png",
+      "sha256": "45bc4b3f227f7a5ac6b2d34f6ac205b213c1b530363b2412158aa4ee4ccf9a83",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nGabapentin 300 mg PO TID.\nGabapentin 600 mg PO QHS.\nAvoid alcohol while taking this medication.",
+      "critical_tokens": [
+        "300 mg",
+        "TID",
+        "600 mg",
+        "QHS"
+      ],
+      "expected_medications": [
+        {
+          "name": "Gabapentin",
+          "dose": "300 mg",
+          "route": "PO",
+          "frequency": "TID"
+        },
+        {
+          "name": "Gabapentin",
+          "dose": "600 mg",
+          "route": "PO",
+          "frequency": "QHS"
+        }
+      ],
+      "expected_vitals": [],
+      "source_type": "photographed"
+    },
+    {
+      "id": "photo_10_inhaler_combination",
+      "image": "images/photo_10_inhaler_combination.png",
+      "sha256": "61a1132597a885f16c7ca871c39ca6f8301509594395207ee1d84d0ecda63fc9",
+      "reference_text": "SYNTHETIC DOCUMENT - NOT FOR CLINICAL USE\nFluticasone/Salmeterol 250/50 mcg inhaled 1 puff BID.\nAlbuterol 90 mcg inhaled 2 puffs every 4 hours PRN wheezing.\nSpO2 94% on room air.",
+      "critical_tokens": [
+        "250/50 mcg",
+        "1 puff",
+        "90 mcg",
+        "2 puffs",
+        "94%"
+      ],
+      "expected_medications": [
+        {
+          "name": "Fluticasone/Salmeterol",
+          "dose": "250/50 mcg",
+          "route": "inhaled",
+          "frequency": "BID"
+        },
+        {
+          "name": "Albuterol",
+          "dose": "90 mcg",
+          "route": "inhaled",
+          "frequency": "every 4 hours PRN"
+        }
+      ],
+      "expected_vitals": [
+        {
+          "vital_type": "oxygen_saturation",
+          "value": "94",
+          "unit": "%"
+        }
+      ],
+      "source_type": "photographed"
+    }
+  ],
+  "limitations": [
+    "Printed, degraded scans, and photographed docs; no handwriting",
+    "Handwriting is NOT RUN: requires independent human-written clinical samples",
+    "Generated from the label text; not an independent clinical holdout",
+    "Not clinical validation"
+  ]
+}
