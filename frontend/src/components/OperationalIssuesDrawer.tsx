@@ -51,7 +51,7 @@ export default function OperationalIssuesDrawer({
   useEffect(() => {
     if (isOpen && focusedIssueId && selectedIssueRef.current) {
       selectedIssueRef.current.focus();
-      selectedIssueRef.current.scrollIntoView({ block: "nearest" });
+      selectedIssueRef.current.scrollIntoView?.({ block: "nearest" });
     }
   }, [isOpen, focusedIssueId, issues]);
 
