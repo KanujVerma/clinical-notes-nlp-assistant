@@ -16,6 +16,7 @@ sys.path.insert(0, str(BACKEND))
 from evaluation.replay_medication_parser import score_frozen_transcriptions
 from extractors.medication_orders import parse_order_line, parse_order_lines
 from extractors.pipeline import run_pipeline
+from validation.checker import check_extraction
 
 
 MANIFEST = ROOT / "data/vision_gold_30/manifest.json"
@@ -240,6 +241,38 @@ def test_two_medications_on_one_line_remain_distinct():
     )["medications"]
     assert "albuterol" in {m["name"] for m in meds}
     assert "omeprazole" in {m["name"] for m in meds}
+
+
+def test_remaining_course_duration_and_original_span_survive_section_precedence():
+    source = "Medications:\nPrednisone 20 mg PO daily for 5 more days."
+    meds = run_pipeline(source)["medications"]
+    assert len(meds) == 1
+    assert meds[0]["name"] == "prednisone"
+    assert meds[0]["duration"] == "for 5 more days"
+    start, end = meds[0]["span"]
+    assert source[start:end].endswith("for 5 more days")
+
+
+def test_real_extraction_hold_stop_trigger_validation_non_active_canary():
+    text = (
+        "Hold Warfarin 2.5 mg PO daily.\n"
+        "Discontinue Aspirin 81 mg PO daily.\n"
+        "Start Lisinopril 10 mg PO daily.\n"
+    )
+    extracted = run_pipeline(text)
+    meds = extracted["medications"]
+    assert [(x["name"], x.get("action")) for x in meds] == [
+        ("warfarin", "hold"), ("aspirin", "stop"), ("lisinopril", "start")
+    ]
+    issues = check_extraction(
+        {"raw_text": text},
+        {"extracted_json": extracted},
+    )
+    non_active = [i for i in issues if i.issue_code == "A10_NON_ACTIVE_MEDICATION"]
+    assert len(non_active) == 2
+    descriptions = " ".join(i.safe_explanation.lower() for i in non_active)
+    assert "warfarin" in descriptions and "aspirin" in descriptions
+    assert "lisinopril" not in descriptions
 
 
 def test_gold_vs_saved_ocr_replay_is_real_and_improves_legacy_parser():
