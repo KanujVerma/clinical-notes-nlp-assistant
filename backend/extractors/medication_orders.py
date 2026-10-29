@@ -123,12 +123,15 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
 
     frequency = freq_match.group().strip() if freq_match else ""
     prn = re.search(r"\bPRN\b", after_dose, re.IGNORECASE)
+    as_needed = re.search(r"\bas\s+needed\b", after_dose, re.IGNORECASE)
     if prn and "prn" not in frequency.casefold():
         frequency = (frequency + " PRN").strip()
+    elif as_needed and "as needed" not in frequency.casefold():
+        frequency = (frequency + " as needed").strip()
 
     duration = _DURATION.search(after_dose)
     sig_end = dose.end()
-    for hit in (route_match, freq_match, prn, duration):
+    for hit in (route_match, freq_match, prn, as_needed, duration):
         if hit:
             sig_end = max(sig_end, dose.end() + hit.end())
 
