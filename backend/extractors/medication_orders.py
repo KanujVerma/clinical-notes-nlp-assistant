@@ -25,7 +25,7 @@ _ROUTE = re.compile(
 _FREQUENCY = re.compile(
     r"\b(?:every\s+\d+\s+(?:minutes?|hours?|days?|weeks?)|every\s+morning|"
     r"every\s+evening|once\s+daily|twice\s+daily|once\s+weekly|"
-    r"twice\s+weekly|at\s+bedtime|nightly|at\s+night|"
+    r"twice\s+weekly|at\s+bedtime|bedtime|nightly|at\s+night|"
     r"q\.?\s*\d+\s*h|q\.?\s*d\.?|"
     r"bid|tid|qid|qhs|qam|qpm|stat|daily|weekly|monthly|"
     r"as\s+needed|prn)\b",
@@ -130,20 +130,38 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         name_start = action_match.end()
 
     name_piece = before_dose[name_start:]
-    # A route can precede the strength ("Metformin PO 500 mg BID").
-    # Do not silently put PO/IV/etc. into drug identity. Strip only one
-    # explicit TRAILING route and reject residual/mismatched route tokens.
+    # The route and the schedule can appear BEFORE the strength:
+    # "Metformin PO BID 500 mg". Strip only explicit trailing tokens,
+    # preserving the original text coordinate and medication-name start.
+    # Reject ambiguous conflicts rather than choosing a guessed sig.
     pre_route = None
-    route_hits = list(_ROUTE.finditer(name_piece))
-    if route_hits:
-        last = route_hits[-1]
-        if not name_piece[last.end():].strip():
-            pre_route = last
-            name_piece = name_piece[:last.start()]
+    pre_freq = None
+    for _ in range(2):
+        trailing = name_piece.rstrip()
+        suffixes = []
+        for kind, pattern in (("route", _ROUTE), ("frequency", _FREQUENCY)):
+            suffixes.extend(
+                (match.start(), kind, match)
+                for match in pattern.finditer(trailing)
+                if match.end() == len(trailing)
+            )
+        if not suffixes:
+            break
+        _, kind, match = max(suffixes, key=lambda item: item[0])
+        if kind == "route":
+            if pre_route is not None:
+                return None
+            pre_route = match.group()
+        else:
+            if pre_freq is not None:
+                return None
+            pre_freq = match.group()
+        name_piece = trailing[:match.start()]
     stripped = name_piece.strip()
     if (not stripped or _NON_ORDER.match(stripped)
             or _NESTED_ACTION.match(stripped)
             or _ROUTE.search(stripped)
+            or _FREQUENCY.search(stripped)
             or not _NAME.fullmatch(stripped)):
         return None
 
@@ -151,9 +169,12 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
     route_match = _ROUTE.search(after_dose)
     freq_match = _FREQUENCY.search(after_dose)
     if (pre_route and route_match
-            and pre_route.group().casefold() != route_match.group().casefold()):
+            and pre_route.casefold() != route_match.group().casefold()):
         return None
-    if not (action or pre_route or route_match or freq_match or action_match):
+    if (pre_freq and freq_match
+            and pre_freq.casefold() != freq_match.group().casefold()):
+        return None
+    if not (action or pre_route or pre_freq or route_match or freq_match or action_match):
         return None
 
     # Do not attach a dose to an unrelated later order in the same line.
@@ -162,7 +183,7 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
     if re.search(r"\b(?:and|or)\b", stripped, re.IGNORECASE):
         return None
 
-    frequency = freq_match.group().strip() if freq_match else ""
+    frequency = freq_match.group().strip() if freq_match else (pre_freq or "")
     prn = re.search(r"\bPRN\b", after_dose, re.IGNORECASE)
     as_needed = re.search(r"\bas\s+needed\b", after_dose, re.IGNORECASE)
     if prn and "prn" not in frequency.casefold():
@@ -226,7 +247,7 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         "name": stripped.casefold(),
         "dose": dose.group("dose").strip(),
         "route": (route_match.group().strip() if route_match else
-                  pre_route.group().strip() if pre_route else ""),
+                  pre_route.strip() if pre_route else ""),
         "frequency": frequency,
         "duration": duration.group().strip() if duration else "",
         "qualifier": qualifier,
