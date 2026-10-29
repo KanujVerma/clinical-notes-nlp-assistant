@@ -8,6 +8,8 @@ import json
 import os
 from typing import Any
 
+from extractors.medication_orders import parse_order_lines
+
 _VOCAB_PATH = os.path.join(os.path.dirname(__file__), "patterns", "medications.json")
 
 # -- Dose -----------------------------------------------------------------------
@@ -199,15 +201,24 @@ def _parse_section_lines(section_text: str, section_start: int) -> "list[dict[st
 
 
 def _find_sentence_bounds(text: str, char_pos: int) -> "tuple[int, int]":
-    """Return (start, end) of the sentence containing char_pos."""
+    """Locate a sentence without splitting numeric decimal doses (e.g. 0.5)."""
+    def terminator(index: int) -> bool:
+        c = text[index]
+        if c not in ".\n!?":
+            return False
+        if (c == "." and 0 < index < len(text) - 1
+                and text[index - 1].isdigit() and text[index + 1].isdigit()):
+            return False
+        return True
+
     start = char_pos
-    while start > 0 and text[start - 1] not in ".\n!?":
+    while start > 0 and not terminator(start - 1):
         start -= 1
     end = char_pos
-    while end < len(text) and text[end] not in ".\n!?":
+    while end < len(text) and not terminator(end):
         end += 1
     if end < len(text):
-        end += 1  # include terminator
+        end += 1
     return start, end
 
 
@@ -274,60 +285,72 @@ def _parse_prose_sections(
     return results
 
 
+def _same_source_occurrence(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """Suppress one source mention twice, not different orders of the same drug."""
+    a_name = a.get("name", "").casefold()
+    b_name = b.get("name", "").casefold()
+    if not (a_name == b_name or a_name.startswith(b_name + " ")
+            or b_name.startswith(a_name + " ")):
+        return False
+    a_span, b_span = a.get("span"), b.get("span")
+    if not (isinstance(a_span, (list, tuple)) and len(a_span) == 2
+            and isinstance(b_span, (list, tuple)) and len(b_span) == 2):
+        return False
+    return a_span[0] < b_span[1] and b_span[0] < a_span[1]
+
+
 def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = None) -> "list[dict[str, Any]]":
-    """
-    Extract medications from text.
-    1. Structured line parser on any medications section (source: "section").
-    2. medSpaCy on full text for prose fallback (source: "medspacy").
-    3. De-duplicate by name; section results take precedence.
+    """Return evidence-linked medication candidates, never inferred prescriptions.
+
+    Explicit dose-and-sig orders take precedence, including unsectioned,
+    hold/stop/continue/start orders and repeated distinct source occurrences.
+    Legacy section and medSpaCy paths remain as fallbacks. Overlapping mentions
+    are deduplicated by SOURCE span, not medication name, so different doses of
+    the same drug are never silently collapsed.
     """
     from extractors.sections import detect_sections
     if sections is None:
         sections = detect_sections(text)
 
-    # Step 1: structured line parser on medications sections
-    section_results: list[dict[str, Any]] = []
+    results = parse_order_lines(text)
+
+    def add_if_new(candidate: dict[str, Any]) -> None:
+        if not any(_same_source_occurrence(candidate, old) for old in results):
+            results.append(candidate)
+
     for sec in sections:
         if sec["category"] == "medications":
-            header_end = sec["start"] + len(sec["header"]) + 1  # +1 for colon/newline
-            section_results.extend(_parse_section_lines(sec["text"], header_end))
+            header_end = sec["start"] + len(sec["header"]) + 1
+            for candidate in _parse_section_lines(sec["text"], header_end):
+                add_if_new(candidate)
 
-    # Step 2: action-verb prose parser on plan / hpi / assessment_plan sections
-    # Sentence-local by construction — each sentence is parsed independently.
-    prose_section_results = _parse_prose_sections(
+    for candidate in _parse_prose_sections(
         sections, {"plan", "hpi", "assessment_plan"}
-    )
+    ):
+        add_if_new(candidate)
 
-    # Merge steps 1 & 2, preferring step 1 (structured) on name collision
-    known_names: set[str] = {m["name"].lower() for m in section_results}
-    for med in prose_section_results:
-        n = med["name"].lower()
-        if not any(sn == n or sn.startswith(n + " ") or n.startswith(sn + " ")
-                   for sn in known_names):
-            section_results.append(med)
-            known_names.add(n)
-
-    # Step 3: medSpaCy prose fallback — sentence-local window scan only
     nlp = _get_nlp()
     doc = nlp(text)
-    spacy_results: list[dict[str, Any]] = []
     for ent in doc.ents:
-        if ent.label_ != "MEDICATION":
+        if ent.label_ != "MEDICATION" or ent._.is_negated:
             continue
-        if ent._.is_negated:
+        name = ent.text.casefold()
+        # Contraindication / label warnings are NOT additional orders.
+        sentence_start, sentence_end = _find_sentence_bounds(text, ent.start_char)
+        sentence = text[sentence_start:sentence_end].strip()
+        if re.match(
+            r"(?i)^(?:do\s+not\s+(?:dispense|substitute|order|prescribe)|"
+            r"caution\s*:|warning\s*:|verify\s+label|confirm\s+dose)",
+            sentence,
+        ):
             continue
-        name = ent.text.lower()
-        # Skip if already found by steps 1 or 2
-        if any(sn == name or sn.startswith(name + " ") or name.startswith(sn + " ")
-               for sn in known_names):
-            continue
-        # Sentence-local scan — never crosses a sentence boundary
+
         extra = _scan_sentence(text, ent.start_char)
-        # Skip entities where no sig could be found AND no dose/route/freq anywhere nearby
-        # (prevents pure-name noise, but keeps entities with freq like "as needed")
-        if not extra and not _FREQ_RE.search(text[max(0, ent.start_char - 80):ent.end_char + 80]):
+        if not extra and not _FREQ_RE.search(
+            text[max(0, ent.start_char - 80):ent.end_char + 80]
+        ):
             continue
-        spacy_results.append({
+        add_if_new({
             "name": name,
             "dose": extra.get("dose", ""),
             "route": extra.get("route", ""),
@@ -339,4 +362,5 @@ def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = Non
             "confidence": 0.9,
         })
 
-    return section_results + spacy_results
+    results.sort(key=lambda m: (m["span"][0], m["span"][1]))
+    return results
