@@ -27,5 +27,7 @@
   "independently_human_annotated": false,
   "genuine_handwriting_tested": false,
   "clinical_validation": false,
-  "notes": "PR6 baseline sealed before 24 new cases were authored. Lock created after both. Any code or case modifications invalidate prospective designation."
+  "notes": "PR6 baseline sealed before 24 new cases were authored. Lock created after both. Any code or case modifications invalidate prospective designation.",
+  "frozen_dependency_amendment_git_blob": "b8918b76188cf1a66700bc3b5672106ef440be0f",
+  "amendment_scope": "five originally merged code/dependency blobs added in retrospective audit before inspection of actual holdout scores"
 }
