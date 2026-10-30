@@ -251,6 +251,14 @@ def test_unscorable_cases_are_precommitted_not_silently_dropped(tmp_path):
     assert study.verify_seal(out)["unscorable_case_ids"] == ["hw012"]
 
 
+def test_12_total_but_11_scorable_is_not_a_valid_pilot(tmp_path):
+    inp = make_input(tmp_path, excluded=True)
+    sealed = tmp_path / "sealed"
+    study.prepare(inp, sealed)
+    with pytest.raises(ValueError, match="HANDWRITING_INSUFFICIENT_HUMAN_COHORT"):
+        evaluation._validate_study_for_run(sealed)
+
+
 def test_seal_blocks_retrospective_changes_to_gold_and_original_annotation(intake, tmp_path):
     out = tmp_path / "sealed"
     study.prepare(intake, out)
