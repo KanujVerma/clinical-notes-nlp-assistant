@@ -1,0 +1,18 @@
+{
+  "amendment_version": "secondary_freeze_amendment_v1",
+  "synthetic_only": true,
+  "pre_case_seal_unmodified": true,
+  "amended_after_holdout_cases_committed": true,
+  "reason": "Codex audit identified omitted scored vital extractor and other pipeline dependencies from the pre-case hash seal.",
+  "original_baseline_commit": "b58a65da2b28917aedd5504c4c8b7e5818f03033",
+  "case_definition_commit": "05653c56d5d02c28f7378eb107f33bbaf9e68b6e",
+  "recorded_before_inspecting_holdout_metric_values": true,
+  "note": "This supplementary audit was committed after the case corpus and first Tesseract run, but before inspecting the model performance values. It documents the exact pre-existing merged PR6 source blobs rather than claiming they were separately sealed before cases.",
+  "additional_frozen_git_blobs": {
+    "backend/extractors/vitals.py": "07788a6386d8bb2e34f287edb46694af05784c10",
+    "backend/extractors/instructions.py": "c1b890966c1912068cc12e55bd10703bd26203ee",
+    "backend/extractors/metadata.py": "ed259989ba08e6e2cf1ca0fa80988dbdbb2d3e58",
+    "backend/config.py": "6e47e1059f892876dad8255673b3d5728e281da1",
+    "requirements.txt": "82f34eb98bb8c43bd1ac7d8be58f2e3f90843d8a"
+  }
+}
