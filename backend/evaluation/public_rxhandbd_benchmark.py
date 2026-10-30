@@ -38,6 +38,9 @@ def file_index(root: Path) -> dict[str, Path]:
     images: dict[str, Path] = {}
     for path in root.rglob("*"):
         if path.is_file() and path.suffix.lower() in (".jpg", ".jpeg", ".png"):
+            amr.check(not path.is_symlink()
+                      and path.resolve().is_relative_to(root.resolve()),
+                      "RX_IMAGE_SYMLINK_OR_OUTSIDE_SOURCE")
             # Require unique names within the selected image directory.
             if path.name in images:
                 raise ValueError("RX_AMBIGUOUS_IMAGE_BASENAME_USE_IMAGES_DIR")
@@ -139,8 +142,9 @@ def scaffold(data_root: Path, study: Path, count: int = DEFAULT_PILOT,
             "publisher_test_rows": len(entries), "selected_words": count}
 
 
-def reviews(study: Path, sel: dict) -> dict:
-    r = amr.load(study / "privacy_review.json")
+def reviews(study: Path, sel: dict, snapshot: bytes | None = None) -> dict:
+    r = json.loads(snapshot) if snapshot is not None else amr.load(study / "privacy_review.json")
+    amr.check(isinstance(r, dict), "RX_PRIVACY_REVIEW_INVALID")
     amr.check(r.get("schema") == VERSION and r.get("selection_sha256") ==
               amr.sha((study / "selection.json").read_bytes())
               and isinstance(r.get("reviewer_id"), str)
@@ -175,7 +179,10 @@ def code_hashes() -> dict:
 
 def seal(study: Path, out: Path) -> dict:
     amr.check(not out.exists(), "RX_SEAL_ALREADY_EXISTS")
-    sel = amr.load(study / "selection.json")
+    select_bytes = (study / "selection.json").read_bytes()
+    review_bytes = (study / "privacy_review.json").read_bytes()
+    sel = json.loads(select_bytes)
+    amr.check(isinstance(sel, dict), "RX_SELECTION_INVALID")
     amr.check(sel.get("schema") == VERSION and sel.get("doi") == DOI
               and sel.get("license") == "CC-BY-4.0"
               and sel.get("dataset") == DATASET
@@ -197,7 +204,7 @@ def seal(study: Path, out: Path) -> dict:
               and sel.get("selected_ids") == expected_ids
               and sel.get("selection_policy") == "sha256_filename_rank_v1",
               "RX_PUBLISHER_OR_SELECTION_CHANGED")
-    checked = reviews(study, sel)
+    checked = reviews(study, sel, review_bytes)
     accepted = [ident for ident in expected_ids if checked[ident]["decision"] == "approved"]
     amr.check(len(accepted) >= 12, "RX_INSUFFICIENT_APPROVED_WORDS")
     source_by_id = {entry["id"]: entry for entry in entries}
@@ -211,8 +218,9 @@ def seal(study: Path, out: Path) -> dict:
         amr.check(amr.sha(original_bytes) == e["original_sha256"],
                   "RX_IMAGE_CHANGED_DURING_SEAL")
         snapshots.append((ident, original_bytes, amr.infer_image(original_bytes)))
-    select_bytes = (study / "selection.json").read_bytes()
-    review_bytes = (study / "privacy_review.json").read_bytes()
+    amr.check((study / "selection.json").read_bytes() == select_bytes
+              and (study / "privacy_review.json").read_bytes() == review_bytes,
+              "RX_INTAKE_CHANGED_DURING_SEAL")
     protected = code_hashes()
     out.mkdir(parents=True, exist_ok=False)
     amr.write(out / "selection.json", select_bytes)
@@ -325,6 +333,8 @@ def evaluate(sealed: Path, out: Path, arms: tuple[str, ...] = ARMS) -> dict:
     for arm in arms:
         for c in manifest["cases"]:
             image = amr.safe(sealed, c["image"], ".jpg").read_bytes()
+            amr.check(amr.sha(image) == c["image_sha256"],
+                      "RX_IMAGE_CHANGED_DURING_RUN")
             start = time.perf_counter()
             pred = infer_word(arm, image)
             duration = max(0, int((time.perf_counter() - start) * 1000))
