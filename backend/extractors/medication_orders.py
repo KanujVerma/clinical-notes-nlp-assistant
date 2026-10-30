@@ -31,6 +31,9 @@ _FREQUENCY = re.compile(
     r"as\s+needed|prn)\b",
     re.IGNORECASE,
 )
+# Abbreviation ends with a period: a trailing word-boundary assertion
+# would reject q.d. before spaces. Do not change the literal frequency.
+_FREQ_QD_PERIOD = re.compile(r"(?i)\bq\.?\s*d\.(?=\s|$)")
 _DURATION = re.compile(
     r"\bfor\s+\d+\s+(?:more\s+)?(?:days?|weeks?|months?)\b",
     re.IGNORECASE,
@@ -169,12 +172,28 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         return None
 
     after_dose = body[dose.end():]
+    # Do not describe a documented discontinued/held medication as an
+    # unspecified ACTIVE-looking order. Honor clear trailing status.
+    trailing_status = re.search(
+        r"(?i)\b(?:was|were|is|are|has\s+been|had\s+been)\s+"
+        r"(?P<state>discontinued|stopped|held|withheld|continued|resumed)\b",
+        after_dose,
+    )
+    if trailing_status:
+        trailing_action = {
+            "discontinued": "stop", "stopped": "stop",
+            "held": "hold", "withheld": "hold",
+            "continued": "continue", "resumed": "continue",
+        }[trailing_status.group("state").casefold()]
+        if action and action != trailing_action:
+            return None
+        action = trailing_action
     # This clause contains another explicit instruction for a different
     # mention; never borrow PRN/frequency from that next instruction.
     if _SECONDARY_DIRECTIVE.search(after_dose):
         return None
     route_match = _ROUTE.search(after_dose)
-    freq_match = _FREQUENCY.search(after_dose)
+    freq_match = _FREQ_QD_PERIOD.search(after_dose) or _FREQUENCY.search(after_dose)
     if (pre_route and route_match
             and pre_route.casefold() != route_match.group().casefold()):
         return None
@@ -235,7 +254,7 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
 
     duration = _DURATION.search(after_dose)
     sig_end = max(item.end() for item in doses)
-    for hit in (route_match, freq_match, prn, as_needed, duration):
+    for hit in (route_match, freq_match, prn, as_needed, duration, trailing_status):
         if hit:
             sig_end = max(sig_end, dose.end() + hit.end())
     if qualifier_end:
@@ -269,7 +288,7 @@ _SECONDARY_DIRECTIVE = re.compile(
     re.IGNORECASE,
 )
 _CLAUSE_BREAK = re.compile(
-    r";\s*|(?<!\d)[.!?](?!\d)\s+|"
+    r";\s*|(?<!\d)(?<!q\.d)[.!?](?!\d)\s+|"
     r"\s+(?:and|then)\s+(?=(?:start|stop|hold|discontinue|continue|"
     r"resume|take|use|administer|give|apply|inject|inhale)\b)",
     re.IGNORECASE,
