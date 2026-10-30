@@ -1,6 +1,6 @@
 # PR9 alternative: a public, genuinely handwritten clinical-document benchmark
 
-**Decision:** proposed; awaiting user approval of source and revised claim scope. **No model accuracy has been run or asserted by this document.** The original PR9 six-person fictional-handwriting protocol remains unchanged as a separate, higher-assurance option.
+**Decision:** User approved AMR primary + RxHandBD supplemental on 2026-10-30. AMR reproducibility/intake/three-arm OCR/replay implementation is in PR9, under privacy-gated, externally attested publisher ground truth. **No actual AMR model accuracy has been run or asserted yet.** The original PR9 six-person fictional-handwriting protocol remains unchanged as a separate, higher-assurance option.
 
 ## Recommended primary source: African Medical Records (AMR)
 
@@ -28,6 +28,47 @@ https://data.mendeley.com/datasets/dsb5r6vskg/3, DOI 10.17632/dsb5r6vskg.3, CC B
 
 **Do not** put AMR images through `handwriting_study.py scaffold` and then mark writer consent or independent transcriber/adjudicator attestations `true`. Those are attestations for an entirely different collection process. Do not repurpose `synthetic_only` or `independent_human_transcription` fields dishonestly. Implement the public dataset as a distinct pipeline, manifest schema, freeze and evidence status.
 
+## Implemented local AMR commands
+
+The source-pinned public benchmark lives in `backend/evaluation/public_amr_benchmark.py`, separate from volunteer intake. Run this on the Mac with Python 3.11, project dependencies, and previously installed Tesseract + Ollama models. The 24-pair pilot uses round-robin contributor sampling over all 62 publisher records. It supports multiple source PNG pages per document and scores against its one text reference.
+
+```bash
+hf download Nigeria-Health-data-OCR-pipeline/African-Medical-Records \
+  --repo-type dataset \
+  --revision fa27d29dae4128ac45f035fd580928c84bec4e98 \
+  --local-dir data/handwriting-private/amr-upstream
+
+python backend/evaluation/public_amr_benchmark.py scaffold \
+  --dataset-root data/handwriting-private/amr-upstream \
+  --study data/handwriting-private/amr-intake
+```
+
+The resulting `privacy_review.json` is **deliberately unapproved**. A real reviewer must inspect every page and the published transcript for the selected cases before entering an actual reviewer identity, marking `all_pages_and_transcript_reviewed=true`, `contains_real_patient_data=false`, `contains_identifiers=false`, `decision=approved`; uncertain records should be excluded with one of the specified reasons. This is a privacy review, not independent blinded transcription. No source photos or text should be committed or uploaded.
+
+```bash
+python backend/evaluation/public_amr_benchmark.py seal \
+  --study data/handwriting-private/amr-intake \
+  --out data/handwriting-private/amr-sealed
+
+# Independently timestamp/hash study_seal.json BEFORE inference.
+shasum -a 256 data/handwriting-private/amr-sealed/study_seal.json
+
+python backend/evaluation/public_amr_benchmark.py verify \
+  --sealed data/handwriting-private/amr-sealed
+
+python backend/evaluation/public_amr_benchmark.py execute \
+  --sealed data/handwriting-private/amr-sealed \
+  --out artifacts/handwriting-private/amr-real
+
+python backend/evaluation/public_amr_benchmark.py replay \
+  --sealed data/handwriting-private/amr-sealed \
+  --run artifacts/handwriting-private/amr-real
+```
+
+The execute command compares three real local **OCR** arms: Tesseract, GLM-OCR, and Qwen3-VL with a *separately frozen Qwen handwriting transcription prompt*. This differs from the existing Qwen **structured entity** adapter, so Qwen OCR CER/WER is valid on this new task only. No medication or vital F1 is inferred from published text. The CLI also accepts `--arms tesseract` for a Tesseract-only pilot, which must be labeled a **partial**, not three-model completion.
+
+The seal SHA-locks all 62 input metadata records and original source hashes, the publisher text gold, manual privacy reviewer decisions, retained original PNGs, fixed common inference JPEG transforms, PR7/8 inherited code locks, and the new runner. Replay verifies exact saved predictions/metrics and completion receipt with no inference. CI tests use pixel patterns and mocked model outputs only; **no real AMR samples or performance measurements are stored in CI**.
+
 ## Proposed execution gates (in order)
 
 1. **License/source/PHI gate before inference.** Pin upstream revision and verify the 62-record metadata, document/page pairing, image bytes, text bytes, source formats and duplicate hashes. Review **all** pages/transcripts for identifiable patient information, including real-looking record numbers, handwritten names, stamps and signatures. The published *synthetic/volunteer* description alone is insufficient to certify no identifiers. Use local-only processing; never upload source data or unredacted predictions to cloud services or public GitHub. Predeclare exclusions/redactions and keep their counts and reasons. Do not claim that all 62 are eligible before inspection.
@@ -43,7 +84,7 @@ A passing 24-case public pilot can support: **"On an exploratory, pinned public 
 
 It **cannot** support: **"Our team collected 24 independent fictional notes with two blinded transcribers and third-person adjudication"**, or clinical validity, guaranteed PHI-free provenance, production readiness or measured structured medication/vital performance without independent structured gold.
 
-## Suggested local download after approval
+## Pinned download (approved dataset, model measurements still pending)
 
 ```bash
 hf download Nigeria-Health-data-OCR-pipeline/African-Medical-Records \
@@ -52,7 +93,7 @@ hf download Nigeria-Health-data-OCR-pipeline/African-Medical-Records \
   --local-dir data/handwriting-private/amr-upstream
 ```
 
-Only perform the above against a verified, pinned revision after confirming scope. Never commit the downloaded repository, image bytes or transcripts. The next implementation step is a *new, separately tested public-AMR intake/seal/replay path*, not a patch that weakens the existing human collection gate.
+The revision has been verified against the upstream commit page. Never commit the downloaded repository, image bytes or transcripts. The standalone AMR intake, sealing, inference and replay path has been implemented in this PR; actual data review, local inference and real-model replay remain separate execution gates.
 
 ## Original source citations (checked 2026-10-30)
 
