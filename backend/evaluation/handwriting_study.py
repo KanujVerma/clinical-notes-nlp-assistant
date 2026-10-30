@@ -16,7 +16,6 @@ import hashlib
 import json
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 from typing import Any
@@ -284,7 +283,15 @@ def prepare(source: Path, destination: Path) -> dict:
     """Copy original bytes unchanged, preserve independent transcripts, seal gold."""
     if destination.exists():
         raise ValueError("HANDWRITING_SEAL_DESTINATION_EXISTS")
+    # Hold exact original annotation bytes before validation and persist those
+    # same bytes; copying again from mutable paths after adjudication checking
+    # could create a contradictory but otherwise hash-consistent seal.
+    snapshots = {name: path.read_bytes()
+                 for name, path in _files_in_input(source).items()}
     manifest, images = validate_collection(source)  # No output on failure.
+    _expect(all(path.read_bytes() == snapshots[name]
+                for name, path in _files_in_input(source).items()),
+            "HANDWRITING_ANNOTATIONS_CHANGED_DURING_INTAKE")
     _expect(source.resolve() != destination.resolve() and
             not destination.resolve().is_relative_to(source.resolve()),
             "HANDWRITING_SEAL_CANNOT_NEST_INSIDE_SOURCE")
@@ -296,8 +303,9 @@ def prepare(source: Path, destination: Path) -> dict:
         image = destination / case["image"]
         with image.open("xb") as f:
             f.write(original)  # Original photograph/scan bytes, never reconstructed.
-    for name, path in _files_in_input(source).items():
-        shutil.copyfile(path, destination / "annotations" / (name + ".json"))
+    for name, snapshot in snapshots.items():
+        with (destination / "annotations" / (name + ".json")).open("xb") as f:
+            f.write(snapshot)
     _write_once(destination / "manifest.json", manifest)
     # The older PR7 handwriting intake path accepts the proper, explicit
     # external attestations; it never treats them as cryptographic identity proof.
@@ -311,6 +319,8 @@ def prepare(source: Path, destination: Path) -> dict:
     _expect(len(verified) == len(scored["cases"]), "HANDWRITING_SEALED_DATASET_MISMATCH")
     excluded = [c["id"] for c in manifest["cases"] if c["scoring_status"] != "scored"]
     people = {c["human_provenance"]["writer_pseudonym"] for c in manifest["cases"]}
+    scored_people = {c["human_provenance"]["writer_pseudonym"]
+                     for c in scored["cases"]}
     seal = {
         "version": VERSION,
         "status": "locally_attested_not_independently_proven",
@@ -327,7 +337,8 @@ def prepare(source: Path, destination: Path) -> dict:
         "scorable_count": len(scored["cases"]),
         "unscorable_case_ids": excluded,
         "writer_count": len(people),
-        "cohort_phase": ("final_candidate" if len(images) >= 24 and len(people) >= 3
+        "cohort_phase": ("final_candidate" if len(scored["cases"]) >= 24
+                         and len(scored_people) >= 3
                          else "pilot_or_insufficient_sample"),
         "limitations": [
             "Attestations are not independent verification that images are hand-written",
