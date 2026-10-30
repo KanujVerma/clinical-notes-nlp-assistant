@@ -338,6 +338,23 @@ def test_replay_rejects_attested_digest_not_matching_source_report(
     assert not out.exists()
 
 
+@pytest.mark.parametrize("malformed", [
+    {"paired_report": None},
+    {"arm_files": []},
+    {"arm_files": {"tesseract": None}},
+])
+def test_malformed_original_execution_receipt_fails_closed(
+        manifest, mock_reports, tmp_path, malformed):
+    original, receipt_path = _test_only_mock_execution_receipt(manifest, mock_reports, tmp_path)
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt.update(malformed)
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    out = tmp_path / "malformed-receipt-result"
+    with pytest.raises(ValueError, match="INVALID_CANONICAL_MODEL_IDENTITY_RECEIPT"):
+        runner.compare_only(manifest, LOCK, out, mock_reports, original, receipt_path)
+    assert not out.exists()
+
+
 def test_cli_preflight_does_not_query_models_or_create_artifacts(manifest, monkeypatch, capsys):
     monkeypatch.setattr(runner.sys, "argv", [
         "run_paired_holdout", "--manifest", str(manifest), "--preflight",
