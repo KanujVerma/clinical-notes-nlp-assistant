@@ -6,6 +6,8 @@ on:
     paths:
       - "backend/evaluation/handwriting_study.py"
       - "backend/evaluation/public_amr_benchmark.py"
+      - "backend/evaluation/public_rxhandbd_benchmark.py"
+      - "backend/tests/test_public_rxhandbd_benchmark.py"
       - "backend/tests/test_public_amr_benchmark.py"
       - "docs/validation/PR9_PUBLIC_HANDWRITING_DATASET_PROPOSAL.md"
       - "backend/evaluation/handwriting_evaluate.py"
@@ -53,7 +55,7 @@ jobs:
           python -m pytest backend/tests/test_handwriting_study.py -q
       - name: Public AMR provenance, source integrity and replay CONTRACT tests only
         run: |
-          python -m pytest backend/tests/test_public_amr_benchmark.py -q
+          python -m pytest backend/tests/test_public_amr_benchmark.py backend/tests/test_public_rxhandbd_benchmark.py -q
       - name: No real handwriting measurements can be emitted without supplied volunteers
         run: |
           if python backend/evaluation/handwriting_evaluate.py execute \
