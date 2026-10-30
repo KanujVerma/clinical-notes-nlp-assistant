@@ -187,6 +187,9 @@ def _verify_original_model_identity_receipt(
         raise ValueError("MODEL_IDENTITY_PROVENANCE_REQUIRED") from exc
     if not isinstance(source, dict) or not isinstance(receipt, dict):
         raise ValueError("MODEL_IDENTITY_PROVENANCE_REQUIRED")
+    if (not isinstance(receipt.get("paired_report"), dict)
+            or not isinstance(receipt.get("arm_files"), dict)):
+        raise ValueError("INVALID_CANONICAL_MODEL_IDENTITY_RECEIPT")
     provenance = source.get("run_provenance")
     if (source.get("status") != "completed_three_arm_local_paired_synthetic_comparison"
             or source.get("manifest_sha256") != replayed["manifest_sha256"]
@@ -218,6 +221,7 @@ def _verify_original_model_identity_receipt(
         original = summary[arm]
         file_digest = hashlib.sha256(model_reports[arm].read_bytes()).hexdigest()
         if (not isinstance(original, dict)
+                or not isinstance(receipt["arm_files"][arm], dict)
                 or digests[arm] != verified["model_digest_or_version"]
                 or original.get("model_digest_or_version") != digests[arm]
                 or original.get("original_report_sha256") != file_digest
