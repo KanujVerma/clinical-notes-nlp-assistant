@@ -1,6 +1,6 @@
 # PR9 alternative: a public, genuinely handwritten clinical-document benchmark
 
-**Decision:** User approved AMR primary + RxHandBD supplemental on 2026-10-30. AMR reproducibility/intake/three-arm OCR/replay implementation is in PR9, under privacy-gated, externally attested publisher ground truth. **No actual AMR model accuracy has been run or asserted yet.** The original PR9 six-person fictional-handwriting protocol remains unchanged as a separate, higher-assurance option.
+**Decision:** User approved AMR primary + RxHandBD supplemental on 2026-10-30. AMR and RxHandBD reproducibility/intake/three-arm OCR/replay implementations are in PR9, under privacy-gated, externally attested publisher ground truth. **No actual AMR model accuracy has been run or asserted yet.** The original PR9 six-person fictional-handwriting protocol remains unchanged as a separate, higher-assurance option.
 
 ## Recommended primary source: African Medical Records (AMR)
 
@@ -14,6 +14,38 @@
 - The native Hugging Face dataset viewer currently reports a legacy dataset-script error; use `hf download`/file downloads, **not** `load_dataset` or reliance on the viewer.
 
 ### Secondary source: RxHandBD
+
+RxHandBD is implemented separately in `backend/evaluation/public_rxhandbd_benchmark.py`. Obtain **version 3** `RxHandBD-ML.zip` from the official Mendeley page, extract into an ignored private directory, and use only the publisher-provided `test_labels.csv` (1,115 word crops; 4,463 training images are **not** used). Do not pool word metrics with AMR document metrics. The CLI validates all test image/label pairs, rejects duplicates, and deterministically chooses a 100-word pilot without looking at model results. Because the extracted ZIP layout and CSV headers could vary, pass `--images-dir`, `--image-column`, or `--text-column` as needed. Unknown fields fail closed, never silently map labels.
+
+```bash
+# Download RxHandBD-ML.zip v3 from https://data.mendeley.com/datasets/dsb5r6vskg/3
+unzip RxHandBD-ML.zip -d data/handwriting-private/rxhandbd-v3
+python backend/evaluation/public_rxhandbd_benchmark.py scaffold \
+  --dataset-root data/handwriting-private/rxhandbd-v3 \
+  --study data/handwriting-private/rx-intake \
+  --count 100
+```
+
+A reviewer must fill the newly generated `privacy_review.json` for all selected test words, examining both images and published labels. Only after actual review, source privacy approval and documented pre-inference exclusions, run:
+
+```bash
+python backend/evaluation/public_rxhandbd_benchmark.py seal \
+  --study data/handwriting-private/rx-intake \
+  --out data/handwriting-private/rx-sealed
+shasum -a 256 data/handwriting-private/rx-sealed/study_seal.json
+python backend/evaluation/public_rxhandbd_benchmark.py verify \
+  --sealed data/handwriting-private/rx-sealed
+python backend/evaluation/public_rxhandbd_benchmark.py execute \
+  --sealed data/handwriting-private/rx-sealed \
+  --out artifacts/handwriting-private/rx-real
+python backend/evaluation/public_rxhandbd_benchmark.py replay \
+  --sealed data/handwriting-private/rx-sealed \
+  --run artifacts/handwriting-private/rx-real
+```
+
+Published **test word labels** are not our own blind adjudications. Tesseract uses single-line PSM 7 on Rx word crops; GLM and the new Qwen OCR transcription task use the same frozen local OCR prompts/adapters as AMR. Source and model hashes plus raw predictions are stored privately. CI substitutes generated pixel patterns and mock predictions only.
+
+
 
 https://data.mendeley.com/datasets/dsb5r6vskg/3, DOI 10.17632/dsb5r6vskg.3, CC BY 4.0; 5,578 handwritten prescription-word crops, published text labels and 1,115 predefined test images. This offers a **separate medical-word OCR** stress test, not a substitute for whole-note testing. Never pool word-level metrics with document-level metrics.
 
