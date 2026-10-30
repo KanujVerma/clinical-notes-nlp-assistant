@@ -171,16 +171,87 @@ def execute(manifest_path: Path, lock_path: Path, output_dir: Path) -> dict:
     return paired
 
 
+def _verify_original_model_identity_receipt(
+    original_paired: Path, completion_receipt: Path,
+    model_reports: dict[str, Path], replayed: dict,
+) -> dict:
+    """Bind exact canonical tags to original sequential execution and score files.
+
+    This guards accidental arm substitution. It does NOT cryptographically
+    attest the machine operator; independent human provenance still matters.
+    """
+    try:
+        source = json.loads(original_paired.read_text(encoding="utf-8"))
+        receipt = json.loads(completion_receipt.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError) as exc:
+        raise ValueError("MODEL_IDENTITY_PROVENANCE_REQUIRED") from exc
+    if not isinstance(source, dict) or not isinstance(receipt, dict):
+        raise ValueError("MODEL_IDENTITY_PROVENANCE_REQUIRED")
+    provenance = source.get("run_provenance")
+    if (source.get("status") != "completed_three_arm_local_paired_synthetic_comparison"
+            or source.get("manifest_sha256") != replayed["manifest_sha256"]
+            or source.get("arms_run") != list(ARMS)
+            or receipt.get("status") != source["status"]
+            or receipt.get("source_manifest_sha256") != replayed["manifest_sha256"]
+            or receipt.get("paired_report", {}).get("sha256") !=
+                hashlib.sha256(original_paired.read_bytes()).hexdigest()
+            or not isinstance(provenance, dict)
+            or provenance.get("execution_type") != "real_local_inference_not_mocked"
+            or provenance.get("all_three_arms_required") is not True
+            or provenance.get("model_tags") != REQUIRED_MODEL_TAGS
+            or provenance.get("source_manifest_sha256") != replayed["manifest_sha256"]):
+        raise ValueError("INVALID_CANONICAL_MODEL_IDENTITY_RECEIPT")
+    digests = provenance.get("model_digests_or_version_preflight")
+    if not isinstance(digests, dict) or set(digests) != set(ARMS):
+        raise ValueError("INVALID_CANONICAL_MODEL_IDENTITY_RECEIPT")
+    if (source.get("case_details") != replayed["case_details"]
+            or source.get("paired_exact_case_comparisons") !=
+                replayed["paired_exact_case_comparisons"]):
+        raise ValueError("ORIGINAL_PAIRED_REPORT_SCORE_MISMATCH")
+    summary = source.get("arm_summaries")
+    if (not isinstance(summary, dict) or set(summary) != set(ARMS)
+            or not isinstance(receipt.get("arm_files"), dict)
+            or set(receipt["arm_files"]) != set(ARMS)):
+        raise ValueError("INVALID_CANONICAL_MODEL_IDENTITY_RECEIPT")
+    for arm in ARMS:
+        verified = replayed["arm_summaries"][arm]
+        original = summary[arm]
+        file_digest = hashlib.sha256(model_reports[arm].read_bytes()).hexdigest()
+        if (not isinstance(original, dict)
+                or digests[arm] != verified["model_digest_or_version"]
+                or original.get("model_digest_or_version") != digests[arm]
+                or original.get("original_report_sha256") != file_digest
+                or verified["original_report_sha256"] != file_digest
+                or receipt["arm_files"][arm].get("sha256") != file_digest
+                or original.get("summary") != verified["summary"]):
+            raise ValueError("MODEL_REPORT_NOT_BOUND_TO_ORIGINAL_RECEIPT")
+    return {
+        "status": "original_execution_receipt_verified",
+        "recorded_model_tags": provenance["model_tags"],
+        "original_paired_sha256": hashlib.sha256(original_paired.read_bytes()).hexdigest(),
+        "original_receipt_sha256": hashlib.sha256(completion_receipt.read_bytes()).hexdigest(),
+        "scope": (
+            "SHA-bound original execution record; does not independently prove "
+            "host machine identity or that untrusted external JSON is authentic."
+        ),
+    }
+
+
 def compare_only(manifest_path: Path, lock_path: Path, output_dir: Path,
-                 reports: dict[str, Path]) -> dict:
+                 reports: dict[str, Path], original_paired: Path,
+                 completion_receipt: Path) -> dict:
     if output_dir.exists():
         raise ValueError("PAIRED_OUTPUT_DIRECTORY_EXISTS")
     # No model endpoints or downloads are accessed in this branch.
     paired = compare_paired_reports(manifest_path, lock_path, reports)
+    identity_receipt = _verify_original_model_identity_receipt(
+        original_paired, completion_receipt, reports, paired,
+    )
     output_dir.mkdir(parents=True, exist_ok=False)
     paired["run_provenance"] = {
-        "execution_type": "offline_replay_of_submitted_single_arm_reports",
+        "execution_type": "offline_replay_with_original_model_identity_receipt",
         "new_model_calls": False,
+        "identity_receipt": identity_receipt,
         "original_arm_files": {arm: _report_source_pointer(path)
                                for arm, path in reports.items()},
     }
@@ -203,19 +274,23 @@ def main() -> int:
     parser.add_argument("--tesseract-report", type=Path)
     parser.add_argument("--glm-report", type=Path)
     parser.add_argument("--qwen-report", type=Path)
+    parser.add_argument("--original-paired-report", type=Path)
+    parser.add_argument("--completion-receipt", type=Path)
     args = parser.parse_args()
 
     try:
         meta, _ = canonical_manifest(args.manifest, args.lock)
         if args.preflight:
-            if args.output or args.tesseract_report or args.glm_report or args.qwen_report:
+            if (args.output or args.tesseract_report or args.glm_report or args.qwen_report
+                    or args.original_paired_report or args.completion_receipt):
                 raise ValueError("PREFLIGHT_ACCEPTS_NO_OUTPUT_OR_REPORTS")
             print("PAIRED_PREFLIGHT_VERIFIED_CANONICAL_24_CASES:" + meta["manifest_sha256"])
             return 0
         if args.output is None:
             raise ValueError("OUTPUT_DIRECTORY_REQUIRED")
         if args.execute:
-            if args.tesseract_report or args.glm_report or args.qwen_report:
+            if (args.tesseract_report or args.glm_report or args.qwen_report
+                    or args.original_paired_report or args.completion_receipt):
                 raise ValueError("EXECUTE_DOES_NOT_CONSUME_PRIOR_REPORTS")
             paired = execute(args.manifest, args.lock, args.output)
         else:
@@ -226,7 +301,10 @@ def main() -> int:
             }
             if any(path is None for path in reports.values()):
                 raise ValueError("THREE_ORIGINAL_MODEL_REPORT_PATHS_REQUIRED")
-            paired = compare_only(args.manifest, args.lock, args.output, reports)
+            if args.original_paired_report is None or args.completion_receipt is None:
+                raise ValueError("MODEL_IDENTITY_PROVENANCE_REQUIRED")
+            paired = compare_only(args.manifest, args.lock, args.output, reports,
+                                  args.original_paired_report, args.completion_receipt)
     except (ValueError, OSError, KeyError, TypeError, RuntimeError,
             InferenceBindingError) as exc:
         # No uploaded patient text or model source document is printed.
