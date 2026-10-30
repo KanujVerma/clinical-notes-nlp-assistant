@@ -1,0 +1,33 @@
+{
+  "lock_version": "prospective_synthetic_v1",
+  "synthetic_only": true,
+  "annotation_status": "synthetic_generator_ground_truth",
+  "previous_development_cases": 30,
+  "frozen_baseline_commit": "b58a65da2b28917aedd5504c4c8b7e5818f03033",
+  "frozen_file_git_blobs": {
+    "backend/extractors/medication_orders.py": "eb04ee63c2e0c716f3ed476a220c25adaddd7275",
+    "backend/extractors/medications.py": "6c21c4b41e4d55c8d0a28d0b9565b3dfde049fe6",
+    "backend/extractors/patterns/medications.json": "528a12ad10cfa01d5037ad13f41a53e4ac36da23",
+    "backend/extractors/pipeline.py": "074a83860d62a5de25f1ef631a626b2c4d705392",
+    "backend/extractors/sections.py": "d64c38e08e3c6e6ad677e1e39b7fc250662f6931",
+    "backend/extractors/preprocess.py": "8a1f23da24c0145e05e14540bf99adefcc5a538c",
+    "backend/extractors/normalize.py": "21eefcaa292467982139c585d7c51d26ae7e0e71",
+    "backend/evaluation/local_vision_eval.py": "90712c34bd8665ca224f368f5053d2f005a82ce3",
+    "backend/evaluation/vision_benchmark.py": "c6545e58a259d8aabeaa811455ef33bac022a2a3",
+    "backend/evaluation/vision_vital_aliases.py": "0aa17f6c569f9fbbfc6d340f4c5620a3b96dcc16",
+    "backend/evaluation/generate_synthetic_visual_cases.py": "c05ce1027c1f017bfdbe14476efb2eefb368f31c",
+    "backend/services/inference_pipeline.py": "bad8c7699132d8062b54c91cc2e4a95baa381dab",
+    "backend/services/multimodal_service.py": "04317c94d616439eaa26c9d7835378ffcc39033a"
+  },
+  "pre_case_baseline_seal_git_blob": "0b28606f659e86f29436a066218a2d7b15d0c62e",
+  "pre_case_baseline_seal_commit": "de5ef901792f31f54aee3b4207a9a7a967391d12",
+  "frozen_case_definition_git_blob": "e2f76eb94688e610bbde27a76781d47bb7744a2d",
+  "case_definition_commit": "05653c56d5d02c28f7378eb107f33bbaf9e68b6e",
+  "data_role": "new_printed_synthetic_holdout_after_parser_freeze",
+  "independently_human_annotated": false,
+  "genuine_handwriting_tested": false,
+  "clinical_validation": false,
+  "notes": "PR6 baseline sealed before 24 new cases were authored. Lock created after both. Any code or case modifications invalidate prospective designation.",
+  "frozen_dependency_amendment_git_blob": "b8918b76188cf1a66700bc3b5672106ef440be0f",
+  "amendment_scope": "five originally merged code/dependency blobs added in retrospective audit before inspection of actual holdout scores"
+}
