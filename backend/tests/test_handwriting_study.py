@@ -498,7 +498,21 @@ def test_real_run_receipt_and_offline_replay_are_consistent_when_models_are_mock
     assert replay["offline_replay"]["new_model_calls"] is False
     assert replay["case_details"] == compared["case_details"]
     assert replay["arm_summaries"]["glm_ocr"]["summary"]["cases"] == 12
-    receipt = json.loads((run_dir / "completion_receipt.json").read_text())
+    paired_path = run_dir / "paired_handwriting_results.json"
+    receipt_path = run_dir / "completion_receipt.json"
+    saved_paired = paired_path.read_bytes()
+    saved_receipt = receipt_path.read_bytes()
+    edited = json.loads(saved_paired)
+    edited["scored_images_count"] = 999
+    put(paired_path, edited)
+    scope_receipt = json.loads(saved_receipt)
+    scope_receipt["paired"]["sha256"] = hashlib.sha256(paired_path.read_bytes()).hexdigest()
+    put(receipt_path, scope_receipt)
+    with pytest.raises(ValueError, match="HANDWRITING_ORIGINAL_COHORT_METADATA_CHANGED"):
+        evaluation.replay(sealed, run_dir, tmp_path / "fake-scope-replay")
+    paired_path.write_bytes(saved_paired)
+    receipt_path.write_bytes(saved_receipt)
+    receipt = json.loads(receipt_path.read_text())
     receipt["arm_files"]["glm_ocr"]["sha256"] = "0" * 64
     put(run_dir / "completion_receipt.json", receipt)
     with pytest.raises(ValueError, match="HANDWRITING_MODEL_OR_SUMMARY_HASH_MISMATCH"):
