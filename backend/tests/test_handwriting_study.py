@@ -126,6 +126,33 @@ def intake(tmp_path):
     return make_input(tmp_path)
 
 
+def test_scaffold_generates_only_unfilled_templates_with_all_human_attestations_false(
+        tmp_path):
+    pictures = tmp_path / "raw-images"
+    pictures.mkdir()
+    Image.new("RGB", (40, 25), "white").save(pictures / "note_a.png")
+    Image.new("RGB", (42, 27), "white").save(pictures / "note_b.png")
+    out = tmp_path / "intake"
+    state = study.scaffold_images(pictures, out, "fictional_handwriting_example")
+    assert state["case_count"] == 2
+    assert state["no_transcription_or_gold_generated"] is True
+    assert state["human_attestations_default_false"] is True
+    a = read_source(out, "collection")
+    assert len(a["cases"]) == 2
+    assert all(case["genuine_handwriting_attested"] is False for case in a["cases"])
+    assert all(case["writer_consent_attested"] is False for case in a["cases"])
+    assert all((out / case["image"]).exists() for case in a["cases"])
+    b = read_source(out, "transcriber_a")
+    assert b["independent_transcription_attested"] is False
+    assert not b["cases"][0]["reference_text"]
+    adj = read_source(out, "adjudication")
+    assert adj["independent_review_attested"] is False
+    with pytest.raises(ValueError, match="HANDWRITING_COLLECTION_ATTESTATION_REQUIRED"):
+        study.validate_collection(out)
+    with pytest.raises(ValueError, match="HANDWRITING_SCAFFOLD_DESTINATION_EXISTS"):
+        study.scaffold_images(pictures, out, "fictional_handwriting_example")
+
+
 def test_independent_human_roles_and_matching_12_case_gold_are_only_attestations(intake):
     manifest, originals = study.validate_collection(intake)
     assert len(originals) == 12
