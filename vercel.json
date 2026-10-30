@@ -19,7 +19,8 @@
       "feat/real-vision-benchmark": false,
       "feat/medication-gold-replay-and-parser": false,
       "feat/prospective-synthetic-holdout": false,
-      "feat/paired-local-model-comparison": false
+      "feat/paired-local-model-comparison": false,
+      "feat/genuine-handwriting-validation": false
     }
   }
 }
