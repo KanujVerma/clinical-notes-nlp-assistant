@@ -222,3 +222,16 @@ def test_literal_critical_numbers_and_negation_preserved():
     assert {t["token"] for t in result["critical_tokens"]} >= {"2.5 mg", "PRN"}
     assert not next(t for t in result["critical_tokens"]
                     if t["token"] == "2.5 mg")["recognized"]
+
+
+def test_leading_decimal_dose_mismatch_is_critical_not_false_positive():
+    # A 10-fold dose error must never be counted as an exact critical token hit.
+    bad = amr.score("Warfarin .5 mg PO", "Warfarin 5 mg PO")
+    numeric = [x for x in bad["critical_tokens"] if "mg" in x["token"].lower()]
+    assert len(numeric) == 1
+    assert numeric[0]["token"] == ".5 mg"
+    assert numeric[0]["recognized"] is False
+    good = amr.score("Warfarin .5 mg PO", "Warfarin .5 mg PO")
+    assert next(x for x in good["critical_tokens"] if "mg" in x["token"])["recognized"]
+    percent = amr.score("Oxygen 96%", "Oxygen 96%")
+    assert next(x for x in percent["critical_tokens"] if "%" in x["token"])["recognized"]
