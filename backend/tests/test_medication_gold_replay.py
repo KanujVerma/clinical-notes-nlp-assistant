@@ -280,6 +280,31 @@ def test_second_medication_instruction_never_leaks_prn_into_first_drug():
     assert "prn" not in lis[0].get("qualifier", "").casefold()
 
 
+def test_other_medication_trailing_status_cannot_change_first_medication_action():
+    source = "Warfarin 2.5 mg PO daily while aspirin is held."
+    assert parse_order_lines(source) == []
+    meds = run_pipeline(source)["medications"]
+    assert not any(m["name"] == "warfarin" and m.get("action") == "hold" for m in meds)
+    assert not any(m["name"] == "warfarin" and m.get("action") == "stop" for m in meds)
+
+
+def test_dose_change_verbs_cannot_become_drug_name_and_keep_direction():
+    for verb, name, dose in (
+        ("Increase", "metformin", "500 mg"),
+        ("Reduce", "warfarin", "2.5 mg"),
+        ("Decrease", "lisinopril", "10 mg"),
+    ):
+        order = verb + " " + name.title() + " " + dose + " PO BID."
+        for source in (order, "Medications:\n" + order):
+            meds = run_pipeline(source)["medications"]
+            assert len(meds) == 1, (source, meds)
+            assert meds[0]["name"] == name
+            assert meds[0]["dose"] == dose
+            assert meds[0]["action"] == "modify"
+            assert verb.casefold() in meds[0]["qualifier"].casefold()
+    assert parse_order_lines("Increase by 5 mg PO daily.") == []
+
+
 def test_trailing_non_active_status_is_not_lost_or_marked_active():
     for source, action in (
         ("Aspirin 81 mg PO daily was discontinued.", "stop"),
