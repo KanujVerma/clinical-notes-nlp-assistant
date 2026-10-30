@@ -255,11 +255,28 @@ def _find_sentence_bounds(text: str, char_pos: int) -> "tuple[int, int]":
     return start, end
 
 
+def _find_medication_clause_bounds(text: str, entity_start: int) -> "tuple[int, int]":
+    """Bound one medication statement without crossing semicolon clauses.
+
+    Sentence boundaries remain decimal-safe. Semicolons can separate an
+    unrelated negative/history/follow-up instruction from a positive order.
+    This is intentionally stricter than scanning an entire sentence for sigs.
+    """
+    start, end = _find_sentence_bounds(text, entity_start)
+    previous = text.rfind(";", start, entity_start)
+    if previous >= 0:
+        start = previous + 1
+    following = text.find(";", entity_start, end)
+    if following >= 0:
+        end = following
+    return start, end
+
+
 def _scan_sentence(text: str, entity_start: int) -> "dict[str, str]":
     """Scan only within the sentence containing entity_start for dose/route/freq.
     Searching starts at entity_start to avoid binding sig from earlier in the sentence.
     """
-    s_start, s_end = _find_sentence_bounds(text, entity_start)
+    s_start, s_end = _find_medication_clause_bounds(text, entity_start)
     snippet = text[s_start:s_end]
     local_pos = entity_start - s_start
     result: dict[str, str] = {}
@@ -391,7 +408,7 @@ def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = Non
             continue
         name = ent.text.casefold()
         # Contraindication / label warnings are NOT additional orders.
-        sentence_start, sentence_end = _find_sentence_bounds(text, ent.start_char)
+        sentence_start, sentence_end = _find_medication_clause_bounds(text, ent.start_char)
         sentence = text[sentence_start:sentence_end].strip()
         # medSpaCy can miss negation scope in "never used"/historical
         # medication history. Fail closed on explicit negative sentence
