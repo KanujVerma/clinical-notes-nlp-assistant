@@ -402,42 +402,49 @@ def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = Non
         add_if_new(candidate)
 
     nlp = _get_nlp()
-    doc = nlp(text)
-    for ent in doc.ents:
-        if ent.label_ != "MEDICATION" or ent._.is_negated:
-            continue
-        name = ent.text.casefold()
-        # Contraindication / label warnings are NOT additional orders.
-        sentence_start, sentence_end = _find_medication_clause_bounds(text, ent.start_char)
-        sentence = text[sentence_start:sentence_end].strip()
-        # medSpaCy can miss negation scope in "never used"/historical
-        # medication history. Fail closed on explicit negative sentence
-        # prefixes even when its entity attribute is_negated is False.
-        if _REJECT_PROSE.match(sentence):
-            continue
-        if re.match(
-            r"(?i)^(?:do\s+not\s+(?:dispense|substitute|order|prescribe)|"
-            r"caution\s*:|warning\s*:|verify\s+label|confirm\s+dose)",
-            sentence,
-        ):
-            continue
+    # Semicolons delimit independent clinical instructions. Processing the
+    # entire text in medSpaCy can propagate negation from an earlier clause
+    # into a separate affirmative order ("Not taking X; Take aspirin").
+    # Match each clause separately, then remap entity offsets into raw text.
+    for segment in re.finditer(r"[^;]+", text):
+        doc = nlp(segment.group())
+        for ent in doc.ents:
+            entity_start = segment.start() + ent.start_char
+            entity_end = segment.start() + ent.end_char
+            if ent.label_ != "MEDICATION" or ent._.is_negated:
+                continue
+            name = ent.text.casefold()
+            # Contraindication / label warnings are NOT additional orders.
+            sentence_start, sentence_end = _find_medication_clause_bounds(text, entity_start)
+            sentence = text[sentence_start:sentence_end].strip()
+            # medSpaCy can miss negation scope in "never used"/historical
+            # medication history. Fail closed on explicit negative sentence
+            # prefixes even when its entity attribute is_negated is False.
+            if _REJECT_PROSE.match(sentence):
+                continue
+            if re.match(
+                r"(?i)^(?:do\s+not\s+(?:dispense|substitute|order|prescribe)|"
+                r"caution\s*:|warning\s*:|verify\s+label|confirm\s+dose)",
+                sentence,
+            ):
+                continue
 
-        extra = _scan_sentence(text, ent.start_char)
-        if not extra and not _FREQ_RE.search(
-            text[max(0, ent.start_char - 80):ent.end_char + 80]
-        ):
-            continue
-        add_if_new({
-            "name": name,
-            "dose": extra.get("dose", ""),
-            "route": extra.get("route", ""),
-            "frequency": extra.get("frequency", ""),
-            "duration": "",
-            "qualifier": "",
-            "span": [ent.start_char, ent.end_char],
-            "source": "medspacy",
-            "confidence": 0.9,
-        })
+            extra = _scan_sentence(text, entity_start)
+            if not extra and not _FREQ_RE.search(
+                text[max(0, entity_start - 80):entity_end + 80]
+            ):
+                continue
+            add_if_new({
+                "name": name,
+                "dose": extra.get("dose", ""),
+                "route": extra.get("route", ""),
+                "frequency": extra.get("frequency", ""),
+                "duration": "",
+                "qualifier": "",
+                "span": [entity_start, entity_end],
+                "source": "medspacy",
+                "confidence": 0.9,
+            })
 
     results.sort(key=lambda m: (m["span"][0], m["span"][1]))
     return results
