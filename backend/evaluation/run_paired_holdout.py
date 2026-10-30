@@ -42,6 +42,7 @@ from services.multimodal_service import (  # noqa: E402
 
 DEFAULT_LOCK = ROOT / "docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json"
 MODELS = {"glm_ocr": DEFAULT_OCR_MODEL, "qwen3_vl": DEFAULT_VL_MODEL}
+REQUIRED_MODEL_TAGS = {"glm_ocr": "glm-ocr:q8_0", "qwen3_vl": "qwen3-vl:4b"}
 
 
 def _swap_used_macos_bytes() -> int | None:
@@ -62,7 +63,12 @@ def _swap_used_macos_bytes() -> int | None:
 
 
 def _preflight_models() -> dict[str, str]:
-    """Verify both exact locally installed Ollama models before first inference."""
+    """Verify frozen model IDs, and exact installed tags before inference."""
+    # The frozen visual adapters read OLLAMA_OCR_MODEL/OLLAMA_VL_MODEL from the
+    # environment. An overridden tag could label Qwen outputs as GLM results,
+    # so do not allow any alternate model identity in this pre-registered test.
+    if MODELS != REQUIRED_MODEL_TAGS:
+        raise ValueError("NONCANONICAL_LOCAL_MODEL_TAGS")
     _ensure_local_ollama_endpoint()
     versions = {"tesseract": str(pytesseract.get_tesseract_version())}
     for arm in ("glm_ocr", "qwen3_vl"):
