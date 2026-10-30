@@ -1,5 +1,7 @@
 # PR #9: Genuine fictional handwriting benchmark, independent annotation and freeze
 
+> **Public-dataset alternative pending user approval (2026-10-30):** The six-person volunteer study is **not the only way to run a genuine-handwriting OCR benchmark**. A separate, provenance-labeled AMR public-cohort plan using 62 publisher-supplied volunteer-written clinical documents and matching reference transcriptions is described in [PR9_PUBLIC_HANDWRITING_DATASET_PROPOSAL.md](PR9_PUBLIC_HANDWRITING_DATASET_PROPOSAL.md). It has different evidence/independence claims and must **not** be fed into this protocol by inventing human attestations. Nothing has been measured on AMR yet.
+
 ## What PR #9 can certify
 
 **No handwriting model accuracy has been measured yet.** This PR supplies a private collection format, fail-closed attestation/independent-transcription checks, SHA-256 source+gold seal, real local three-model runner, independent replay and contract tests. It cannot itself create real handwriting, recruit independent humans, inspect their identity, or prove signed consent. Human claims are *externally attested*, not cryptographically established by the program.
