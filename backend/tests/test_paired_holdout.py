@@ -114,6 +114,56 @@ def test_scores_replay_against_original_predictions_not_report_claims(manifest, 
         verify_single_arm_report(changed, "tesseract", meta, gold)
 
 
+@pytest.mark.parametrize("metric", ["precision", "recall", "f1"])
+def test_derived_aggregate_medication_metric_tampering_fails_replay(
+        manifest, mock_reports, tmp_path, metric):
+    meta, gold = canonical_manifest(manifest, LOCK)
+    def mutate(result):
+        aggregate = result["summary"]["qwen3_vl"]["medications"]
+        aggregate[metric] = 0.777777
+    changed = _tamper(mock_reports["qwen3_vl"], tmp_path, mutate)
+    with pytest.raises(ValueError, match="MODEL_AGGREGATE_MISMATCH"):
+        verify_single_arm_report(changed, "qwen3_vl", meta, gold)
+
+
+def test_derived_critical_token_recall_tampering_fails_replay(manifest, mock_reports, tmp_path):
+    meta, gold = canonical_manifest(manifest, LOCK)
+    def mutate(result):
+        result["summary"]["tesseract"]["critical_token_recall"] = 0.777777
+    changed = _tamper(mock_reports["tesseract"], tmp_path, mutate)
+    with pytest.raises(ValueError, match="OCR_AGGREGATE_MISMATCH"):
+        verify_single_arm_report(changed, "tesseract", meta, gold)
+
+
+def test_live_model_tag_change_mid_run_cannot_produce_completion_receipt(
+        manifest, mock_reports, tmp_path, monkeypatch):
+    versions = {
+        arm: json.loads(path.read_text(encoding="utf-8"))["model_digests"][arm]
+        for arm, path in mock_reports.items()
+    }
+    class NoNetworkSample:
+        def __init__(self, arms): self.arms = arms
+        def __enter__(self): return self
+        def __exit__(self, exc_type, exc, tb): return False
+        def report(self): return {"status": "unmeasured_mock_test"}
+    monkeypatch.setattr(runner, "_preflight_models", lambda: versions)
+    monkeypatch.setattr(runner, "_swap_used_macos_bytes", lambda: None)
+    monkeypatch.setattr(runner, "LocalOllamaResourceSampler", NoNetworkSample)
+    monkeypatch.setattr(runner, "run_evaluation",
+                        lambda manifest_path, arms, output_dir: mock_reports[arms[0]])
+    monkeypatch.setattr(runner.pytesseract, "get_tesseract_version",
+                        lambda: versions["tesseract"])
+    monkeypatch.setattr(runner, "get_installed_model_digest",
+                        lambda model: "replaced-model-digest" if model == runner.MODELS["glm_ocr"]
+                        else versions["qwen3_vl"])
+    output = tmp_path / "live-tag-change"
+    with pytest.raises(ValueError, match="MODEL_DIGEST_CHANGED_DURING_EVALUATION:glm_ocr"):
+        runner.execute(manifest, LOCK, output)
+    assert (output / "execution_status.json").exists()
+    assert not (output / "completion_receipt.json").exists()
+    assert not (output / "paired_comparison.json").exists()
+
+
 def test_strict_action_dose_and_unit_errors_cannot_be_normalized_away():
     from evaluation.local_vision_eval import FIELDS, score_occurrences
     gold = [{"name": "Warfarin", "dose": "2.5 mg", "route": "PO", "frequency": "daily", "action": "hold"}]
