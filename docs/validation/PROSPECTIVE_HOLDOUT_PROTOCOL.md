@@ -6,6 +6,12 @@ This protocol is written before the new 24-case corpus is authored or evaluated.
 
 No parser or scoring-normalization change is permitted in this evaluation PR after the new predictions are inspected. Record failures as failures; improvements require a new development PR and separately registered future holdout. Never regenerate gold, reselect cases, discard failures, or re-label a development evaluation as prospective.
 
+## Dependency-freeze audit amendment
+
+The pre-case freeze seal originally pinned 13 source files at the merged PR #6 baseline. A Codex review, **after the 24 cases were authored and after the first Tesseract run but before its numerical results were inspected**, identified omitted score-affecting dependencies. They are now separately pinned to their *original, unchanged PR #6 blobs*: the vitals, metadata and instructions extractors, runtime config and requirements file. The retrospective amendment is itself SHA-locked in the final execution lock; these files were not part of the original pre-case seal.
+
+This does **not** rewrite the original freeze or pretend the amendment was preregistered. Exact Git history records the sequence. The resulting evaluation remains a narrow, previously unseen generator-authored synthetic test relative to an unchanged merged parser, with a documented freeze-coverage correction. Future studies should seal the complete transitive dependency graph *before* any case authoring.
+
 ## Independent of the 30-case development set, not human annotated
 
 - Exactly **24** new fictional notes: eight printed_clean, eight printed_degraded, and eight photographed using the same deterministic renderer. These are printed-font images with photographic effects, not handwriting.
