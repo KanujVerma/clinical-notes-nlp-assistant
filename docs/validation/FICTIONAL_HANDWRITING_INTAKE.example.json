@@ -1,0 +1,36 @@
+{
+  "dataset_id": "fictional_handwriting_study_REPLACE_WITH_DATE_AND_VERSION",
+  "synthetic_only": true,
+  "annotation_status": "independent_human_transcription",
+  "contains_actual_patient_data": false,
+  "intended_use": "fictional_handwriting_evaluation_only",
+  "attestation_verified_outside_software": false,
+  "cases": [
+    {
+      "id": "handwriting_fictional_case_001",
+      "image": "images/REPLACE_WITH_REAL_PEN_OR_STYLUS_WRITTEN_FILE.png",
+      "sha256": "REPLACE_WITH_ACTUAL_SHA256",
+      "reference_text": "REPLACE_WITH_INDEPENDENTLY_ADJUDICATED_LITERAL_TRANSCRIPTION",
+      "critical_tokens": [
+        "REPLACE_WITH_VERIFIED_SOURCE_TOKEN"
+      ],
+      "source_type": "handwritten",
+      "expected_medications": [],
+      "expected_vitals": [],
+      "human_provenance": {
+        "writer_pseudonym": "writer-replace",
+        "independent_transcriber_pseudonyms": [
+          "transcriber-one",
+          "transcriber-two"
+        ],
+        "adjudicator_pseudonym": "adjudicator-replace",
+        "capture_method": "pen_on_paper_scan",
+        "generation_method": "freehand",
+        "genuine_handwriting_attested": false,
+        "fictional_content_attested": false,
+        "source_image_reviewed_for_identifiers": false,
+        "adjudication_record_id": "REPLACE_WITH_INDEPENDENT_REVIEW_EVIDENCE"
+      }
+    }
+  ]
+}

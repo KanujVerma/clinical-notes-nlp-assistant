@@ -1,0 +1,57 @@
+name: Prospective synthetic holdout (frozen baseline, local-only)
+
+on:
+  pull_request:
+    paths:
+      - "backend/evaluation/prospective_holdout.py"
+      - "backend/evaluation/holdout_cases_v1.py"
+      - "backend/evaluation/handwriting_intake.py"
+      - "backend/tests/test_prospective_holdout.py"
+      - "docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json"
+      - ".github/workflows/prospective-holdout.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  heldout-tesseract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_MODE: local
+      ENABLE_EXTERNAL_EXPLAINER: "false"
+      ENABLE_LOCAL_AI: "false"
+      OLLAMA_HOST: http://127.0.0.1:11434
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install offline OCR tools and pinned project dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr poppler-utils
+          python -m pip install -r requirements.txt
+      - name: Validate frozen baseline, disjoint gold and negative controls
+        run: |
+          python -m pytest backend/tests/test_prospective_holdout.py -q
+          python backend/evaluation/prospective_holdout.py \
+            --lock docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json \
+            --output artifacts/qa-prospective-synthetic \
+            --integrity-only
+      - name: Run ACTUAL local Tesseract on new generated images, no Ollama
+        run: |
+          python backend/evaluation/prospective_holdout.py \
+            --lock docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json \
+            --output artifacts/qa-prospective-synthetic \
+            --arms tesseract
+      - name: Upload labeled synthetic prospective results and frozen manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: prospective-synthetic-holdout-tesseract-only
+          path: artifacts/qa-prospective-synthetic/
+          if-no-files-found: error
