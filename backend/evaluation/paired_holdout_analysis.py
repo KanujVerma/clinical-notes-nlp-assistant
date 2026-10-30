@@ -12,7 +12,7 @@ from typing import Any
 
 from evaluation.holdout_cases_v1 import CASES
 from evaluation.local_vision_eval import (
-    FIELDS, VITAL_FIELDS, _score_text, score_occurrences,
+    FIELDS, VITAL_FIELDS, _score_text, _score_counts, score_occurrences,
 )
 from evaluation.prospective_holdout import validate_freeze, validate_case_partition
 from evaluation.vision_benchmark import load_gold_manifest
@@ -182,8 +182,12 @@ def verify_single_arm_report(path: Path, arm: str, metadata: dict,
             if arm != "qwen3_vl" else reported.get(category)
         if not isinstance(target, dict):
             raise ValueError("MODEL_AGGREGATE_MISMATCH")
-        if any(sum(s[k] for s in scores) != target.get(k)
-               for k in ("tp", "fp", "fn", "support")):
+        counts = {key: sum(s[key] for s in scores)
+                  for key in ("tp", "fp", "fn", "support")}
+        derived = _score_counts(counts["tp"], counts["fp"], counts["fn"])
+        if (any(counts[key] != target.get(key) for key in counts)
+                or any(derived[key] != target.get(key)
+                       for key in ("precision", "recall", "f1"))):
             raise ValueError("MODEL_AGGREGATE_MISMATCH")
     times = sorted(row["latency_ms"] for row in rows)
     if (reported.get("total_latency_ms") != sum(times)
@@ -204,7 +208,11 @@ def verify_single_arm_report(path: Path, arm: str, metadata: dict,
                 or reported.get("cer_micro") != (chars / ref_chars if ref_chars else None)
                 or reported.get("wer_micro") != (words / ref_words if ref_words else None)
                 or reported.get("critical_token_hits") != sum(bool(x["recognized"]) for x in checks)
-                or reported.get("critical_token_total") != len(checks)):
+                or reported.get("critical_token_total") != len(checks)
+                or reported.get("critical_token_recall") != (
+                    sum(bool(x["recognized"]) for x in checks) / len(checks)
+                    if checks else None
+                )):
             raise ValueError("OCR_AGGREGATE_MISMATCH")
     return {
         "report_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
