@@ -227,6 +227,31 @@ def test_renamed_or_mutated_source_bytes_rejected(intake):
         study.validate_collection(intake)
 
 
+def test_annotator_file_changed_between_intake_validation_and_copy_fails_closed(
+        intake, tmp_path, monkeypatch):
+    original = study.validate_collection
+    def modify_during_validation(root):
+        result = original(root)
+        annotator = root / "transcriber_a.json"
+        annotator.write_bytes(annotator.read_bytes() + b" ")
+        return result
+    monkeypatch.setattr(study, "validate_collection", modify_during_validation)
+    target = tmp_path / "should-not-seal-changing-annotations"
+    with pytest.raises(ValueError, match="HANDWRITING_ANNOTATIONS_CHANGED_DURING_INTAKE"):
+        study.prepare(intake, target)
+    assert not target.exists()
+
+
+def test_full_cohort_requires_24_adjudicated_scorable_not_24_just_submitted(tmp_path):
+    inp = make_input(tmp_path, count=24, excluded=True)
+    sealed = tmp_path / "sealed"
+    freeze = study.prepare(inp, sealed)
+    assert freeze["case_count"] == 24
+    assert freeze["scorable_count"] == 23
+    assert freeze["cohort_phase"] == "pilot_or_insufficient_sample"
+    assert freeze["unscorable_case_ids"] == ["hw024"]
+
+
 def test_missing_patient_protection_attestation_and_no_shared_private_identifiers(intake):
     patch_source(intake, "collection",
                  lambda x: x.update(contains_actual_patient_data=True))
