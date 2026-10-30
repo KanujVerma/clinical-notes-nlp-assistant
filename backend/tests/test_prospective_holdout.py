@@ -54,6 +54,21 @@ def test_freeze_catches_source_tampering_and_fails_without_a_lock(tmp_path):
         validate_freeze(path)
 
 
+def test_secondary_freeze_amendment_pins_vitals_and_other_original_dependencies(tmp_path):
+    lock = json.loads(LOCK.read_text(encoding="utf-8"))
+    amendment = json.loads((ROOT / "docs/validation/FROZEN_DEPENDENCY_AMENDMENT.json").read_text())
+    assert amendment["pre_case_seal_unmodified"] is True
+    assert amendment["amended_after_holdout_cases_committed"] is True
+    assert amendment["additional_frozen_git_blobs"]["backend/extractors/vitals.py"]
+    assert validate_freeze(LOCK)["frozen_dependency_amendment_git_blob"] == lock["frozen_dependency_amendment_git_blob"]
+    tampered = copy.deepcopy(lock)
+    tampered["frozen_dependency_amendment_git_blob"] = "0" * 40
+    path = tmp_path / "forged-lock.json"
+    path.write_text(json.dumps(tampered), encoding="utf-8")
+    with pytest.raises(ValueError, match="FROZEN_DEPENDENCY_AMENDMENT_CHANGED"):
+        validate_freeze(path)
+
+
 def test_hashes_of_generated_images_are_verified_and_cannot_be_overwritten(tmp_path):
     dataset = generate_holdout(LOCK, tmp_path / "set")
     images, info = load_gold_manifest(dataset)
