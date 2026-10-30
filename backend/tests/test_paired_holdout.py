@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -251,14 +252,90 @@ def test_remote_ollama_endpoint_is_rejected_prior_to_execution(monkeypatch):
         runner._preflight_models()
 
 
+def _test_only_mock_execution_receipt(manifest, mock_reports, tmp_path):
+    """Construct ONLY in-memory/test-directory attestation for mock-test verification."""
+    from evaluation.paired_holdout_analysis import compare_paired_reports
+    base = compare_paired_reports(manifest, LOCK, mock_reports)
+    versions = {
+        arm: base["arm_summaries"][arm]["model_digest_or_version"]
+        for arm in ARMS
+    }
+    base["run_provenance"] = {
+        "execution_type": "real_local_inference_not_mocked",
+        "all_three_arms_required": True,
+        "source_manifest_sha256": base["manifest_sha256"],
+        "model_tags": dict(runner.REQUIRED_MODEL_TAGS),
+        "model_digests_or_version_preflight": versions,
+        "test_only_caution": "FAKE MODEL OUTPUTS USED ONLY TO TEST PROVENANCE VERIFICATION",
+    }
+    original_path = tmp_path / "mock-original-paired.json"
+    original_path.write_text(json.dumps(base, indent=2), encoding="utf-8")
+    receipt = {
+        "status": base["status"],
+        "source_manifest_sha256": base["manifest_sha256"],
+        "paired_report": {
+            "sha256": hashlib.sha256(original_path.read_bytes()).hexdigest(),
+        },
+        "arm_files": {
+            arm: {"sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+            for arm, path in mock_reports.items()
+        },
+    }
+    receipt_path = tmp_path / "mock-execution-receipt.json"
+    receipt_path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
+    return original_path, receipt_path
+
+
 def test_compare_only_creates_new_verified_report_without_model_calls(manifest, mock_reports, tmp_path):
+    original, receipt = _test_only_mock_execution_receipt(manifest, mock_reports, tmp_path)
     out = tmp_path / "replay"
-    result = runner.compare_only(manifest, LOCK, out, mock_reports)
+    result = runner.compare_only(manifest, LOCK, out, mock_reports, original, receipt)
     saved = json.loads((out / "paired_comparison.json").read_text(encoding="utf-8"))
     assert result["manifest_sha256"] == saved["manifest_sha256"]
     assert saved["run_provenance"]["new_model_calls"] is False
+    assert saved["run_provenance"]["identity_receipt"]["recorded_model_tags"] == runner.REQUIRED_MODEL_TAGS
     with pytest.raises(ValueError, match="PAIRED_OUTPUT_DIRECTORY_EXISTS"):
-        runner.compare_only(manifest, LOCK, out, mock_reports)
+        runner.compare_only(manifest, LOCK, out, mock_reports, original, receipt)
+
+
+def test_offline_replay_needs_original_completed_identity_receipt(manifest, mock_reports, tmp_path):
+    out = tmp_path / "no-proof"
+    with pytest.raises(ValueError, match="MODEL_IDENTITY_PROVENANCE_REQUIRED"):
+        runner.compare_only(
+            manifest, LOCK, out, mock_reports,
+            tmp_path / "absent-original.json", tmp_path / "absent-receipt.json",
+        )
+    assert not out.exists()
+
+
+def test_replay_rejects_relabelled_qwen_as_glm_even_if_receipt_hash_is_updated(
+        manifest, mock_reports, tmp_path):
+    original, receipt = _test_only_mock_execution_receipt(manifest, mock_reports, tmp_path)
+    obj = json.loads(original.read_text())
+    obj["run_provenance"]["model_tags"]["glm_ocr"] = "qwen3-vl:4b"
+    original.write_text(json.dumps(obj), encoding="utf-8")
+    ref = json.loads(receipt.read_text())
+    ref["paired_report"]["sha256"] = hashlib.sha256(original.read_bytes()).hexdigest()
+    receipt.write_text(json.dumps(ref), encoding="utf-8")
+    out = tmp_path / "wrong-model-replay"
+    with pytest.raises(ValueError, match="INVALID_CANONICAL_MODEL_IDENTITY_RECEIPT"):
+        runner.compare_only(manifest, LOCK, out, mock_reports, original, receipt)
+    assert not out.exists()
+
+
+def test_replay_rejects_attested_digest_not_matching_source_report(
+        manifest, mock_reports, tmp_path):
+    original, receipt = _test_only_mock_execution_receipt(manifest, mock_reports, tmp_path)
+    obj = json.loads(original.read_text())
+    obj["run_provenance"]["model_digests_or_version_preflight"]["glm_ocr"] = "changed-digest"
+    original.write_text(json.dumps(obj), encoding="utf-8")
+    ref = json.loads(receipt.read_text())
+    ref["paired_report"]["sha256"] = hashlib.sha256(original.read_bytes()).hexdigest()
+    receipt.write_text(json.dumps(ref), encoding="utf-8")
+    out = tmp_path / "wrong-digest-replay"
+    with pytest.raises(ValueError, match="MODEL_REPORT_NOT_BOUND_TO_ORIGINAL_RECEIPT"):
+        runner.compare_only(manifest, LOCK, out, mock_reports, original, receipt)
+    assert not out.exists()
 
 
 def test_cli_preflight_does_not_query_models_or_create_artifacts(manifest, monkeypatch, capsys):
