@@ -1,0 +1,60 @@
+name: Genuine handwriting intake and replay CONTRACT only (no real samples)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/evaluation/handwriting_study.py"
+      - "backend/evaluation/handwriting_evaluate.py"
+      - "backend/tests/test_handwriting_study.py"
+      - "docs/validation/PR9_GENUINE_HANDWRITING_PROTOCOL.md"
+      - "docs/validation/PR9_FICTIONAL_WRITER_CARDS.md"
+      - ".github/workflows/handwriting-contract.yml"
+      - ".gitignore"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  honest-handwriting-contract-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_MODE: local
+      ENABLE_LOCAL_AI: "false"
+      ENABLE_EXTERNAL_EXPLAINER: "false"
+      OLLAMA_HOST: http://127.0.0.1:11434
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install pinned project and offline OCR system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr poppler-utils
+          python -m pip install -r requirements.txt
+      - name: Prove no private handwriting sample or source gold was committed
+        run: |
+          if git ls-files | grep -E '(^|/)(handwriting-private|real-handwriting|private-handwriting)/'; then
+            echo "PRIVATE_HANDWRITING_SOURCE_FILES_TRACKED" >&2
+            exit 1
+          fi
+          echo "NO_PRIVATE_HANDWRITING_DATA_COMMITTED"
+      - name: Human study cohort, independent annotation, seals and replay contract tests
+        run: |
+          python -m pytest backend/tests/test_handwriting_study.py -q
+      - name: No real handwriting measurements can be emitted without supplied volunteers
+        run: |
+          if python backend/evaluation/handwriting_evaluate.py execute \
+               --sealed data/handwriting-private/sealed-v1 \
+               --output artifacts/handwriting-private/CI-FORBIDDEN; then
+            echo "FAKE_HANDWRITING_MEASUREMENTS_WERE_PUBLISHED" >&2
+            exit 1
+          fi
+          test ! -e artifacts/handwriting-private/CI-FORBIDDEN
+          echo "NO_REAL_HANDWRITING_IMAGES_OR_GOLD_EXIST_IN_CI; MODEL_ACCURACY_UNMEASURED"
