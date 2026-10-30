@@ -135,8 +135,10 @@ def test_duplicate_missing_extra_cases_and_fake_qwen_ocr_are_rejected(manifest, 
     changed = _tamper(qwen, tmp_path, lambda x: x["cases"]["qwen3_vl"].pop())
     with pytest.raises(ValueError, match="MISSING_OR_EXTRA_CASES"):
         verify_single_arm_report(changed, "qwen3_vl", meta, gold)
-    changed = _tamper(qwen, tmp_path, lambda x: x["cases"]["qwen3_vl"][0].update(
-        case_id=x["cases"]["qwen3_vl"][1]["case_id"]))
+    # Make the SECOND row duplicate the FIRST: the duplicate-ID guard should
+    # run before source SHA validation of the deliberately duplicated record.
+    changed = _tamper(qwen, tmp_path, lambda x: x["cases"]["qwen3_vl"][1].update(
+        case_id=x["cases"]["qwen3_vl"][0]["case_id"]))
     with pytest.raises(ValueError, match="MISSING_DUPLICATE_OR_UNKNOWN_CASE"):
         verify_single_arm_report(changed, "qwen3_vl", meta, gold)
     changed = _tamper(qwen, tmp_path, lambda x: x["cases"]["qwen3_vl"][0].update(
