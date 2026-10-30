@@ -269,6 +269,22 @@ def main() -> int:
     except (KeyError, ValueError, OSError, RuntimeError) as exc:
         print("PROSPECTIVE_HOLDOUT_NOT_COMPLETED: " + str(exc), file=sys.stderr)
         return 2
+    # Report the ACTUAL stored model metrics, never a guessed value. This
+    # only changes console reporting; frozen parser/scorer and gold stay intact.
+    for arm in result["arms_run"]:
+        stats = result["actual_results"][arm]
+        print("PROSPECTIVE_MEASURED_SUMMARY " + json.dumps({
+            "arm": arm,
+            "cases": stats.get("cases"),
+            "cer_micro": stats.get("cer_micro"),
+            "wer_micro": stats.get("wer_micro"),
+            "critical_token_hits": stats.get("critical_token_hits"),
+            "critical_token_total": stats.get("critical_token_total"),
+            "latency_p50_ms": stats.get("latency_p50_ms"),
+            "latency_p95_ms": stats.get("latency_p95_ms"),
+            "medications": (stats.get("deterministic_pipeline") or {}).get("medications", stats.get("medications")),
+            "vitals": (stats.get("deterministic_pipeline") or {}).get("vitals", stats.get("vitals")),
+        }, sort_keys=True))
     print("PROSPECTIVE_HOLDOUT_COMPLETED: " + ",".join(result["arms_run"]))
     return 0
 
