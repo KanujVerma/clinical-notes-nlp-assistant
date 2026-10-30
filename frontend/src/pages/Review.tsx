@@ -176,6 +176,7 @@ function flattenExtracted(
       ...(med.frequency ? [[`med.${medId}.frequency`, med.frequency] as [string, string]] : []),
       ...(med.duration ? [[`med.${medId}.duration`, med.duration] as [string, string]] : []),
       ...(med.qualifier ? [[`med.${medId}.qualifier`, med.qualifier] as [string, string]] : []),
+      ...(med.action ? [[`med.${medId}.action`, med.action] as [string, string]] : []),
     ];
     entries.forEach(([key, val]) => {
       m[key] = { value: val, originalValue: val, status: overrides?.[key]?.status ?? "pending" };
@@ -425,6 +426,7 @@ export default function Review() {
             if (med.frequency) valFlat[`med.${medId}.frequency`] = med.frequency;
             if (med.duration) valFlat[`med.${medId}.duration`] = med.duration;
             if (med.qualifier) valFlat[`med.${medId}.qualifier`] = med.qualifier;
+            if (med.action) valFlat[`med.${medId}.action`] = med.action;
           });
           Object.entries(val.instructions ?? {}).forEach(([k, v]) => { if (v) valFlat[`instr.${k}`] = (v as any).value ?? v; });
           Object.entries(val.metadata ?? {}).forEach(([k, v]) => { if (v) valFlat[`meta.${k}`] = (v as any).value ?? v; });
@@ -440,6 +442,7 @@ export default function Review() {
             if (med.frequency) extFlat[`med.${medId}.frequency`] = med.frequency;
             if (med.duration) extFlat[`med.${medId}.duration`] = med.duration;
             if (med.qualifier) extFlat[`med.${medId}.qualifier`] = med.qualifier;
+            if (med.action) extFlat[`med.${medId}.action`] = med.action;
           });
           Object.entries(ext.instructions ?? {}).forEach(([k, v]) => { if (v) extFlat[`instr.${k}`] = (v as any).value ?? v; });
           Object.entries(ext.metadata ?? {}).forEach(([k, v]) => { if (v) extFlat[`meta.${k}`] = (v as any).value ?? v; });

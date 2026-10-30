@@ -16,7 +16,8 @@
       "feat/hosted-synthetic-release": false,
       "feat/local-vision-evaluation": false,
       "feat/recorded-evidence-showcase": false,
-      "feat/real-vision-benchmark": false
+      "feat/real-vision-benchmark": false,
+      "feat/medication-gold-replay-and-parser": false
     }
   }
 }

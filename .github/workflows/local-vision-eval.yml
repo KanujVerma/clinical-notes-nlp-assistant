@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "backend/evaluation/**"
+      - "backend/extractors/**"
+      - "backend/tests/test_medication_gold_replay.py"
       - "backend/tests/test_local_vision_eval.py"
       - "backend/tests/test_vision_benchmark_contract.py"
       - ".github/workflows/local-vision-eval.yml"
@@ -38,6 +40,22 @@ jobs:
         run: |
           python -m pytest backend/tests/test_local_vision_eval.py \
             backend/tests/test_vision_benchmark_contract.py -q
+      - name: Test source-bound medication parser and frozen scoring
+        run: |
+          python -m pytest backend/tests/test_medication_gold_replay.py -q
+      - name: Replay frozen synthetic gold and saved OCR medication records (no Ollama)
+        run: |
+          mkdir -p artifacts/qa-medication-parser
+          python backend/evaluation/replay_medication_parser.py \
+            --manifest data/vision_gold_30/manifest.json \
+            --report artifacts/evaluation/paired_local_17f5737320b78e10.json \
+            --output-dir artifacts/qa-medication-parser
+      - name: Store in-sample medication parser diagnostics only
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-medication-parser-development-replay
+          path: artifacts/qa-medication-parser/
+          if-no-files-found: error
       - name: Generate hash-pinned printed synthetic images
         run: |
           python backend/evaluation/generate_synthetic_visual_cases.py \

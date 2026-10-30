@@ -274,7 +274,7 @@ def check_extraction(
             ))
 
         # Conflicting or negated action (Rule A10)
-        if action in ("negated", "held", "stopped", "discontinued"):
+        if action in ("negated", "hold", "held", "stop", "stopped", "discontinue", "discontinued"):
             # Check if text context near medication mentions hold or stop
             issues.append(ValidationIssue(
                 issue_code="A10_NON_ACTIVE_MEDICATION",

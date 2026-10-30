@@ -8,6 +8,8 @@ import json
 import os
 from typing import Any
 
+from extractors.medication_orders import parse_order_lines
+
 _VOCAB_PATH = os.path.join(os.path.dirname(__file__), "patterns", "medications.json")
 
 # -- Dose -----------------------------------------------------------------------
@@ -45,7 +47,15 @@ _REJECT_DATE = re.compile(
 )
 _REJECT_ICD = re.compile(r"\b[A-Z]\d{2,3}\.?\d*\b")
 _REJECT_PROSE = re.compile(
-    r"^(return\s+to|follow[\s\-]?up|avoid|drink|if\s+you|go\s+to|call|seek|"
+    r"^((?:continue|start|resume|restart|initiate|begin)\s+to\s+"
+    r"(?:hold|withhold|stop|discontinue|start|continue|resume|restart|initiate|begin)\b|"
+    r"to\s+(?:hold|withhold|stop|discontinue|start|continue|resume|restart|initiate|begin)\b|"
+    r"no\b|not(?:\s+taking)?\b|never\b|without\b|denies?\b|denied\b|"
+    r"historical\b|history\s+of\b|previously\b|formerly\b|"
+    r"currently\b|taking\b|takes\b|using\b|uses\b|"
+    r"receives?\b|received\b|reports?\b|reported\b|"
+    r"weight\b|height\b|growth\b|body\s+mass\b|bmi\b|"
+    r"return\s+to|follow[\s\-]?up|avoid|drink|if\s+you|go\s+to|call|seek|"
     r"use\s+the|take\s+all|continue\s+medications?|no\s+(home\s+)?meds?|"
     r"see\s+med|nkda|allergies?)",
     re.IGNORECASE,
@@ -113,6 +123,13 @@ def _parse_line(line: str, char_offset: int) -> "dict[str, Any] | None":
     clean = re.sub(r"^[\s\-\u2022*\d.)\]]+", "", line).strip()
     if _is_rejected(clean):
         return None
+
+    # Preserve dose-free imperative instructions, e.g. "Take aspirin daily".
+    # "takes" (narrative use) remains excluded; directives must not become
+    # part of the drug identity when the legacy section fallback is used.
+    directive = re.match(r"(?i)^(?:take|use)\s+(?!the\b)", clean)
+    if directive:
+        clean = clean[directive.end():]
 
     dm = _DOSE_RE.search(clean)
     rm = _ROUTE_RE.search(clean)
@@ -187,27 +204,71 @@ def _parse_line(line: str, char_offset: int) -> "dict[str, Any] | None":
 
 
 def _parse_section_lines(section_text: str, section_start: int) -> "list[dict[str, Any]]":
-    """Parse a medications section line-by-line."""
+    """Parse sections with exact LF/CRLF and blank-line source offsets."""
     results = []
-    offset = section_start
-    for line in section_text.splitlines():
-        med = _parse_line(line, offset)
+    for line in re.finditer(r"[^\r\n]+", section_text):
+        med = _parse_line(line.group(), section_start + line.start())
         if med:
             results.append(med)
-        offset += len(line) + 1  # +1 for newline
     return results
 
 
+def _section_content_start(text: str, section: dict[str, Any]) -> int | None:
+    """Resolve the actual retained section text location, not a guessed offset.
+
+    detect_sections strips surrounding whitespace from section["text"] but
+    retains the header and section boundaries. Search for the exact original
+    substring after the header and fail closed when its binding is invalid.
+    """
+    start, end = section.get("start"), section.get("end")
+    heading, content = section.get("header"), section.get("text")
+    if (type(start) is not int or type(end) is not int or
+            not isinstance(heading, str) or not isinstance(content, str) or
+            not (0 <= start < end <= len(text)) or not content):
+        return None
+    header_at = text.find(heading, start, end)
+    if header_at < 0:
+        return None
+    found = text.find(content, header_at + len(heading), end)
+    return found if found >= 0 else None
+
+
 def _find_sentence_bounds(text: str, char_pos: int) -> "tuple[int, int]":
-    """Return (start, end) of the sentence containing char_pos."""
+    """Locate a sentence without splitting numeric decimal doses (e.g. 0.5)."""
+    def terminator(index: int) -> bool:
+        c = text[index]
+        if c not in ".\n!?":
+            return False
+        if (c == "." and 0 < index < len(text) - 1
+                and text[index - 1].isdigit() and text[index + 1].isdigit()):
+            return False
+        return True
+
     start = char_pos
-    while start > 0 and text[start - 1] not in ".\n!?":
+    while start > 0 and not terminator(start - 1):
         start -= 1
     end = char_pos
-    while end < len(text) and text[end] not in ".\n!?":
+    while end < len(text) and not terminator(end):
         end += 1
     if end < len(text):
-        end += 1  # include terminator
+        end += 1
+    return start, end
+
+
+def _find_medication_clause_bounds(text: str, entity_start: int) -> "tuple[int, int]":
+    """Bound one medication statement without crossing semicolon clauses.
+
+    Sentence boundaries remain decimal-safe. Semicolons can separate an
+    unrelated negative/history/follow-up instruction from a positive order.
+    This is intentionally stricter than scanning an entire sentence for sigs.
+    """
+    start, end = _find_sentence_bounds(text, entity_start)
+    previous = text.rfind(";", start, entity_start)
+    if previous >= 0:
+        start = previous + 1
+    following = text.find(";", entity_start, end)
+    if following >= 0:
+        end = following
     return start, end
 
 
@@ -215,7 +276,7 @@ def _scan_sentence(text: str, entity_start: int) -> "dict[str, str]":
     """Scan only within the sentence containing entity_start for dose/route/freq.
     Searching starts at entity_start to avoid binding sig from earlier in the sentence.
     """
-    s_start, s_end = _find_sentence_bounds(text, entity_start)
+    s_start, s_end = _find_medication_clause_bounds(text, entity_start)
     snippet = text[s_start:s_end]
     local_pos = entity_start - s_start
     result: dict[str, str] = {}
@@ -256,87 +317,134 @@ def _split_prose_sentences(text: str) -> "list[tuple[str, int, int]]":
 def _parse_prose_sections(
     sections: "list[dict[str, Any]]",
     prose_cats: "set[str]",
+    text: str,
 ) -> "list[dict[str, Any]]":
-    """Parse action-verb medication sentences from non-medication prose sections."""
+    """Parse action-verb prose using actual source positions, not stripped lengths."""
     results: list[dict[str, Any]] = []
     for sec in sections:
         if sec["category"] not in prose_cats:
             continue
-        text_start = sec["end"] - len(sec["text"])
-        for sent, s_start, _ in _split_prose_sentences(sec["text"]):
+        text_start = _section_content_start(text, sec)
+        if text_start is None:
+            continue
+        for sent, s_start, s_end in _split_prose_sentences(sec["text"]):
             vm = _PROSE_VERB_RE.match(sent)
             if not vm:
                 continue
+            # _split_prose_sentences strips surrounding whitespace; rebind
+            # the trimmed sentence in the original section before using
+            # any span in an evidence-based deduplication decision.
+            sent_pos = sec["text"].find(sent, s_start, s_end)
+            if sent_pos < 0:
+                continue
             remainder = sent[vm.end():]
-            med = _parse_line(remainder, text_start + s_start)
+            med = _parse_line(remainder, text_start + sent_pos + vm.end())
             if med:
                 results.append(med)
     return results
 
 
+def _same_source_occurrence(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """Suppress one source mention twice, not different orders of the same drug."""
+    # The legacy section parser sometimes embeds "Hold"/"Discontinue"
+    # inside the name. Normalize only those explicit leading order verbs,
+    # then require original-source span overlap to avoid collapsing genuinely
+    # separate dose occurrences.
+    prefix = re.compile(
+        r"^(?:continue\s+to\s+(?:hold|withhold)|do\s+not\s+continue|"
+        r"discontinue|withhold|continue|restart|"
+        r"initiate|administer|prescribe|resume|start|begin|hold|stop|"
+        r"cease|increase|decrease|reduce|adjust|titrate|give|take|use|apply|inject|inhale)(?:\s+taking)?\s+",
+        re.IGNORECASE,
+    )
+    a_name = prefix.sub("", a.get("name", "").casefold())
+    b_name = prefix.sub("", b.get("name", "").casefold())
+    if not (a_name == b_name or a_name.startswith(b_name + " ")
+            or b_name.startswith(a_name + " ")):
+        return False
+    a_span, b_span = a.get("span"), b.get("span")
+    if not (isinstance(a_span, (list, tuple)) and len(a_span) == 2
+            and isinstance(b_span, (list, tuple)) and len(b_span) == 2):
+        return False
+    return a_span[0] < b_span[1] and b_span[0] < a_span[1]
+
+
 def extract_medications(text: str, sections: "list[dict[str, Any]] | None" = None) -> "list[dict[str, Any]]":
-    """
-    Extract medications from text.
-    1. Structured line parser on any medications section (source: "section").
-    2. medSpaCy on full text for prose fallback (source: "medspacy").
-    3. De-duplicate by name; section results take precedence.
+    """Return evidence-linked medication candidates, never inferred prescriptions.
+
+    Explicit dose-and-sig orders take precedence, including unsectioned,
+    hold/stop/continue/start orders and repeated distinct source occurrences.
+    Legacy section and medSpaCy paths remain as fallbacks. Overlapping mentions
+    are deduplicated by SOURCE span, not medication name, so different doses of
+    the same drug are never silently collapsed.
     """
     from extractors.sections import detect_sections
     if sections is None:
         sections = detect_sections(text)
 
-    # Step 1: structured line parser on medications sections
-    section_results: list[dict[str, Any]] = []
+    results = parse_order_lines(text)
+
+    def add_if_new(candidate: dict[str, Any]) -> None:
+        if not any(_same_source_occurrence(candidate, old) for old in results):
+            results.append(candidate)
+
     for sec in sections:
         if sec["category"] == "medications":
-            header_end = sec["start"] + len(sec["header"]) + 1  # +1 for colon/newline
-            section_results.extend(_parse_section_lines(sec["text"], header_end))
+            section_start = _section_content_start(text, sec)
+            if section_start is None:
+                continue
+            for candidate in _parse_section_lines(sec["text"], section_start):
+                add_if_new(candidate)
 
-    # Step 2: action-verb prose parser on plan / hpi / assessment_plan sections
-    # Sentence-local by construction — each sentence is parsed independently.
-    prose_section_results = _parse_prose_sections(
-        sections, {"plan", "hpi", "assessment_plan"}
-    )
+    for candidate in _parse_prose_sections(
+        sections, {"plan", "hpi", "assessment_plan"}, text
+    ):
+        add_if_new(candidate)
 
-    # Merge steps 1 & 2, preferring step 1 (structured) on name collision
-    known_names: set[str] = {m["name"].lower() for m in section_results}
-    for med in prose_section_results:
-        n = med["name"].lower()
-        if not any(sn == n or sn.startswith(n + " ") or n.startswith(sn + " ")
-                   for sn in known_names):
-            section_results.append(med)
-            known_names.add(n)
-
-    # Step 3: medSpaCy prose fallback — sentence-local window scan only
     nlp = _get_nlp()
-    doc = nlp(text)
-    spacy_results: list[dict[str, Any]] = []
-    for ent in doc.ents:
-        if ent.label_ != "MEDICATION":
-            continue
-        if ent._.is_negated:
-            continue
-        name = ent.text.lower()
-        # Skip if already found by steps 1 or 2
-        if any(sn == name or sn.startswith(name + " ") or name.startswith(sn + " ")
-               for sn in known_names):
-            continue
-        # Sentence-local scan — never crosses a sentence boundary
-        extra = _scan_sentence(text, ent.start_char)
-        # Skip entities where no sig could be found AND no dose/route/freq anywhere nearby
-        # (prevents pure-name noise, but keeps entities with freq like "as needed")
-        if not extra and not _FREQ_RE.search(text[max(0, ent.start_char - 80):ent.end_char + 80]):
-            continue
-        spacy_results.append({
-            "name": name,
-            "dose": extra.get("dose", ""),
-            "route": extra.get("route", ""),
-            "frequency": extra.get("frequency", ""),
-            "duration": "",
-            "qualifier": "",
-            "span": [ent.start_char, ent.end_char],
-            "source": "medspacy",
-            "confidence": 0.9,
-        })
+    # Semicolons delimit independent clinical instructions. Processing the
+    # entire text in medSpaCy can propagate negation from an earlier clause
+    # into a separate affirmative order ("Not taking X; Take aspirin").
+    # Match each clause separately, then remap entity offsets into raw text.
+    for segment in re.finditer(r"[^;]+", text):
+        doc = nlp(segment.group())
+        for ent in doc.ents:
+            entity_start = segment.start() + ent.start_char
+            entity_end = segment.start() + ent.end_char
+            if ent.label_ != "MEDICATION" or ent._.is_negated:
+                continue
+            name = ent.text.casefold()
+            # Contraindication / label warnings are NOT additional orders.
+            sentence_start, sentence_end = _find_medication_clause_bounds(text, entity_start)
+            sentence = text[sentence_start:sentence_end].strip()
+            # medSpaCy can miss negation scope in "never used"/historical
+            # medication history. Fail closed on explicit negative sentence
+            # prefixes even when its entity attribute is_negated is False.
+            if _REJECT_PROSE.match(sentence):
+                continue
+            if re.match(
+                r"(?i)^(?:do\s+not\s+(?:dispense|substitute|order|prescribe)|"
+                r"caution\s*:|warning\s*:|verify\s+label|confirm\s+dose)",
+                sentence,
+            ):
+                continue
 
-    return section_results + spacy_results
+            extra = _scan_sentence(text, entity_start)
+            if not extra and not _FREQ_RE.search(
+                text[max(0, entity_start - 80):entity_end + 80]
+            ):
+                continue
+            add_if_new({
+                "name": name,
+                "dose": extra.get("dose", ""),
+                "route": extra.get("route", ""),
+                "frequency": extra.get("frequency", ""),
+                "duration": "",
+                "qualifier": "",
+                "span": [entity_start, entity_end],
+                "source": "medspacy",
+                "confidence": 0.9,
+            })
+
+    results.sort(key=lambda m: (m["span"][0], m["span"][1]))
+    return results
