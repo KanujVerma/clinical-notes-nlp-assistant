@@ -360,6 +360,19 @@ def replay(sealed: Path, original_run: Path, output: Path) -> dict:
         reports[arm] = choices[0]
     audit = compare_reports(sealed, reports)
     paired_source = original_run / "paired_handwriting_results.json"
+    # A recomputed receipt hash alone does not validate a copied, edited
+    # summary: compare every cohort identity and scope claim to the real
+    # sealed-gold replay rather than accepting arbitrary original metadata.
+    for field in (
+        "status", "annotation_status", "synthetic_only", "not_clinical_validation",
+        "not_a_patient_data_benchmark", "dataset_id",
+        "sealed_manifest_sha256", "cohort_seal_sha256",
+        "all_images_count", "scored_images_count",
+        "predeclared_unscorable_case_ids", "cohort_phase",
+        "meets_minimum_24_case_target", "model_tags",
+    ):
+        if original.get(field) != audit.get(field):
+            raise ValueError("HANDWRITING_ORIGINAL_COHORT_METADATA_CHANGED")
     if (not isinstance(receipt.get("paired"), dict)
             or receipt["paired"].get("sha256") != hashlib.sha256(paired_source.read_bytes()).hexdigest()
             or receipt.get("cohort_seal_sha256") != audit["cohort_seal_sha256"]
