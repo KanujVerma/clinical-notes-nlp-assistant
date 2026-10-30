@@ -44,7 +44,7 @@ def test_freeze_catches_source_tampering_and_fails_without_a_lock(tmp_path):
     altered["frozen_file_git_blobs"]["backend/extractors/medication_orders.py"] = "0" * 40
     path = tmp_path / "altered-lock.json"
     path.write_text(json.dumps(altered), encoding="utf-8")
-    with pytest.raises(ValueError, match="FROZEN_EVALUATION_SOURCE_CHANGED"):
+    with pytest.raises(ValueError, match="PRE_CASE_FREEZE_SEAL_MISMATCH"):
         validate_freeze(path)
 
     altered = json.loads(LOCK.read_text())
