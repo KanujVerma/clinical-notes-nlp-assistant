@@ -48,7 +48,7 @@ _LABEL = re.compile(
 _ACTION = re.compile(
     r"^(?P<verb>continue\s+to\s+(?:hold|withhold)|do\s+not\s+continue|discontinue|withhold|"
     r"continue|restart|initiate|administer|prescribe|"
-    r"resume|start|begin|hold|stop|cease|give|take|use|"
+    r"resume|start|begin|hold|stop|cease|increase|decrease|reduce|adjust|titrate|give|take|use|"
     r"apply|inject|inhale)(?:\s+taking)?\s+", re.IGNORECASE,
 )
 _ACTIONS = {
@@ -66,13 +66,18 @@ _ACTIONS = {
     "start": "start",
     "initiate": "start",
     "begin": "start",
+    "increase": "modify",
+    "decrease": "modify",
+    "reduce": "modify",
+    "adjust": "modify",
+    "titrate": "modify",
 }
 # These introduce laboratory values, safety cautions, or narrative, not a
 # patient-specific medication order. A dose token alone is never sufficient.
 _NON_ORDER = re.compile(
     r"^(?:no|not|never|denies?|denied|without|formerly|previously|"
     r"historical|history\s+of|stopped\s+taking|is\s+not\s+taking|"
-    r"patient|currently|taking|takes|using|uses|receives?|received|"
+    r"patient|by|to|currently|taking|takes|using|uses|receives?|received|"
     r"report(?:s|ed)?|observed|was|were|has|had|is|are|"
     r"weight|height|growth|bmi|body\s+mass|"
     r"blood|fasting|serum|hemoglobin|hematocrit|"
@@ -180,6 +185,16 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         after_dose,
     )
     if trailing_status:
+        # A trailing "while aspirin is held" must never modify warfarin's
+        # action. Strip only recognized sig tokens from the text preceding
+        # the status; any remaining subject or narrative makes the identity
+        # association ambiguous, so emit no explicit record.
+        prefix = after_dose[:trailing_status.start()]
+        for matcher in (_FREQ_QD_PERIOD, _DURATION, _FREQUENCY, _ROUTE, _DOSE):
+            prefix = matcher.sub(" ", prefix)
+        prefix = re.sub(r"(?i)\b(?:prn|as\s+needed)\b", " ", prefix)
+        if re.search(r"[A-Za-z]", prefix):
+            return None
         trailing_action = {
             "discontinued": "stop", "stopped": "stop",
             "held": "hold", "withheld": "hold",
@@ -252,6 +267,11 @@ def parse_order_line(line: str, offset: int = 0) -> dict[str, Any] | None:
         qualifier = ("as needed for " + phrase) if phrase else "as needed"
         qualifier_end = as_needed.end() + local_end if phrase else as_needed.end()
 
+    if action == "modify":
+        # Preserve direction in a reviewable field; "modify" alone loses
+        # whether the note requested increasing versus decreasing.
+        direction = " ".join(action_match.group("verb").casefold().split())
+        qualifier = (direction + "; " + qualifier).strip("; ") if qualifier else direction
     duration = _DURATION.search(after_dose)
     sig_end = max(item.end() for item in doses)
     for hit in (route_match, freq_match, prn, as_needed, duration, trailing_status):
