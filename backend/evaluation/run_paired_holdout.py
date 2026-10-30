@@ -11,7 +11,7 @@ Use the complete, original dataset/ directory in GitHub run #41003374761:
     python backend/evaluation/run_paired_holdout.py --manifest artifacts/pr7-source/dataset/manifest.json --output artifacts/pr8-local --execute
 
 For independent verification of already recorded full-arm outputs (no models):
-    python backend/evaluation/run_paired_holdout.py --manifest ... --output artifacts/pr8-replay --compare-only --tesseract-report FILE --glm-report FILE --qwen-report FILE
+    python backend/evaluation/run_paired_holdout.py --manifest ... --output artifacts/pr8-replay --compare-only --tesseract-report FILE --glm-report FILE --qwen-report FILE --original-paired-report ORIGINAL_PAIRED_JSON --completion-receipt COMPLETION_RECEIPT_JSON
 """
 from __future__ import annotations
 
