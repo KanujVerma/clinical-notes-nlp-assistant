@@ -42,7 +42,7 @@ MAX_ORIGINAL_BYTES = 50 * 1024 * 1024
 MAX_INPUT_BYTES = 10 * 1024 * 1024
 ID = re.compile(r"AMR_\d{3}\Z")
 CRITICAL = re.compile(
-    r"(?<!\w)\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|mmhg|bpm|kg|cm|%)\b"
+    r"(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)\s*(?:mg|mcg|g|ml|mmhg|bpm|kg|cm|%)(?!\w)"
     r"|\b(?:prn|hold|stop|stopped|discontinue|discontinued|no|not)\b",
     re.IGNORECASE,
 )
