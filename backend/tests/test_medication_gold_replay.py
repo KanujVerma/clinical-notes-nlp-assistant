@@ -280,6 +280,21 @@ def test_second_medication_instruction_never_leaks_prn_into_first_drug():
     assert "prn" not in lis[0].get("qualifier", "").casefold()
 
 
+def test_unrelated_followup_or_negation_clause_does_not_erase_aspirin_order():
+    from extractors.medications import _find_medication_clause_bounds
+
+    for source in (
+        "Follow up in 1 week; take aspirin daily.",
+        "Not taking warfarin 5 mg PO daily; Take aspirin daily.",
+    ):
+        aspirin_at = source.lower().index("aspirin")
+        begin, end = _find_medication_clause_bounds(source, aspirin_at)
+        assert source[begin:end].lstrip().lower().startswith("take aspirin daily")
+        meds = run_pipeline(source)["medications"]
+        assert any(m["name"] == "aspirin" and m["frequency"].casefold() == "daily" for m in meds)
+        assert all(m["name"] != "warfarin" for m in meds)
+
+
 def test_dose_free_take_aspirin_daily_keeps_canonical_entity():
     for source in ("Take aspirin daily.", "Medications:\nTake aspirin daily."):
         meds = run_pipeline(source)["medications"]
