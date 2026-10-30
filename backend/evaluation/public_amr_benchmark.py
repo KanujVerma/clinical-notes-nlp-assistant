@@ -184,8 +184,10 @@ def scaffold(dataset_root: Path, study: Path, count: int = PILOT_COUNT) -> dict:
             "publisher_records": len(rows), "selected_ids": selected}
 
 
-def review_cases(study: Path, selection: dict) -> dict[str, dict]:
-    review = load(study / "privacy_review.json")
+def review_cases(study: Path, selection: dict,
+                 snapshot: bytes | None = None) -> dict[str, dict]:
+    review = json.loads(snapshot) if snapshot is not None else load(study / "privacy_review.json")
+    check(isinstance(review, dict), "AMR_PRIVACY_REVIEW_INVALID")
     check(review.get("schema") == VERSION and review.get("selection_sha256") ==
           sha((study / "selection.json").read_bytes())
           and isinstance(review.get("reviewer_id"), str)
@@ -243,7 +245,8 @@ def seal(study: Path, out: Path) -> dict:
     check(not out.exists(), "AMR_SEAL_ALREADY_EXISTS")
     selection_bytes = (study / "selection.json").read_bytes()
     review_bytes = (study / "privacy_review.json").read_bytes()
-    selection = load(study / "selection.json")
+    selection = json.loads(selection_bytes)
+    check(isinstance(selection, dict), "AMR_SELECTION_INVALID")
     check(selection.get("schema") == VERSION and selection.get("dataset") == DATASET
           and selection.get("revision") == REVISION
           and selection.get("license") == "CC-BY-4.0"
@@ -263,7 +266,7 @@ def seal(study: Path, out: Path) -> dict:
     ledger = [{**{k: v for k, v in r.items() if k != "contributor"},
                "writer_group": expected_groups[r["contributor"]]} for r in current]
     check(selection["all_records"] == ledger, "AMR_UPSTREAM_BYTES_CHANGED")
-    reviews = review_cases(study, selection)
+    reviews = review_cases(study, selection, review_bytes)
     chosen = {r["id"]: r for r in ledger if r["id"] in expected_ids}
     approved = [i for i in expected_ids if reviews[i]["decision"] == "approved"]
     check(len(approved) >= 12
@@ -469,9 +472,16 @@ def execute(sealed: Path, out: Path, arms: tuple[str, ...] = ARMS) -> dict:
     results: dict[str, dict] = {}
     for arm in arms:
         for c in manifest["cases"]:
-            reference = safe(sealed, c["reference"], ".txt").read_text("utf-8-sig")
-            original_pages = [safe(sealed, p["inference"], ".jpg").read_bytes()
-                              for p in c["pages"]]
+            reference_bytes = safe(sealed, c["reference"], ".txt").read_bytes()
+            check(sha(reference_bytes) == c["reference_sha256"],
+                  "AMR_REFERENCE_CHANGED_DURING_RUN")
+            reference = reference_bytes.decode("utf-8-sig")
+            original_pages = []
+            for page in c["pages"]:
+                image_bytes = safe(sealed, page["inference"], ".jpg").read_bytes()
+                check(sha(image_bytes) == page["inference_sha256"],
+                      "AMR_IMAGE_CHANGED_DURING_RUN")
+                original_pages.append(image_bytes)
             t0 = time.perf_counter()
             prediction = "\n".join(infer(arm, p) for p in original_pages)
             elapsed = max(0, int(1000 * (time.perf_counter() - t0)))
