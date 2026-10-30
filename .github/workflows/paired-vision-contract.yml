@@ -1,0 +1,106 @@
+name: Paired vision holdout contract (NO Ollama models in CI)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/evaluation/paired_holdout_analysis.py"
+      - "backend/evaluation/run_paired_holdout.py"
+      - "backend/tests/test_paired_holdout.py"
+      - ".github/workflows/paired-vision-contract.yml"
+      - "docs/validation/PR8_LOCAL_MODEL_BENCHMARK.md"
+      - "docs/validation/PR8_REAL_THREE_ARM_RESULTS.md"
+      - "docs/validation/evidence/PR8_REAL_BENCHMARK_EVIDENCE.zip.base64.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-comparison-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_MODE: local
+      ENABLE_LOCAL_AI: "false"
+      ENABLE_EXTERNAL_EXPLAINER: "false"
+      OLLAMA_HOST: http://127.0.0.1:11434
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install only offline Tesseract and pinned Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr poppler-utils
+          python -m pip install -r requirements.txt
+      - name: Test frozen three-arm contract using clearly MOCKED test outputs
+        run: |
+          python -m pytest backend/tests/test_paired_holdout.py -q
+      - name: Generate canonical PR7 images and validate SHA without any model calls
+        env:
+          PYTHONPATH: backend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from evaluation.prospective_holdout import generate_holdout
+          result = generate_holdout(
+              Path("docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json"),
+              Path("artifacts/pr8-contract/dataset"),
+          )
+          print("CANONICAL_24_CASES_CREATED:", result)
+          PY
+          python backend/evaluation/run_paired_holdout.py \
+            --manifest artifacts/pr8-contract/dataset/manifest.json \
+            --preflight
+      - name: Verify original Mac evidence ZIP checksum and independently replay saved GLM/Qwen/Tesseract outputs (NO model calls)
+        run: |
+          python - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import base64, hashlib, io, zipfile
+          source = Path("docs/validation/evidence/PR8_REAL_BENCHMARK_EVIDENCE.zip.base64.txt")
+          payload = base64.b64decode(source.read_text(encoding="ascii").strip(), validate=True)
+          expected = "d073a12c5f9f7b9ff2a3cb406a5d4c06e50c7812f4ddda43e72001007a73a80d"
+          assert hashlib.sha256(payload).hexdigest() == expected, "SAVED_MODEL_EVIDENCE_HASH_MISMATCH"
+          with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+              assert archive.testzip() is None, "SAVED_MODEL_EVIDENCE_CRC_MISMATCH"
+              for entry in archive.namelist():
+                  p = PurePosixPath(entry)
+                  assert not p.is_absolute() and ".." not in p.parts, "UNSAFE_MODEL_EVIDENCE_ENTRY"
+                  assert p.parts[0] == "artifacts", "UNEXPECTED_MODEL_EVIDENCE_ENTRY"
+              archive.extractall("artifacts/pr8-evidence-restored")
+          print("ORIGINAL_MAC_LOCAL_PREDICTIONS_ARCHIVE_SHA256_VERIFIED:", expected)
+          PY
+          python backend/evaluation/run_paired_holdout.py \
+            --manifest artifacts/pr8-contract/dataset/manifest.json \
+            --compare-only \
+            --tesseract-report artifacts/pr8-evidence-restored/artifacts/pr8-real-three-arm/single_arm_reports/tesseract/paired_local_328fdff03de4fa01.json \
+            --glm-report artifacts/pr8-evidence-restored/artifacts/pr8-real-three-arm/single_arm_reports/glm_ocr/paired_local_c69e4fcacd9521d4.json \
+            --qwen-report artifacts/pr8-evidence-restored/artifacts/pr8-real-three-arm/single_arm_reports/qwen3_vl/paired_local_d77cac57ff002c87.json \
+            --original-paired-report artifacts/pr8-evidence-restored/artifacts/pr8-real-three-arm/paired_comparison.json \
+            --completion-receipt artifacts/pr8-evidence-restored/artifacts/pr8-real-three-arm/completion_receipt.json \
+            --output artifacts/pr8-ci-independent-replay
+      - name: Preserve audited saved Mac predictions and independent replay for reviewers
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr8-frozen-original-mac-model-evidence-verified-offline
+          path: |
+            artifacts/pr8-evidence-restored/artifacts/pr8-real-three-arm/
+            artifacts/pr8-ci-independent-replay/paired_comparison.json
+          if-no-files-found: error
+      - name: Run REAL local Tesseract-only 24-image verification (NOT paired)
+        run: |
+          python backend/evaluation/prospective_holdout.py \
+            --lock docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json \
+            --output artifacts/pr8-real-tesseract-only \
+            --arms tesseract
+      - name: Upload actual Tesseract-only source and result, NEVER mocked GLM/Qwen metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr8-real-tesseract-only-no-glm-qwen
+          path: artifacts/pr8-real-tesseract-only/
+          if-no-files-found: error
