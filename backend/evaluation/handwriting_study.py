@@ -26,25 +26,32 @@ sys.path.insert(0, str(BACKEND))
 
 from PIL import Image  # noqa: E402
 from evaluation.handwriting_intake import validate_handwriting_manifest  # noqa: E402
-from evaluation.prospective_holdout import validate_freeze  # noqa: E402
+from evaluation.prospective_holdout import (  # noqa: E402
+    validate_freeze, FROZEN_SOURCE_PATHS, ADDITIONAL_FROZEN_SOURCE_PATHS,
+)
 from evaluation.vision_benchmark import load_gold_manifest, MAX_CASES, MAX_IMAGE_BYTES, MAX_PIXELS  # noqa: E402
 
 VERSION = "genuine_fictional_handwriting_v1"
 LOCK = ROOT / "docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json"
 MODEL_TAGS = {"glm_ocr": "glm-ocr:q8_0", "qwen3_vl": "qwen3-vl:4b"}
-SOURCE_FILES = (
-    "backend/evaluation/handwriting_study.py",
-    "backend/evaluation/handwriting_evaluate.py",
-    "backend/evaluation/handwriting_intake.py",
-    "backend/evaluation/local_ollama_resource_sampler.py",
-    "backend/evaluation/run_paired_holdout.py",
-    "backend/evaluation/paired_holdout_analysis.py",
-    "backend/evaluation/prospective_holdout.py",
-    "backend/evaluation/local_vision_eval.py",
-    "backend/evaluation/vision_benchmark.py",
-    "backend/services/multimodal_service.py",
-    "backend/services/inference_pipeline.py",
-)
+# Freeze the complete inherited PR7/PR8 scorer/prompt/extractor dependencies
+# AND the seal metadata that defines them. A mutable legacy lock must not be
+# able to mask edited parser code in a later human handwriting experiment.
+SOURCE_FILES = tuple(sorted(set(FROZEN_SOURCE_PATHS)
+    | set(ADDITIONAL_FROZEN_SOURCE_PATHS)
+    | {
+        "backend/evaluation/handwriting_study.py",
+        "backend/evaluation/handwriting_evaluate.py",
+        "backend/evaluation/handwriting_intake.py",
+        "backend/evaluation/local_ollama_resource_sampler.py",
+        "backend/evaluation/run_paired_holdout.py",
+        "backend/evaluation/paired_holdout_analysis.py",
+        "backend/evaluation/prospective_holdout.py",
+        "docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json",
+        "docs/validation/FROZEN_PARSER_BASELINE.json",
+        "docs/validation/FROZEN_DEPENDENCY_AMENDMENT.json",
+        "backend/evaluation/holdout_cases_v1.py",
+    }))
 CAPTURE_METHODS = {"pen_on_paper_scan", "pen_on_paper_photograph", "freehand_stylus"}
 STYLES = {"block_print", "cursive", "mixed"}
 QUALITIES = {"clean", "challenging"}
@@ -138,9 +145,21 @@ def _validate_gold_fields(case: dict) -> None:
             "HANDWRITING_CRITICAL_TOKENS_INVALID")
 
 
-def validate_collection(source: Path) -> tuple[dict, list[tuple[dict, bytes]]]:
-    """Return proposed manifest + original source bytes, but make NO writes."""
-    docs = {name: load_object(path) for name, path in _files_in_input(source).items()}
+def validate_collection(source: Path, *,
+                        annotation_snapshots: dict[str, bytes] | None = None
+                        ) -> tuple[dict, list[tuple[dict, bytes]]]:
+    """Validate one stable snapshot of all four independent JSON files."""
+    if annotation_snapshots is None:
+        docs = {name: load_object(path) for name, path in _files_in_input(source).items()}
+    else:
+        _expect(set(annotation_snapshots) == set(_files_in_input(source)),
+                "HANDWRITING_ANNOTATION_SNAPSHOT_INCOMPLETE")
+        docs = {}
+        for name, raw in annotation_snapshots.items():
+            _expect(isinstance(raw, bytes), "HANDWRITING_ANNOTATION_SNAPSHOT_INCOMPLETE")
+            obj = json.loads(raw.decode("utf-8"))
+            _expect(isinstance(obj, dict), "HANDWRITING_INPUT_NOT_OBJECT")
+            docs[name] = obj
     collection, a, b, decisions = (docs[x] for x in
                                    ("collection", "transcriber_a", "transcriber_b", "adjudication"))
     dataset_id = collection.get("dataset_id")
@@ -300,7 +319,9 @@ def prepare(source: Path, destination: Path) -> dict:
     # could create a contradictory but otherwise hash-consistent seal.
     snapshots = {name: path.read_bytes()
                  for name, path in _files_in_input(source).items()}
-    manifest, images = validate_collection(source)  # No output on failure.
+    manifest, images = validate_collection(
+        source, annotation_snapshots=snapshots,
+    )  # Validate the exact archived bytes; no output on failure.
     _expect(all(path.read_bytes() == snapshots[name]
                 for name, path in _files_in_input(source).items()),
             "HANDWRITING_ANNOTATIONS_CHANGED_DURING_INTAKE")
