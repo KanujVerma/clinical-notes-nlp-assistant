@@ -99,3 +99,24 @@ def test_missing_word_image_disallows_scaffold(fake_rx, tmp_path):
     with pytest.raises(ValueError, match="RX_MISSING_OR_DUPLICATE_TEST_IMAGE"):
         rx.scaffold(fake_rx, tmp_path / "not-created", count=12,
                     images_dir=fake_rx / "test_images")
+
+
+def test_nested_test_images_seal_without_explicit_images_dir(fake_rx, tmp_path):
+    # Reproduce Codex P2: catalog searches recursively under dataset root, but
+    # the sealed source must retain its exact relative path.
+    study = tmp_path / "nested-intake"
+    rx.scaffold(fake_rx, study, count=12)
+    selection = amr.load(study / "selection.json")
+    assert all(row["image_relative_path"].startswith("test_images/")
+               for row in selection["full_test_ledger"])
+    review = amr.load(study / "privacy_review.json")
+    review["reviewer_id"] = "MOCK_REVIEWER_NOT_REAL"
+    for item in review["cases"]:
+        item.update({"image_and_label_inspected": True,
+                     "contains_identifiers": False,
+                     "contains_real_patient_data": False,
+                     "decision": "approved", "exclusion_reason": None})
+    (study / "privacy_review.json").write_bytes(amr.raw_json(review))
+    sealed = tmp_path / "sealed"
+    assert rx.seal(study, sealed)["scored"] == 12
+    assert rx.verify(sealed)[0]["scored"] == 12
