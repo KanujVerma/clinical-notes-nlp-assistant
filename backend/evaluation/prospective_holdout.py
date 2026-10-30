@@ -71,6 +71,21 @@ def validate_freeze(lock_path: Path) -> dict:
             or not re.fullmatch(r"[0-9a-f]{40}", str(lock.get("frozen_baseline_commit", "")))
             or lock.get("previous_development_cases") != 30):
         raise ValueError("UNFROZEN_EVALUATION_CONTRACT")
+    # Independently commit this seal *before* creating the held-out gold.
+    # The final lock may add the case-definition hash, but cannot rewrite
+    # baseline/code hashes without invalidating the original pre-case seal.
+    seal_path = ROOT / "docs/validation/FROZEN_PARSER_BASELINE.json"
+    seal_bytes = seal_path.read_bytes()
+    if _blob_sha(seal_bytes) != lock.get("pre_case_baseline_seal_git_blob"):
+        raise ValueError("PRE_CASE_FREEZE_SEAL_CHANGED")
+    seal = json.loads(seal_bytes.decode("utf-8"))
+    if (seal.get("seal_phase") != "before_holdout_case_authoring" or
+            any(lock.get(key) != seal.get(key) for key in (
+                "lock_version", "synthetic_only", "annotation_status",
+                "previous_development_cases", "frozen_baseline_commit",
+                "frozen_file_git_blobs",
+            ))):
+        raise ValueError("PRE_CASE_FREEZE_SEAL_MISMATCH")
     versions = lock.get("frozen_file_git_blobs")
     if not isinstance(versions, dict) or set(versions) != set(FROZEN_SOURCE_PATHS):
         raise ValueError("UNFROZEN_EVALUATION_CONTRACT")
