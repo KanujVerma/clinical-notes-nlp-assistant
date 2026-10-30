@@ -300,8 +300,8 @@ def test_renamed_or_mutated_source_bytes_rejected(intake):
 def test_annotator_file_changed_between_intake_validation_and_copy_fails_closed(
         intake, tmp_path, monkeypatch):
     original = study.validate_collection
-    def modify_during_validation(root):
-        result = original(root)
+    def modify_during_validation(root, **kwargs):
+        result = original(root, **kwargs)
         annotator = root / "transcriber_a.json"
         annotator.write_bytes(annotator.read_bytes() + b" ")
         return result
@@ -310,6 +310,61 @@ def test_annotator_file_changed_between_intake_validation_and_copy_fails_closed(
     with pytest.raises(ValueError, match="HANDWRITING_ANNOTATIONS_CHANGED_DURING_INTAKE"):
         study.prepare(intake, target)
     assert not target.exists()
+
+
+def test_temporary_source_annotation_swap_cannot_change_manifest_gold(intake, tmp_path, monkeypatch):
+    original_validate = study.validate_collection
+    original = {name: (intake / (name + ".json")).read_bytes()
+                for name in ("transcriber_a", "adjudication")}
+    def temporarily_replace(root, **kwargs):
+        for name in original:
+            current = json.loads(original[name])
+            for case in current["cases"]:
+                if case.get("reference_text"):
+                    case["reference_text"] = case["reference_text"].replace("2.5 mg", "25 mg")
+                if name == "adjudication":
+                    for med in case["expected_medications"]:
+                        med["dose"] = "25 mg"
+            put(root / (name + ".json"), current)
+        try:
+            return original_validate(root, **kwargs)
+        finally:
+            for name, saved in original.items():
+                (root / (name + ".json")).write_bytes(saved)
+    monkeypatch.setattr(study, "validate_collection", temporarily_replace)
+    out = tmp_path / "sealed-same-annotation-snapshot"
+    study.prepare(intake, out)
+    manifest = json.loads((out / "scored_manifest.json").read_text())
+    assert manifest["cases"][0]["expected_medications"][0]["dose"] == "2.5 mg"
+    assert manifest["cases"][0]["reference_text"].count("2.5 mg") == 1
+    assert study.verify_seal(out)["scorable_count"] == 12
+
+
+def test_study_seal_includes_all_inherited_parser_code_and_freeze_metadata(intake, tmp_path, monkeypatch):
+    out = tmp_path / "sealed"
+    study.prepare(intake, out)
+    recorded = study.verify_seal(out)
+    locked = recorded["source_code_sha256"]
+    for name in (
+        "backend/extractors/vitals.py",
+        "backend/extractors/medication_orders.py",
+        "backend/extractors/patterns/medications.json",
+        "backend/config.py",
+        "requirements.txt",
+        "docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json",
+        "docs/validation/FROZEN_PARSER_BASELINE.json",
+        "docs/validation/FROZEN_DEPENDENCY_AMENDMENT.json",
+        "backend/evaluation/holdout_cases_v1.py",
+    ):
+        assert len(locked[name]) == 64
+    immutable = study._source_sha
+    def pretend_inherited_changed():
+        altered = dict(immutable())
+        altered["backend/extractors/vitals.py"] = "0" * 64
+        return altered
+    monkeypatch.setattr(study, "_source_sha", pretend_inherited_changed)
+    with pytest.raises(ValueError, match="HANDWRITING_EVALUATION_CODE_CHANGED"):
+        study.verify_seal(out)
 
 
 def test_full_cohort_requires_24_adjudicated_scorable_not_24_just_submitted(tmp_path):
