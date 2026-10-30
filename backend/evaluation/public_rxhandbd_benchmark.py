@@ -97,6 +97,8 @@ def catalog(data_root: Path, *, csv_path: Path | None = None,
         amr.check(img_sha not in seen_hashes, "RX_DUPLICATE_TEST_IMAGE_BYTES")
         seen_hashes.add(img_sha)
         entries.append({"id": f"rx{idx + 1:05d}", "image_name": name,
+                        "image_relative_path": path.resolve().relative_to(
+                            images_dir.resolve()).as_posix(),
                         "original_sha256": img_sha,
                         "reference_text": label,
                         "reference_sha256": amr.sha(label.encode("utf-8"))})
@@ -212,8 +214,10 @@ def seal(study: Path, out: Path) -> dict:
     snapshots = []
     for ident in accepted:
         e = source_by_id[ident]
-        original = images_dir / e["image_name"]
-        amr.check(original.is_file() and not original.is_symlink(), "RX_IMAGE_MISSING")
+        original = images_dir / e["image_relative_path"]
+        amr.check(original.resolve().is_relative_to(images_dir.resolve())
+                  and original.is_file() and not original.is_symlink(),
+                  "RX_IMAGE_MISSING")
         original_bytes = original.read_bytes()
         amr.check(amr.sha(original_bytes) == e["original_sha256"],
                   "RX_IMAGE_CHANGED_DURING_SEAL")
