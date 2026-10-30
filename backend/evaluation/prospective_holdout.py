@@ -249,6 +249,40 @@ def evaluate(lock_path: Path, destination: Path, arms: tuple[str, ...]) -> dict:
     with LocalOllamaResourceSampler(arms) as resources:
         record_path = run_evaluation(manifest, arms, destination / "model_results")
     run = _read_json(record_path)
+    # Lossless per-case error audit derived ONLY from the saved real model
+    # results. This neither changes gold nor re-scores any record.
+    case_errors: dict[str, list[dict]] = {}
+    for arm in run["arms_run"]:
+        rows = []
+        for case in run["cases"][arm]:
+            det = case.get("deterministic_pipeline") or {}
+            medications = det.get("medications") if det else case.get("medications")
+            vitals = det.get("vitals") if det else case.get("vitals")
+            tokens = (case.get("text_metrics") or {}).get("critical_tokens") or []
+            missed = [v["token"] for v in tokens if not v["recognized"]]
+            meds = medications or {}
+            vit = vitals or {}
+            if meds.get("fp", 0) or meds.get("fn", 0) or vit.get("fp", 0) or vit.get("fn", 0) or missed:
+                rows.append({
+                    "case_id": case["case_id"],
+                    "source_sha256": case["source_sha256"],
+                    "medication_tp": meds.get("tp"),
+                    "medication_fp": meds.get("fp"),
+                    "medication_fn": meds.get("fn"),
+                    "medication_mismatches": meds.get("mismatches", []),
+                    "vital_fp": vit.get("fp"),
+                    "vital_fn": vit.get("fn"),
+                    "vital_mismatches": vit.get("mismatches", []),
+                    "critical_tokens_missed": missed,
+                })
+        case_errors[arm] = rows
+    case_audit_path = destination / "holdout_case_error_audit.json"
+    case_audit_path.write_text(json.dumps({
+        "source_report_sha256": hashlib.sha256(record_path.read_bytes()).hexdigest(),
+        "synthetic_only": True,
+        "new_model_calls": False,
+        "error_cases_by_arm": case_errors,
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     # Low-level local_vision_eval retains its original generic description;
     # this wrapper gives the correct dataset-specific interpretation.
     summary = {
@@ -263,6 +297,8 @@ def evaluate(lock_path: Path, destination: Path, arms: tuple[str, ...]) -> dict:
         "frozen_case_definition_git_blob": lock["frozen_case_definition_git_blob"],
         "manifest_sha256": run["dataset"]["manifest_sha256"],
         "raw_result_sha256": hashlib.sha256(record_path.read_bytes()).hexdigest(),
+        "case_error_audit_sha256": hashlib.sha256(case_audit_path.read_bytes()).hexdigest(),
+        "cases_with_errors": {arm: len(rows) for arm, rows in case_errors.items()},
         "model_digests": run["model_digests"],
         "out_of_process_model_resource_observations": resources.report(),
         "arms_run": run["arms_run"],
@@ -313,6 +349,7 @@ def main() -> int:
             "medications": (stats.get("deterministic_pipeline") or {}).get("medications", stats.get("medications")),
             "vitals": (stats.get("deterministic_pipeline") or {}).get("vitals", stats.get("vitals")),
         }, sort_keys=True))
+    print("PROSPECTIVE_ERROR_CASE_COUNTS " + json.dumps(result["cases_with_errors"], sort_keys=True))
     print("PROSPECTIVE_HOLDOUT_COMPLETED: " + ",".join(result["arms_run"]))
     return 0
 
