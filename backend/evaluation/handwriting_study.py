@@ -391,6 +391,89 @@ def verify_seal(directory: Path) -> dict:
     return seal
 
 
+def scaffold_images(images_dir: Path, destination: Path, dataset_id: str) -> dict:
+    """Make unfilled, FALSE-by-default human annotation templates; no gold."""
+    _expect(isinstance(dataset_id, str) and SAFE_ID.fullmatch(dataset_id) is not None,
+            "HANDWRITING_DATASET_ID_REQUIRED")
+    if destination.exists():
+        raise ValueError("HANDWRITING_SCAFFOLD_DESTINATION_EXISTS")
+    _expect(images_dir.is_dir(), "HANDWRITING_IMAGE_DIRECTORY_MISSING")
+    sources = sorted(p for p in images_dir.iterdir()
+                     if p.suffix.lower() in (".png", ".jpg", ".jpeg"))
+    _expect(1 <= len(sources) <= MAX_CASES,
+            "HANDWRITING_SCAFFOLD_REQUIRES_IMAGES")
+    # Validate the actual original byte hashes and formats BEFORE output.
+    originals = []
+    for i, path in enumerate(sources, 1):
+        _expect(path.is_file() and not path.is_symlink(), "HANDWRITING_UNSAFE_OR_MISSING_IMAGE")
+        ident = f"hw{i:03d}"
+        payload = path.read_bytes()
+        stub = {"image": path.name, "sha256": digest_bytes(payload)}
+        _source_image(images_dir, stub)
+        originals.append((ident, path.suffix.lower(), payload, stub["sha256"]))
+    destination.mkdir(parents=True, exist_ok=False)
+    (destination / "images").mkdir()
+    for ident, suffix, payload, sha in originals:
+        with (destination / "images" / (ident + suffix)).open("xb") as file:
+            file.write(payload)
+    base = {
+        "schema_version": VERSION,
+        "dataset_id": dataset_id,
+    }
+    _write_once(destination / "collection.json", {
+        **base, "synthetic_only": True,
+        "contains_actual_patient_data": False,
+        "attestation_verified_outside_software": False,
+        "cases": [{
+            "id": ident, "image": "images/" + ident + suffix,
+            "sha256": sha,
+            "writer_pseudonym": None,
+            "generation_method": None,
+            "capture_method": None,
+            "writing_style": None,
+            "capture_quality": None,
+            "genuine_handwriting_attested": False,
+            "fictional_content_attested": False,
+            "source_image_reviewed_for_identifiers": False,
+            "writer_consent_attested": False,
+        } for ident, suffix, _, sha in originals],
+    })
+    for name in ("transcriber_a", "transcriber_b"):
+        _write_once(destination / (name + ".json"), {
+            **base,
+            "transcriber_pseudonym": None,
+            "independent_transcription_attested": False,
+            "blind_to_models_and_writer_prompts": False,
+            "cases": [{
+                "id": ident, "sha256": sha, "reference_text": "",
+            } for ident, _, _, sha in originals],
+        })
+    _write_once(destination / "adjudication.json", {
+        **base, "adjudicator_pseudonym": None,
+        "blinded_to_models": False,
+        "independent_review_attested": False,
+        "reviewed_both_transcripts": False,
+        "cases": [{
+            "id": ident, "sha256": sha,
+            "adjudication_record_id": None,
+            "reviewed_original_image": False,
+            "resolution": None,
+            "resolution_notes": "",
+            "reference_text": "",
+            "expected_medications": [],
+            "expected_vitals": [],
+            "critical_tokens": [],
+        } for ident, _, _, sha in originals],
+    })
+    return {
+        "status": "UNFILLED_TEMPLATES_NOT_A_HANDWRITING_ATTESTATION",
+        "case_count": len(originals),
+        "output": str(destination),
+        "no_transcription_or_gold_generated": True,
+        "human_attestations_default_false": True,
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     command = p.add_subparsers(dest="command", required=True)
@@ -399,11 +482,18 @@ def main() -> int:
         cmd.add_argument("--input", type=Path, required=True)
         if name == "seal":
             cmd.add_argument("--output", type=Path, required=True)
+    start = command.add_parser("scaffold")
+    start.add_argument("--images", type=Path, required=True)
+    start.add_argument("--dataset-id", required=True)
+    start.add_argument("--output", type=Path, required=True)
     check = command.add_parser("verify")
     check.add_argument("--sealed", type=Path, required=True)
     args = p.parse_args()
     try:
-        if args.command == "validate":
+        if args.command == "scaffold":
+            result = scaffold_images(args.images, args.output, args.dataset_id)
+            print(json.dumps(result, indent=2))
+        elif args.command == "validate":
             result, _ = validate_collection(args.input)
             print(json.dumps({
                 "status": "INTAKE_ATTESTATIONS_ONLY",
