@@ -445,8 +445,10 @@ def scaffold_images(images_dir: Path, destination: Path, dataset_id: str) -> dic
         "dataset_id": dataset_id,
     }
     _write_once(destination / "collection.json", {
-        **base, "synthetic_only": True,
-        "contains_actual_patient_data": False,
+        # Image content has not been reviewed. Do NOT silently attest no PHI
+        # or fictional provenance merely because this is the intended study.
+        **base, "synthetic_only": None,
+        "contains_actual_patient_data": None,
         "attestation_verified_outside_software": False,
         "cases": [{
             "id": ident, "image": "images/" + ident + suffix,
