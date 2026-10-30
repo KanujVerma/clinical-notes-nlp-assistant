@@ -120,9 +120,18 @@ def execute(manifest_path: Path, lock_path: Path, output_dir: Path) -> dict:
                 "not attributable solely to this model or to Ollama."
             ),
         }
-        # Validate exactly which requested digest actually ran.
+        # A model tag may change WHILE its 24 images are being processed.
+        # The original report records only its pre-inference digest, so
+        # independently re-query the installed tag now, after inference.
+        try:
+            live_digest = (get_installed_model_digest(MODELS[arm])
+                           if arm in MODELS
+                           else str(pytesseract.get_tesseract_version()))
+        except (OSError, InferenceBindingError, ValueError, RuntimeError) as exc:
+            raise RuntimeError("MODEL_DIGEST_UNAVAILABLE_AFTER_RUN:" + arm) from exc
         recorded = json.loads(report.read_text(encoding="utf-8"))
-        if recorded.get("model_digests", {}).get(arm) != installed[arm]:
+        if (recorded.get("model_digests", {}).get(arm) != installed[arm]
+                or live_digest != installed[arm]):
             raise ValueError("MODEL_DIGEST_CHANGED_DURING_EVALUATION:" + arm)
         print("ACTUAL_LOCAL_ARM_COMPLETED:" + arm, flush=True)
 
