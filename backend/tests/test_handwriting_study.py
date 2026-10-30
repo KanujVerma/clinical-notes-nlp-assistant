@@ -126,6 +126,46 @@ def intake(tmp_path):
     return make_input(tmp_path)
 
 
+def test_same_original_scan_under_two_ids_cannot_count_as_distinct_handwriting(intake):
+    def reuse_image(x):
+        first, second = x["cases"][0], x["cases"][1]
+        second["image"] = first["image"]
+        second["sha256"] = first["sha256"]
+    patch_source(intake, "collection", reuse_image)
+    with pytest.raises(ValueError, match="HANDWRITING_DUPLICATE_OR_INVALID_SOURCE_HASH"):
+        study.validate_collection(intake)
+
+
+def test_unavailable_human_transcripts_are_preserved_as_pre_model_exclusions(tmp_path):
+    input_dir = make_input(tmp_path, excluded=True)
+    for filename in ("transcriber_a", "transcriber_b"):
+        patch_source(input_dir, filename,
+                     lambda x: x["cases"][-1].update(reference_text=""))
+    sealed = tmp_path / "sealed"
+    result = study.prepare(input_dir, sealed)
+    assert result["case_count"] == 12
+    assert result["scorable_count"] == 11
+    assert result["unscorable_case_ids"] == ["hw012"]
+    assert study.verify_seal(sealed)["unscorable_case_ids"] == ["hw012"]
+
+
+def test_cohort_seal_cannot_forge_writer_count_or_final_cohort_phase(intake, tmp_path):
+    output = tmp_path / "sealed"
+    study.prepare(intake, output)
+    path = output / "study_seal.json"
+    original = json.loads(path.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(original)
+    changed["writer_count"] = 300
+    put(path, changed)
+    with pytest.raises(ValueError, match="HANDWRITING_SEAL_DERIVED_COHORT_MISMATCH"):
+        study.verify_seal(output)
+    changed = copy.deepcopy(original)
+    changed["cohort_phase"] = "final_candidate"
+    put(path, changed)
+    with pytest.raises(ValueError, match="HANDWRITING_SEAL_DERIVED_COHORT_MISMATCH"):
+        study.verify_seal(output)
+
+
 def test_scaffold_generates_only_unfilled_templates_with_all_human_attestations_false(
         tmp_path):
     pictures = tmp_path / "raw-images"
