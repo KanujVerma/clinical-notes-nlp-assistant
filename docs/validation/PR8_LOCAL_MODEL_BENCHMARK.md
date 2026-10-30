@@ -59,9 +59,9 @@ Incomplete runs must be reported as incomplete, even if one or two arms succeede
 
 From the original actual single-arm report files, run an offline replay:
 
-    .venv/bin/python backend/evaluation/run_paired_holdout.py --manifest artifacts/pr7-source/dataset/manifest.json --compare-only --tesseract-report TESSERACT_JSON --glm-report GLM_JSON --qwen-report QWEN_JSON --output artifacts/pr8-verified-replay
+    .venv/bin/python backend/evaluation/run_paired_holdout.py --manifest artifacts/pr7-source/dataset/manifest.json --compare-only --tesseract-report TESSERACT_JSON --glm-report GLM_JSON --qwen-report QWEN_JSON --original-paired-report artifacts/pr8-real-three-arm/paired_comparison.json --completion-receipt artifacts/pr8-real-three-arm/completion_receipt.json --output artifacts/pr8-verified-replay
 
-The replay verifies all 24 image SHA values, original text labels and model predictions, recomputes every case score using the same frozen source-order scorer, verifies aggregate TP/FP/FN and text CER/WER, and refuses missing or duplicate cases. It makes **zero model calls**.
+The replay verifies all 24 image SHA values, original text labels and model predictions, recomputes every case score using the same frozen source-order scorer, verifies aggregate TP/FP/FN and text CER/WER, and refuses missing or duplicate cases. It makes **zero model calls**. It additionally requires the original complete execution receipt and its SHA-bound paired result, proves that all three raw arm files match their original hashes, and checks the preregistered model tags and their recorded digests. This guards accidental report/model substitution; JSON hashes alone do **not** provide independently signed proof of the host or hardware.
 
 **Metrics:** strict medication whole-record TP/FP/FN/F1 (annotated name, dose, route, frequency, action), vital TP/FP/FN/F1, per-case wins/losses/ties, critical OCR token misses, OCR CER/WER for Tesseract and GLM ONLY, per-arm latency and actual model versions/digests. Qwen returns direct structured fields; it has **no OCR CER/WER**. Model comparisons are between different architectures but on identical annotated images.
 
