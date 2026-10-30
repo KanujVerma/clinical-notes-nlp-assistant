@@ -231,6 +231,19 @@ def test_no_model_installed_fails_before_model_calls_or_artifact_creation(manife
     assert not destination.exists()
 
 
+@pytest.mark.parametrize("wrong", [
+    {"glm_ocr": "qwen3-vl:4b", "qwen3_vl": "qwen3-vl:4b"},
+    {"glm_ocr": "glm-ocr:q8_0", "qwen3_vl": "qwen3-vl:8b"},
+    {"glm_ocr": "glm-ocr:q4_0", "qwen3_vl": "qwen3-vl:4b"},
+])
+def test_overridden_local_model_tags_rejected_before_any_endpoint_request(monkeypatch, wrong):
+    monkeypatch.setattr(runner, "MODELS", wrong)
+    monkeypatch.setattr(runner, "_ensure_local_ollama_endpoint",
+                        lambda: (_ for _ in ()).throw(AssertionError("Remote/Ollama request attempted")))
+    with pytest.raises(ValueError, match="NONCANONICAL_LOCAL_MODEL_TAGS"):
+        runner._preflight_models()
+
+
 def test_remote_ollama_endpoint_is_rejected_prior_to_execution(monkeypatch):
     monkeypatch.setattr(runner, "_ensure_local_ollama_endpoint",
                         lambda: (_ for _ in ()).throw(ValueError("Remote endpoint refused")))
