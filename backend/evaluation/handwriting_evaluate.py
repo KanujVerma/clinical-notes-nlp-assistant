@@ -43,10 +43,15 @@ MIN_TARGET_CASES = 24
 
 def _validate_study_for_run(sealed: Path) -> tuple[dict, dict, dict]:
     seal = verify_seal(sealed)
-    if (seal["case_count"] < MIN_PILOT_CASES
-            or seal["writer_count"] < MIN_PILOT_WRITERS):
+    if seal["scorable_count"] < MIN_PILOT_CASES:
         raise ValueError("HANDWRITING_INSUFFICIENT_HUMAN_COHORT")
     manifest = load_object(sealed / "scored_manifest.json")
+    scored_writers = {
+        case["human_provenance"]["writer_pseudonym"]
+        for case in manifest["cases"]
+    }
+    if len(scored_writers) < MIN_PILOT_WRITERS:
+        raise ValueError("HANDWRITING_INSUFFICIENT_HUMAN_COHORT")
     _, info = load_gold_manifest(sealed / "scored_manifest.json")
     if (info["annotation_status"] != "independent_human_transcription"
             or info["manifest_sha256"] != seal["scored_manifest_sha256"]
@@ -237,7 +242,7 @@ def compare_reports(sealed: Path, reports: dict[str, Path],
             groups[label] = metric
         strata[dimension] = groups
     return {
-        "status": "completed_sealed_local_handwriting_pilot_comparison",
+        "status": "completed_sealed_local_handwriting_comparison",
         "annotation_status": "independent_human_transcription_attested_not_proven",
         "synthetic_only": True,
         "genuine_handwriting_attested_not_independently_verified": True,
@@ -251,7 +256,7 @@ def compare_reports(sealed: Path, reports: dict[str, Path],
         "scored_images_count": seal["scorable_count"],
         "predeclared_unscorable_case_ids": seal["unscorable_case_ids"],
         "cohort_phase": seal["cohort_phase"],
-        "meets_minimum_24_case_target": seal["case_count"] >= MIN_TARGET_CASES
+        "meets_minimum_24_case_target": seal["scorable_count"] >= MIN_TARGET_CASES
             and seal["writer_count"] >= MIN_PILOT_WRITERS,
         "model_tags": MODEL_TAGS,
         "arm_summaries": {
@@ -345,7 +350,7 @@ def replay(sealed: Path, original_run: Path, output: Path) -> dict:
     receipt = load_object(original_run / "completion_receipt.json")
     original = load_object(original_run / "paired_handwriting_results.json")
     reports = {}
-    if receipt.get("status") != "completed_sealed_local_handwriting_pilot_comparison":
+    if receipt.get("status") != "completed_sealed_local_handwriting_comparison":
         raise ValueError("HANDWRITING_COMPLETION_RECEIPT_REQUIRED")
     for arm in ARMS:
         source = original_run / "raw_reports" / arm
