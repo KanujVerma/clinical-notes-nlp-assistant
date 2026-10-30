@@ -179,6 +179,9 @@ def test_scaffold_generates_only_unfilled_templates_with_all_human_attestations_
     assert state["human_attestations_default_false"] is True
     a = read_source(out, "collection")
     assert len(a["cases"]) == 2
+    assert a["synthetic_only"] is None  # must be human-reviewed, not guessed
+    assert a["contains_actual_patient_data"] is None
+    assert a["attestation_verified_outside_software"] is False
     assert all(case["genuine_handwriting_attested"] is False for case in a["cases"])
     assert all(case["writer_consent_attested"] is False for case in a["cases"])
     assert all((out / case["image"]).exists() for case in a["cases"])
