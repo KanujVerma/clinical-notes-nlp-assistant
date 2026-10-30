@@ -38,6 +38,8 @@ Run all three arms on the **same image bytes**. Default installed tags from the 
 - Qwen3-VL: qwen3-vl:4b
 - Tesseract: locally installed system OCR executable
 
+The benchmark **enforces these exact two model tags**. If OLLAMA_OCR_MODEL or OLLAMA_VL_MODEL overrides either one, execution fails with NONCANONICAL_LOCAL_MODEL_TAGS before making any inference or creating results. This prevents accidental comparisons against different architectures or quantizations. The real installed model digest is independently rechecked after each full 24-image arm.
+
 Check the installed tags with ollama list and local service health, and use only the loopback endpoint http://127.0.0.1:11434. The runner never downloads models. If missing, check resource and disk limits and ask the user before pulling any models. Do not switch tags or use a remote API and call it the same experiment.
 
     export OLLAMA_HOST=http://127.0.0.1:11434
