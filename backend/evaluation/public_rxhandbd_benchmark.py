@@ -29,7 +29,8 @@ DATASET = "RxHandBD-ML test-split handwritten prescription word images"
 VERSION = "public_rxhandbd_test_words_v1"
 EXPECTED_TEST = 1115
 DEFAULT_PILOT = 100
-IMAGE_COLUMNS = ("filename", "image", "image_path", "file", "path", "image_name")
+ACCEPTED_TEST_CSV_NAMES = ("test_labels.csv", "test_label.csv")
+IMAGE_COLUMNS = ("filename", "image", "image_path", "file", "path", "image_name", "images")
 TEXT_COLUMNS = ("label", "text", "transcription", "word", "ground_truth")
 ARMS = amr.ARMS
 
@@ -53,10 +54,10 @@ def catalog(data_root: Path, *, csv_path: Path | None = None,
             image_col: str | None = None, text_col: str | None = None) -> tuple[list[dict], dict]:
     # Explicit test split: never use train_labels.csv as a convenient fallback.
     if csv_path is None:
-        choices = list(data_root.rglob("test_labels.csv"))
+        choices = [p for p in data_root.rglob("*") if p.is_file() and p.name.lower() in ACCEPTED_TEST_CSV_NAMES]
         amr.check(len(choices) == 1, "RX_ONE_PUBLISHER_TEST_CSV_REQUIRED")
         csv_path = choices[0]
-    amr.check(csv_path.name == "test_labels.csv", "RX_NOT_PUBLISHER_TEST_SPLIT")
+    amr.check(csv_path.name.lower() in ACCEPTED_TEST_CSV_NAMES, "RX_NOT_PUBLISHER_TEST_SPLIT")
     amr.check(csv_path.resolve().is_relative_to(data_root.resolve())
               and csv_path.is_file(), "RX_UNSAFE_TEST_CSV")
     images_dir = images_dir or data_root
