@@ -47,6 +47,13 @@ FROZEN_SOURCE_PATHS = (
     "backend/services/inference_pipeline.py",
     "backend/services/multimodal_service.py",
 )
+ADDITIONAL_FROZEN_SOURCE_PATHS = (
+    "backend/extractors/vitals.py",
+    "backend/extractors/instructions.py",
+    "backend/extractors/metadata.py",
+    "backend/config.py",
+    "requirements.txt",
+)
 OLD_DEV_MANIFEST = ROOT / "data/vision_gold_30/manifest.json"
 
 
@@ -86,6 +93,27 @@ def validate_freeze(lock_path: Path) -> dict:
                 "frozen_file_git_blobs",
             ))):
         raise ValueError("PRE_CASE_FREEZE_SEAL_MISMATCH")
+    # Retrospective audit, written after cases but BEFORE inspecting metrics:
+    # the original seal omitted vital-sign and other pipeline dependencies.
+    # Preserve the old pre-case seal unchanged, and pin omitted files to
+    # their actual Git blobs in the previously merged PR #6 baseline.
+    amendment_path = ROOT / "docs/validation/FROZEN_DEPENDENCY_AMENDMENT.json"
+    amendment_bytes = amendment_path.read_bytes()
+    if _blob_sha(amendment_bytes) != lock.get("frozen_dependency_amendment_git_blob"):
+        raise ValueError("FROZEN_DEPENDENCY_AMENDMENT_CHANGED")
+    amendment = json.loads(amendment_bytes.decode("utf-8"))
+    extras = amendment.get("additional_frozen_git_blobs")
+    if (amendment.get("amendment_version") != "secondary_freeze_amendment_v1"
+            or amendment.get("original_baseline_commit") != lock["frozen_baseline_commit"]
+            or amendment.get("pre_case_seal_unmodified") is not True
+            or not isinstance(extras, dict)
+            or set(extras) != set(ADDITIONAL_FROZEN_SOURCE_PATHS)):
+        raise ValueError("FROZEN_DEPENDENCY_AMENDMENT_INVALID")
+    for relative, expected in extras.items():
+        if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{40}", expected):
+            raise ValueError("FROZEN_DEPENDENCY_AMENDMENT_INVALID")
+        if _blob_sha((ROOT / relative).read_bytes()) != expected:
+            raise ValueError("FROZEN_DEPENDENCY_CHANGED:" + relative)
     versions = lock.get("frozen_file_git_blobs")
     if not isinstance(versions, dict) or set(versions) != set(FROZEN_SOURCE_PATHS):
         raise ValueError("UNFROZEN_EVALUATION_CONTRACT")
