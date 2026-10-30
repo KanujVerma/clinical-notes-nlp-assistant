@@ -151,6 +151,14 @@ def validate_collection(source: Path) -> tuple[dict, list[tuple[dict, bytes]]]:
             and collection.get("attestation_verified_outside_software") is True,
             "HANDWRITING_COLLECTION_ATTESTATION_REQUIRED")
     source_cases = _cases_by_id(collection.get("cases"), "HANDWRITING_COLLECTION_CASES_INVALID")
+    # Every cohort entry must be a distinct original image, not another case
+    # ID pointing to the same file/bytes. Pixel-equivalent re-encodings still
+    # need manual human deduplication and cannot be proven by SHA alone.
+    source_hashes = [x.get("sha256") for x in source_cases.values()]
+    _expect(all(isinstance(sha, str) and SHA.fullmatch(sha) is not None
+                for sha in source_hashes)
+            and len(set(source_hashes)) == len(source_hashes),
+            "HANDWRITING_DUPLICATE_OR_INVALID_SOURCE_HASH")
     actors = []
     for doc in (a, b):
         _expect(doc.get("schema_version") == VERSION and doc.get("dataset_id") == dataset_id
@@ -194,13 +202,17 @@ def validate_collection(source: Path) -> tuple[dict, list[tuple[dict, bytes]]]:
         for record in (first, second, final):
             _expect(record.get("sha256") == item["sha256"],
                     "HANDWRITING_ANNOTATION_IMAGE_MISMATCH")
-        for trans in (first, second):
-            _expect(isinstance(trans.get("reference_text"), str)
-                    and bool(trans["reference_text"].strip()),
-                    "HANDWRITING_TRANSCRIPTION_EMPTY")
         resolution = final.get("resolution")
         _expect(resolution in ("agreed", "adjudicated", "unscorable"),
                 "HANDWRITING_ADJUDICATION_RESOLUTION_REQUIRED")
+        # Real independent transcription may be impossible for an unreadable
+        # image. The case must remain in the pre-inference exclusion ledger,
+        # not acquire invented placeholder text merely to pass validation.
+        for trans in (first, second):
+            _expect(isinstance(trans.get("reference_text"), str)
+                    and (resolution == "unscorable"
+                         or bool(trans["reference_text"].strip())),
+                    "HANDWRITING_TRANSCRIPTION_EMPTY")
         _expect(final.get("adjudication_record_id")
                 and isinstance(final["adjudication_record_id"], str)
                 and final.get("reviewed_original_image") is True,
@@ -383,6 +395,18 @@ def verify_seal(directory: Path) -> dict:
             "HANDWRITING_SCORING_PARTITION_CHANGED")
     _expect(all(scored_cases[k] == cases[k] for k in scored_cases),
             "HANDWRITING_SEALED_GOLD_CHANGED")
+    all_writers = {
+        c["human_provenance"]["writer_pseudonym"] for c in cases.values()
+    }
+    scored_writers = {
+        c["human_provenance"]["writer_pseudonym"] for c in scored_cases.values()
+    }
+    expected_phase = ("final_candidate" if len(scored_cases) >= 24
+                      and len(scored_writers) >= 3
+                      else "pilot_or_insufficient_sample")
+    _expect(seal.get("writer_count") == len(all_writers)
+            and seal.get("cohort_phase") == expected_phase,
+            "HANDWRITING_SEAL_DERIVED_COHORT_MISMATCH")
     validate_handwriting_manifest(directory / "scored_manifest.json")
     for case in cases.values():
         # load_gold_manifest() only checks scored images; check excluded image
