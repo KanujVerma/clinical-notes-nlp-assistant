@@ -1,0 +1,69 @@
+name: Paired vision holdout contract (NO Ollama models in CI)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/evaluation/paired_holdout_analysis.py"
+      - "backend/evaluation/run_paired_holdout.py"
+      - "backend/tests/test_paired_holdout.py"
+      - ".github/workflows/paired-vision-contract.yml"
+      - "docs/validation/PR8_LOCAL_MODEL_BENCHMARK.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-comparison-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_MODE: local
+      ENABLE_LOCAL_AI: "false"
+      ENABLE_EXTERNAL_EXPLAINER: "false"
+      OLLAMA_HOST: http://127.0.0.1:11434
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install only offline Tesseract and pinned Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr poppler-utils
+          python -m pip install -r requirements.txt
+      - name: Test frozen three-arm contract using clearly MOCKED test outputs
+        run: |
+          python -m pytest backend/tests/test_paired_holdout.py -q
+      - name: Generate canonical PR7 images and validate SHA without any model calls
+        env:
+          PYTHONPATH: backend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from evaluation.prospective_holdout import generate_holdout
+          result = generate_holdout(
+              Path("docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json"),
+              Path("artifacts/pr8-contract/dataset"),
+          )
+          print("CANONICAL_24_CASES_CREATED:", result)
+          PY
+          python backend/evaluation/run_paired_holdout.py \
+            --manifest artifacts/pr8-contract/dataset/manifest.json \
+            --preflight
+      - name: Run REAL local Tesseract-only 24-image verification (NOT paired)
+        run: |
+          python backend/evaluation/prospective_holdout.py \
+            --lock docs/validation/PROSPECTIVE_HOLDOUT_LOCK.json \
+            --output artifacts/pr8-real-tesseract-only \
+            --arms tesseract
+      - name: Upload actual Tesseract-only source and result, NEVER mocked GLM/Qwen metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr8-real-tesseract-only-no-glm-qwen
+          path: artifacts/pr8-real-tesseract-only/
+          if-no-files-found: error
