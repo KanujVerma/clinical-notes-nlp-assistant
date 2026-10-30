@@ -18,6 +18,19 @@ Provide the handwriting writer only with a fictional writer card, never with mod
 
 Use the separately committed [writer cards](PR9_FICTIONAL_WRITER_CARDS.md) only to guide physical handwriting. Ask each writer to restate the fictional card naturally in their own hand; no medical meaning or patient info is required. This preserves natural layout and variation while giving challenging numeric/negation cases. Writer cards are *not* gold annotations and should never be shown to transcribers or used to correct the model predictions.
 
+## Low-friction Mac collection: generate UNFILLED JSON files automatically
+
+Once you have photos or scans of actual handwritten fictional notes, place the original PNG/JPG files in `data/handwriting-private/photographs/`. Then run:
+
+```bash
+python backend/evaluation/handwriting_study.py scaffold \
+  --images data/handwriting-private/photographs \
+  --dataset-id fictional_handwriting_cohort_01 \
+  --output data/handwriting-private/intake
+```
+
+This copies every original image **byte-for-byte**, computes its SHA-256, assigns stable IDs (`hw001` onward), and creates the four required JSON templates with the correct hashes and case IDs already filled. **Every human consent, independence, writer, and adjudication attestation defaults to `false` or `null`; all transcription and gold text is empty.** A scaffolded dataset must fail `validate` until distinct humans actually complete and verify all records. Never run scaffold as proof a sample is handwriting.
+
 ## Private folder structure (do not commit these files)
 
 ```text
