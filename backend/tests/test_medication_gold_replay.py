@@ -280,6 +280,36 @@ def test_second_medication_instruction_never_leaks_prn_into_first_drug():
     assert "prn" not in lis[0].get("qualifier", "").casefold()
 
 
+def test_trailing_non_active_status_is_not_lost_or_marked_active():
+    for source, action in (
+        ("Aspirin 81 mg PO daily was discontinued.", "stop"),
+        ("Lisinopril 10 mg PO BID has been held.", "hold"),
+    ):
+        meds = run_pipeline(source)["medications"]
+        assert len(meds) == 1, meds
+        assert meds[0]["action"] == action
+        start, end = meds[0]["span"]
+        assert source[start:end].endswith(("discontinued.", "held.")) is False
+        assert source[start:end].endswith(("discontinued", "held"))
+
+    assert parse_order_lines("Continue Aspirin 81 mg PO daily was discontinued.") == []
+
+
+def test_qd_abbreviation_does_not_cut_off_course_duration():
+    for source in (
+        "Metformin 500 mg PO q.d. for 30 days.",
+        "Medications:\nMetformin 500 mg PO q.d. for 30 days.",
+    ):
+        meds = run_pipeline(source)["medications"]
+        assert len(meds) == 1, meds
+        med = meds[0]
+        assert med["name"] == "metformin"
+        assert med["duration"] == "for 30 days"
+        assert med["frequency"].casefold() == "q.d."
+        start, end = med["span"]
+        assert source[start:end].endswith("for 30 days")
+
+
 def test_unrelated_followup_or_negation_clause_does_not_erase_aspirin_order():
     from extractors.medications import _find_medication_clause_bounds
 
