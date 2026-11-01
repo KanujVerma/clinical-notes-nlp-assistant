@@ -26,3 +26,8 @@ backend/data/storage/
 *.lock
 data/vision_gold/
 data/vision_gold_smoke/
+
+# PR9 private genuine handwritten fictional notes, transcripts and model outputs
+data/handwriting-private/
+artifacts/handwriting-private/
+**/handwriting-private/
