@@ -557,6 +557,35 @@ def test_real_run_receipt_and_offline_replay_are_consistent_when_models_are_mock
     receipt_path = run_dir / "completion_receipt.json"
     saved_paired = paired_path.read_bytes()
     saved_receipt = receipt_path.read_bytes()
+
+    # Adversarial race: an internally consistent alternate paired report
+    # replaces the report AFTER the old replay parser read it. The receipt
+    # is set to the alternate SHA. Replay must reject because it can only
+    # authenticate the exact bytes it actually parsed.
+    alternate = json.loads(saved_paired)
+    alternate["execution_provenance"]["utc_completed"] = "1970-01-01T00:00:00+00:00"
+    alternate_bytes = json.dumps(alternate, sort_keys=True).encode("utf-8")
+    altered_receipt = json.loads(saved_receipt)
+    altered_receipt["paired"]["sha256"] = hashlib.sha256(alternate_bytes).hexdigest()
+    put(receipt_path, altered_receipt)
+    real_load = evaluation.load_object
+    swapped = [False]
+
+    def swap_paired_after_load(path):
+        obj = real_load(path)
+        if path == paired_path and not swapped[0]:
+            paired_path.write_bytes(alternate_bytes)
+            swapped[0] = True
+        return obj
+
+    with monkeypatch.context() as patch:
+        patch.setattr(evaluation, "load_object", swap_paired_after_load)
+        with pytest.raises(ValueError, match="HANDWRITING_ORIGINAL_COMPARISON_RECEIPT_MISMATCH"):
+            evaluation.replay(sealed, run_dir, tmp_path / "paired-swap-replay")
+    assert not swapped[0], "Replay must not reopen a mutable paired report for parsing"
+    paired_path.write_bytes(saved_paired)
+    receipt_path.write_bytes(saved_receipt)
+
     edited = json.loads(saved_paired)
     edited["scored_images_count"] = 999
     put(paired_path, edited)
@@ -572,3 +601,33 @@ def test_real_run_receipt_and_offline_replay_are_consistent_when_models_are_mock
     put(run_dir / "completion_receipt.json", receipt)
     with pytest.raises(ValueError, match="HANDWRITING_MODEL_OR_SUMMARY_HASH_MISMATCH"):
         evaluation.replay(sealed, run_dir, tmp_path / "bad-replay")
+
+
+def test_volunteer_arm_report_hash_captures_exact_validated_bytes(
+        intake, tmp_path, monkeypatch):
+    # The old code parsed load_object(path), then hashed a DIFFERENT later
+    # path.read_bytes(). A swap between reads could authenticate unrelated bytes.
+    sealed = tmp_path / "sealed"
+    study.prepare(intake, sealed)
+    reports = make_mock_reports(monkeypatch, sealed, tmp_path)
+    path = reports["tesseract"]
+    original = path.read_bytes()
+    metadata = vision.load_gold_manifest(sealed / "scored_manifest.json")[1]
+    reference = {case["id"]: case for case in json.loads(
+        (sealed / "scored_manifest.json").read_text())["cases"]}
+    existing_loader = evaluation.load_object
+    swapped = [False]
+
+    def swap_after_loader(file):
+        obj = existing_loader(file)
+        if file == path and not swapped[0]:
+            path.write_bytes(b"{}")
+            swapped[0] = True
+        return obj
+
+    with monkeypatch.context() as patch:
+        patch.setattr(evaluation, "load_object", swap_after_loader)
+        validated = evaluation.verify_single_arm_report(
+            path, "tesseract", metadata, reference)
+    assert validated["file_sha256"] == hashlib.sha256(original).hexdigest()
+    assert not swapped[0], "Arm validation must parse the captured report bytes, not load_object"
