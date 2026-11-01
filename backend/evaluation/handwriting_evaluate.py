@@ -82,7 +82,10 @@ def verify_single_arm_report(path: Path, arm: str, metadata: dict,
     """Independently verify every saved prediction and every derived count."""
     if arm not in ARMS:
         raise ValueError("HANDWRITING_UNKNOWN_EVALUATION_ARM")
-    report = load_object(path)
+    raw_report = path.read_bytes()
+    report = json.loads(raw_report.decode("utf-8"))
+    if not isinstance(report, dict):
+        raise ValueError("HANDWRITING_INCOMPLETE_UNBOUND_MODEL_REPORT")
     digest = (report.get("model_digests") or {}).get(arm)
     if (report.get("status") != "completed_local_actual_predictions"
             or report.get("synthetic_only") is not True
@@ -174,7 +177,7 @@ def verify_single_arm_report(path: Path, arm: str, metadata: dict,
         if any(original.get(k) != v for k, v in values.items()):
             raise ValueError("HANDWRITING_OCR_AGGREGATE_CHANGED")
     return {
-        "file_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "file_sha256": hashlib.sha256(raw_report).hexdigest(),
         "model_digest_or_version": digest,
         "summary": original,
         "cases": rows,
@@ -347,8 +350,13 @@ def execute(sealed: Path, output: Path) -> dict:
 def replay(sealed: Path, original_run: Path, output: Path) -> dict:
     if output.exists():
         raise ValueError("HANDWRITING_RESULT_OUTPUT_EXISTS")
-    receipt = load_object(original_run / "completion_receipt.json")
-    original = load_object(original_run / "paired_handwriting_results.json")
+    receipt_raw = (original_run / "completion_receipt.json").read_bytes()
+    receipt = json.loads(receipt_raw.decode("utf-8"))
+    paired_source = original_run / "paired_handwriting_results.json"
+    paired_raw = paired_source.read_bytes()
+    original = json.loads(paired_raw.decode("utf-8"))
+    if not isinstance(receipt, dict) or not isinstance(original, dict):
+        raise ValueError("HANDWRITING_COMPLETION_RECEIPT_REQUIRED")
     reports = {}
     if receipt.get("status") != "completed_sealed_local_handwriting_comparison":
         raise ValueError("HANDWRITING_COMPLETION_RECEIPT_REQUIRED")
@@ -359,7 +367,6 @@ def replay(sealed: Path, original_run: Path, output: Path) -> dict:
             raise ValueError("HANDWRITING_ORIGINAL_ARM_REPORT_MISSING")
         reports[arm] = choices[0]
     audit = compare_reports(sealed, reports)
-    paired_source = original_run / "paired_handwriting_results.json"
     # A recomputed receipt hash alone does not validate a copied, edited
     # summary: compare every cohort identity and scope claim to the real
     # sealed-gold replay rather than accepting arbitrary original metadata.
@@ -374,7 +381,7 @@ def replay(sealed: Path, original_run: Path, output: Path) -> dict:
         if original.get(field) != audit.get(field):
             raise ValueError("HANDWRITING_ORIGINAL_COHORT_METADATA_CHANGED")
     if (not isinstance(receipt.get("paired"), dict)
-            or receipt["paired"].get("sha256") != hashlib.sha256(paired_source.read_bytes()).hexdigest()
+            or receipt["paired"].get("sha256") != hashlib.sha256(paired_raw).hexdigest()
             or receipt.get("cohort_seal_sha256") != audit["cohort_seal_sha256"]
             or not isinstance(receipt.get("arm_files"), dict)
             or set(receipt["arm_files"]) != set(ARMS)
@@ -411,9 +418,8 @@ def replay(sealed: Path, original_run: Path, output: Path) -> dict:
     audit["offline_replay"] = {
         "status": "original_scores_and_identity_receipt_verified",
         "new_model_calls": False,
-        "original_paired_sha256": hashlib.sha256(paired_source.read_bytes()).hexdigest(),
-        "original_receipt_sha256": hashlib.sha256(
-            (original_run / "completion_receipt.json").read_bytes()).hexdigest(),
+        "original_paired_sha256": hashlib.sha256(paired_raw).hexdigest(),
+        "original_receipt_sha256": hashlib.sha256(receipt_raw).hexdigest(),
         "limit": "Self-reported source provenance, not signed proof of actual model hardware",
     }
     output.mkdir(parents=True, exist_ok=False)
