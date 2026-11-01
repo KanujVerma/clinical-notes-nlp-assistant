@@ -5,6 +5,7 @@ The real AMR dataset is NEVER downloaded or committed in CI.
 """
 from __future__ import annotations
 
+import copy
 import csv
 import json
 from pathlib import Path
@@ -235,3 +236,65 @@ def test_leading_decimal_dose_mismatch_is_critical_not_false_positive():
     assert next(x for x in good["critical_tokens"] if "mg" in x["token"])["recognized"]
     percent = amr.score("Oxygen 96%", "Oxygen 96%")
     assert next(x for x in percent["critical_tokens"] if "%" in x["token"])["recognized"]
+
+
+def test_publisher_crlf_reference_uses_identical_bytes_in_execute_and_replay(
+        tmp_path, publisher_fixture, monkeypatch):
+    # CRLF is part of the publisher's actual frozen text and must never be
+    # normalized by replay alone (source and scorer must remain prospective).
+    (publisher_fixture / "truth/AMR_001.txt").write_bytes(
+        b"Line one\r\nHold 2.5 mg PRN\r\n")
+    study, _ = prepare(tmp_path, publisher_fixture)
+    sealed = tmp_path / "crlf-sealed"
+    amr.seal(study, sealed)
+    monkeypatch.setattr(amr, "preflight", lambda arms: {"tesseract": "mock-tess"})
+    monkeypatch.setattr(amr, "infer", lambda arm, source:
+                        "Line one\nHold 2.5 mg PRN\n")
+    monkeypatch.setattr(amr.pytesseract, "get_tesseract_version",
+                        lambda: "mock-tess")
+    run = tmp_path / "crlf-run"
+    amr.execute(sealed, run, ("tesseract",))
+    cases = amr.load(run / "raw_results.json")["cases"]
+    crlf_case = next(c for c in cases if c["id"] == "AMR_001")
+    assert crlf_case["results"]["tesseract"]["metrics"]["character_distance"] > 0
+    assert amr.replay(sealed, run)["status"] == "replayed_all_saved_predictions"
+
+
+def test_amr_replay_checks_same_result_bytes_as_receipt_under_file_swap(
+        tmp_path, publisher_fixture, monkeypatch):
+    study, _ = prepare(tmp_path, publisher_fixture)
+    sealed = tmp_path / "atomic-sealed"
+    amr.seal(study, sealed)
+    monkeypatch.setattr(amr, "preflight", lambda arms: {"tesseract": "mock-tess"})
+    monkeypatch.setattr(amr, "infer", lambda arm, source: "MOCK 2.5 mg PRN")
+    monkeypatch.setattr(amr.pytesseract, "get_tesseract_version",
+                        lambda: "mock-tess")
+    run = tmp_path / "atomic-run"
+    amr.execute(sealed, run, ("tesseract",))
+    report_path = run / "raw_results.json"
+    original = amr.load(report_path)
+    mutated = copy.deepcopy(original)
+    changed = mutated["cases"][0]
+    changed["results"]["tesseract"]["transcription"] = "FORGED PERFECT RESULTS"
+    gold = (sealed / "publisher_truth" / (changed["id"] + ".txt")).read_bytes().decode("utf-8-sig")
+    changed["results"]["tesseract"]["metrics"] = amr.score(
+        gold, "FORGED PERFECT RESULTS")
+    mutated["summaries"] = amr.aggregates(mutated["cases"], ("tesseract",))
+    assert original["summaries"] != mutated["summaries"]
+
+    # Race: after first read returns receipted bytes, file content changes.
+    # Old replay authenticated read 1 but calculated scores from read 2.
+    read_original = Path.read_bytes
+    switched = [False]
+
+    def switch_once(path):
+        data = read_original(path)
+        if path == report_path and not switched[0]:
+            switched[0] = True
+            report_path.write_bytes(amr.raw_json(mutated))
+        return data
+
+    monkeypatch.setattr(Path, "read_bytes", switch_once)
+    verified = amr.replay(sealed, run)
+    assert switched[0]
+    assert verified["summaries"] == original["summaries"]
