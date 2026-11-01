@@ -190,11 +190,14 @@ def scaffold(dataset_root: Path, study: Path, count: int = PILOT_COUNT) -> dict:
 
 
 def review_cases(study: Path, selection: dict,
-                 snapshot: bytes | None = None) -> dict[str, dict]:
-    review = json.loads(snapshot) if snapshot is not None else load(study / "privacy_review.json")
-    check(isinstance(review, dict), "AMR_PRIVACY_REVIEW_INVALID")
-    check(review.get("schema") == VERSION and review.get("selection_sha256") ==
-          sha((study / "selection.json").read_bytes())
+                 snapshot: bytes | None = None,
+                 selection_sha256: str | None = None) -> dict[str, dict]:
+    if snapshot is None:
+        snapshot = (study / "privacy_review.json").read_bytes()
+    review = parse_json_bytes(snapshot)
+    if selection_sha256 is None:
+        selection_sha256 = sha((study / "selection.json").read_bytes())
+    check(review.get("schema") == VERSION and review.get("selection_sha256") == selection_sha256
           and isinstance(review.get("reviewer_id"), str)
           and bool(review["reviewer_id"].strip()) and len(review["reviewer_id"]) <= 80,
           "AMR_PRIVACY_REVIEW_NOT_SIGNED")
@@ -271,7 +274,7 @@ def seal(study: Path, out: Path) -> dict:
     ledger = [{**{k: v for k, v in r.items() if k != "contributor"},
                "writer_group": expected_groups[r["contributor"]]} for r in current]
     check(selection["all_records"] == ledger, "AMR_UPSTREAM_BYTES_CHANGED")
-    reviews = review_cases(study, selection, review_bytes)
+    reviews = review_cases(study, selection, review_bytes, sha(selection_bytes))
     chosen = {r["id"]: r for r in ledger if r["id"] in expected_ids}
     approved = [i for i in expected_ids if reviews[i]["decision"] == "approved"]
     check(len(approved) >= 12
@@ -342,10 +345,22 @@ def seal(study: Path, out: Path) -> dict:
 
 
 def verify(sealed: Path) -> tuple[dict, dict]:
-    seal_data = load(sealed / "study_seal.json")
-    selection = load(sealed / "selection.json")
-    review = review_cases(sealed, selection)
-    manifest = load(sealed / "scored_manifest.json")
+    seal_bytes = (sealed / "study_seal.json").read_bytes()
+    selection_bytes = (sealed / "selection.json").read_bytes()
+    review_bytes = (sealed / "privacy_review.json").read_bytes()
+    manifest_bytes = (sealed / "scored_manifest.json").read_bytes()
+    seal_data = parse_json_bytes(seal_bytes)
+    selection = parse_json_bytes(selection_bytes)
+    manifest = parse_json_bytes(manifest_bytes)
+    selection_sha256 = sha(selection_bytes)
+    review_sha256 = sha(review_bytes)
+    manifest_sha256 = sha(manifest_bytes)
+    # Hash the captured snapshots before any returned gold can be trusted.
+    check(seal_data.get("selection_sha256") == selection_sha256
+          and seal_data.get("review_sha256") == review_sha256
+          and seal_data.get("manifest_sha256") == manifest_sha256,
+          "AMR_SEAL_OR_CODE_CHANGED")
+    review = review_cases(sealed, selection, review_bytes, selection_sha256)
     check(seal_data.get("schema") == VERSION and manifest.get("schema") == VERSION
           and selection.get("schema") == VERSION
           and selection.get("dataset") == DATASET and selection.get("revision") == REVISION
@@ -353,12 +368,6 @@ def verify(sealed: Path) -> tuple[dict, dict]:
           and seal_data.get("status") == "sealed_publisher_gold_privacy_review_attested"
           and seal_data.get("arms") == list(ARMS)
           and seal_data.get("code_sha256") == source_hashes()
-          and seal_data.get("selection_sha256") ==
-          sha((sealed / "selection.json").read_bytes())
-          and seal_data.get("review_sha256") ==
-          sha((sealed / "privacy_review.json").read_bytes())
-          and seal_data.get("manifest_sha256") ==
-          sha((sealed / "scored_manifest.json").read_bytes())
           and seal_data.get("metadata_sha256") == selection["metadata_sha256"],
           "AMR_SEAL_OR_CODE_CHANGED")
     chosen = {r["id"]: r for r in selection["all_records"]}

@@ -298,3 +298,38 @@ def test_amr_replay_checks_same_result_bytes_as_receipt_under_file_swap(
     verified = amr.replay(sealed, run)
     assert switched[0]
     assert verified["summaries"] == original["summaries"]
+
+
+def test_verify_rejects_selection_and_manifest_swapped_on_first_read(
+        tmp_path, publisher_fixture, monkeypatch):
+    study, _ = prepare(tmp_path, publisher_fixture)
+    sealed = tmp_path / "sealed"
+    amr.seal(study, sealed)
+    targets = {
+        (sealed / "selection.json").resolve(),
+        (sealed / "scored_manifest.json").resolve(),
+    }
+    originals = {path: path.read_bytes() for path in (
+        sealed / "selection.json", sealed / "scored_manifest.json")}
+    seen: set[Path] = set()
+    real_read = Path.read_bytes
+
+    def swap_first_snapshot(self):
+        data = real_read(self)
+        key = self.resolve()
+        if key in targets and key not in seen:
+            seen.add(key)
+            parsed = json.loads(data)
+            if key.name == "selection.json":
+                parsed["all_records"][0]["truth_sha256"] = "0" * 64
+            else:
+                parsed["cases"][0]["reference_sha256"] = "0" * 64
+            return json.dumps(parsed).encode("utf-8")
+        return data
+
+    monkeypatch.setattr(Path, "read_bytes", swap_first_snapshot)
+    with pytest.raises(ValueError, match="AMR_SEAL_OR_CODE_CHANGED"):
+        amr.verify(sealed)
+    assert seen == targets
+    for path, raw in originals.items():
+        assert real_read(path) == raw
