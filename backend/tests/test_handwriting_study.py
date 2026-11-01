@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -631,3 +632,45 @@ def test_volunteer_arm_report_hash_captures_exact_validated_bytes(
             path, "tesseract", metadata, reference)
     assert validated["file_sha256"] == hashlib.sha256(original).hexdigest()
     assert not swapped[0], "Arm validation must parse the captured report bytes, not load_object"
+
+
+def test_replay_manifest_gold_is_bound_to_the_hashed_snapshot(intake, tmp_path, monkeypatch):
+    # A manifest swapped only for the first post-seal read used to become the
+    # scoring gold, while a later read of the restored file still matched the seal.
+    sealed = tmp_path / "sealed"
+    study.prepare(intake, sealed)
+    manifest_path = sealed / "scored_manifest.json"
+    _, manifest, info = evaluation._validate_study_for_run(sealed)
+    assert "2.5 mg" in manifest["cases"][0]["reference_text"]
+    assert "850 mg" not in manifest["cases"][0]["reference_text"]
+    assert info["manifest_sha256"] == hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+
+    tampered = json.loads(manifest_path.read_bytes())
+    tampered["cases"][0]["reference_text"] = tampered["cases"][0]["reference_text"].replace(
+        "2.5 mg", "850 mg")
+    tampered_text = json.dumps(tampered)
+    tampered_bytes = tampered_text.encode("utf-8")
+    armed = {"on": False}
+    real_verify = evaluation.verify_seal
+    real_read_text = Path.read_text
+    real_read_bytes = Path.read_bytes
+
+    def verify_then_swap_next_manifest_read(directory):
+        result = real_verify(directory)
+        armed["on"] = True
+        return result
+
+    def swapped_once(self, reader, text):
+        if armed["on"] and self.resolve() == manifest_path.resolve():
+            armed["on"] = False
+            return tampered_text if text else tampered_bytes
+        return reader(self)
+
+    monkeypatch.setattr(evaluation, "verify_seal", verify_then_swap_next_manifest_read)
+    monkeypatch.setattr(Path, "read_text", lambda self, *a, **k: swapped_once(
+        self, lambda p: real_read_text(p, *a, **k), True))
+    monkeypatch.setattr(Path, "read_bytes", lambda self: swapped_once(
+        self, real_read_bytes, False))
+    with pytest.raises(ValueError, match="HANDWRITING_UNSEALED_EVALUATION_INPUT"):
+        evaluation._validate_study_for_run(sealed)
+    assert b"850 mg" not in real_read_bytes(manifest_path)

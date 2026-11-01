@@ -32,7 +32,6 @@ from evaluation.run_paired_holdout import (  # noqa: E402
     _preflight_models, _swap_used_macos_bytes, _write_json_once,
     _report_source_pointer,
 )
-from evaluation.vision_benchmark import load_gold_manifest  # noqa: E402
 from services.inference_pipeline import InferenceBindingError, get_installed_model_digest  # noqa: E402
 
 ARMS = ("tesseract", "glm_ocr", "qwen3_vl")
@@ -45,17 +44,29 @@ def _validate_study_for_run(sealed: Path) -> tuple[dict, dict, dict]:
     seal = verify_seal(sealed)
     if seal["scorable_count"] < MIN_PILOT_CASES:
         raise ValueError("HANDWRITING_INSUFFICIENT_HUMAN_COHORT")
-    manifest = load_object(sealed / "scored_manifest.json")
+    # One captured snapshot: a later reread can authenticate the restored
+    # sealed file while comparison still uses gold from the replaced read.
+    raw = (sealed / "scored_manifest.json").read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+    manifest = json.loads(raw.decode("utf-8"))
+    cases = manifest.get("cases") if isinstance(manifest, dict) else None
+    if not isinstance(cases, list):
+        raise ValueError("HANDWRITING_UNSEALED_EVALUATION_INPUT")
     scored_writers = {
         case["human_provenance"]["writer_pseudonym"]
-        for case in manifest["cases"]
+        for case in cases
     }
     if len(scored_writers) < MIN_PILOT_WRITERS:
         raise ValueError("HANDWRITING_INSUFFICIENT_HUMAN_COHORT")
-    _, info = load_gold_manifest(sealed / "scored_manifest.json")
+    info = {
+        "dataset_id": manifest.get("dataset_id") or "unlabeled_synthetic_visual",
+        "annotation_status": manifest.get("annotation_status"),
+        "manifest_sha256": digest,
+        "case_count": len(cases),
+    }
     if (info["annotation_status"] != "independent_human_transcription"
             or info["manifest_sha256"] != seal["scored_manifest_sha256"]
-            or len(manifest["cases"]) != seal["scorable_count"]):
+            or len(cases) != seal["scorable_count"]):
         raise ValueError("HANDWRITING_UNSEALED_EVALUATION_INPUT")
     # A pilot with <24 independent source images is always exploratory.
     return seal, manifest, info
