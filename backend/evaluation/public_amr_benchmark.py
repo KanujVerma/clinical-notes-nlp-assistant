@@ -63,11 +63,16 @@ def raw_json(data: object) -> bytes:
     return (json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
-def load(path: Path) -> dict:
-    obj = json.loads(path.read_text("utf-8"))
+def parse_json_bytes(raw: bytes) -> dict:
+    """Parse the same immutable byte snapshot that is verified by a receipt."""
+    obj = json.loads(raw.decode("utf-8"))
     if not isinstance(obj, dict):
         raise ValueError("AMR_EXPECTED_JSON_OBJECT")
     return obj
+
+
+def load(path: Path) -> dict:
+    return parse_json_bytes(path.read_bytes())
 
 
 def check(ok: bool, code: str) -> None:
@@ -525,7 +530,7 @@ def execute(sealed: Path, out: Path, arms: tuple[str, ...] = ARMS) -> dict:
 def replay(sealed: Path, run: Path) -> dict:
     seal_data, manifest = verify(sealed)
     raw = (run / "raw_results.json").read_bytes()
-    report = load(run / "raw_results.json")
+    report = parse_json_bytes(raw)  # Exactly the bytes authenticated by receipt.
     receipt = load(run / "completion_receipt.json")
     arms = tuple(report.get("arms", []))
     check(bool(arms) and len(set(arms)) == len(arms) and
@@ -565,7 +570,11 @@ def replay(sealed: Path, run: Path) -> dict:
               and isinstance(row.get("results"), dict)
               and set(row["results"]) == set(arms),
               "AMR_REPLAY_WRONG_SOURCE_BINDING")
-        gold = safe(sealed, case["reference"], ".txt").read_text("utf-8-sig")
+        gold_bytes = safe(sealed, case["reference"], ".txt").read_bytes()
+        check(sha(gold_bytes) == case["reference_sha256"],
+              "AMR_REPLAY_PUBLISHER_GOLD_CHANGED")
+        # Match execute() byte-for-byte. Path.read_text() normalizes CRLF.
+        gold = gold_bytes.decode("utf-8-sig")
         for arm in arms:
             obj = row["results"][arm]
             check(isinstance(obj.get("transcription"), str)
