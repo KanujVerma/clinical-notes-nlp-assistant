@@ -381,7 +381,7 @@ def evaluate(sealed: Path, out: Path, arms: tuple[str, ...] = ARMS) -> dict:
 def replay(sealed: Path, run: Path) -> dict:
     lock, manifest = verify(sealed)
     raw = (run / "raw_results.json").read_bytes()
-    report = amr.load(run / "raw_results.json")
+    report = amr.parse_json_bytes(raw)  # Exact bytes bound to the receipt.
     receipt = amr.load(run / "completion_receipt.json")
     arms = tuple(report.get("arms", []))
     source = amr.sha((sealed / "study_seal.json").read_bytes())
