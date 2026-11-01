@@ -49,6 +49,25 @@ def file_index(root: Path) -> dict[str, Path]:
     return images
 
 
+def resolve_column(headers: list[str], requested: str | None,
+                   aliases: tuple[str, ...]) -> str | None:
+    """Match a requested name or alias without changing its real CSV header."""
+    folded: dict[str, str] = {}
+    for name in headers:
+        if not isinstance(name, str) or not name.strip():
+            continue
+        key = name.strip().lower()
+        amr.check(key not in folded, "RX_AMBIGUOUS_CSV_HEADER")
+        folded[key] = name
+    if requested is not None:
+        return folded.get(requested.strip().lower())
+    for alias in aliases:
+        found = folded.get(alias.lower())
+        if found is not None:
+            return found
+    return None
+
+
 def catalog(data_root: Path, *, csv_path: Path | None = None,
             images_dir: Path | None = None,
             image_col: str | None = None, text_col: str | None = None) -> tuple[list[dict], dict]:
@@ -65,9 +84,9 @@ def catalog(data_root: Path, *, csv_path: Path | None = None,
               and images_dir.is_dir(), "RX_UNSAFE_IMAGE_FOLDER")
     labels_raw = csv_path.read_bytes()
     reader = csv.DictReader(io.StringIO(labels_raw.decode("utf-8-sig")))
-    headers = reader.fieldnames or []
-    image_col = image_col or next((n for n in IMAGE_COLUMNS if n in headers), None)
-    text_col = text_col or next((n for n in TEXT_COLUMNS if n in headers), None)
+    headers = list(reader.fieldnames or [])
+    image_col = resolve_column(headers, image_col, IMAGE_COLUMNS)
+    text_col = resolve_column(headers, text_col, TEXT_COLUMNS)
     amr.check(bool(image_col and text_col) and image_col != text_col
               and image_col in headers and text_col in headers,
               "RX_UNKNOWN_CSV_COLUMNS_SPECIFY_IMAGE_AND_TEXT")
@@ -145,11 +164,14 @@ def scaffold(data_root: Path, study: Path, count: int = DEFAULT_PILOT,
             "publisher_test_rows": len(entries), "selected_words": count}
 
 
-def reviews(study: Path, sel: dict, snapshot: bytes | None = None) -> dict:
-    r = json.loads(snapshot) if snapshot is not None else amr.load(study / "privacy_review.json")
-    amr.check(isinstance(r, dict), "RX_PRIVACY_REVIEW_INVALID")
-    amr.check(r.get("schema") == VERSION and r.get("selection_sha256") ==
-              amr.sha((study / "selection.json").read_bytes())
+def reviews(study: Path, sel: dict, snapshot: bytes | None = None,
+            selection_sha256: str | None = None) -> dict:
+    if snapshot is None:
+        snapshot = (study / "privacy_review.json").read_bytes()
+    r = amr.parse_json_bytes(snapshot)
+    if selection_sha256 is None:
+        selection_sha256 = amr.sha((study / "selection.json").read_bytes())
+    amr.check(r.get("schema") == VERSION and r.get("selection_sha256") == selection_sha256
               and isinstance(r.get("reviewer_id"), str)
               and bool(r["reviewer_id"].strip()), "RX_PRIVACY_REVIEW_REQUIRED")
     cases = r.get("cases")
@@ -207,7 +229,7 @@ def seal(study: Path, out: Path) -> dict:
               and sel.get("selected_ids") == expected_ids
               and sel.get("selection_policy") == "sha256_filename_rank_v1",
               "RX_PUBLISHER_OR_SELECTION_CHANGED")
-    checked = reviews(study, sel, review_bytes)
+    checked = reviews(study, sel, review_bytes, amr.sha(select_bytes))
     accepted = [ident for ident in expected_ids if checked[ident]["decision"] == "approved"]
     amr.check(len(accepted) >= 12, "RX_INSUFFICIENT_APPROVED_WORDS")
     source_by_id = {entry["id"]: entry for entry in entries}
@@ -270,10 +292,22 @@ def seal(study: Path, out: Path) -> dict:
 
 
 def verify(sealed: Path) -> tuple[dict, dict]:
-    lock = amr.load(sealed / "study_seal.json")
-    selection = amr.load(sealed / "selection.json")
-    manifest = amr.load(sealed / "manifest.json")
-    reviewed = reviews(sealed, selection)
+    seal_bytes = (sealed / "study_seal.json").read_bytes()
+    selection_bytes = (sealed / "selection.json").read_bytes()
+    manifest_bytes = (sealed / "manifest.json").read_bytes()
+    review_bytes = (sealed / "privacy_review.json").read_bytes()
+    lock = amr.parse_json_bytes(seal_bytes)
+    selection = amr.parse_json_bytes(selection_bytes)
+    manifest = amr.parse_json_bytes(manifest_bytes)
+    selection_sha = amr.sha(selection_bytes)
+    manifest_sha = amr.sha(manifest_bytes)
+    review_sha = amr.sha(review_bytes)
+    # Reject a swapped snapshot before any gold from it can be returned.
+    amr.check(lock.get("selection_sha256") == selection_sha
+              and lock.get("review_sha256") == review_sha
+              and lock.get("manifest_sha256") == manifest_sha,
+              "RX_SOURCE_FREEZE_OR_CLAIM_TAMPERED")
+    reviewed = reviews(sealed, selection, review_bytes, selection_sha)
     accepted = [i for i in selection["selected_ids"] if reviewed[i]["decision"] == "approved"]
     exclusions = [{"id": i, "reason": reviewed[i]["exclusion_reason"]}
                   for i in selection["selected_ids"] if i not in accepted]
@@ -281,12 +315,6 @@ def verify(sealed: Path) -> tuple[dict, dict]:
               "source_and_privacy_review_sealed"
               and lock.get("code_sha256") == code_hashes()
               and lock.get("arms") == list(ARMS)
-              and lock.get("selection_sha256") ==
-              amr.sha((sealed / "selection.json").read_bytes())
-              and lock.get("review_sha256") ==
-              amr.sha((sealed / "privacy_review.json").read_bytes())
-              and lock.get("manifest_sha256") ==
-              amr.sha((sealed / "manifest.json").read_bytes())
               and lock.get("source_test_csv_sha256") ==
               selection["test_csv"]["test_csv_sha256"]
               and lock.get("selected") == len(selection["selected_ids"])

@@ -161,3 +161,46 @@ def test_rx_replay_uses_exact_receipted_bytes_despite_file_swap(
     verified = rx.replay(sealed, run)
     assert switched[0]
     assert verified["summaries"] == original["summaries"]
+
+
+def test_capitalized_images_header_uses_the_publisher_column(fake_rx, tmp_path):
+    (fake_rx / "test_labels.csv").unlink()
+    with (fake_rx / "Test_Label.csv").open("w", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=("Images", "label"))
+        writer.writeheader()
+        writer.writerows({"Images": f"case_{i:03d}.jpg", "label": f"mock{i} 2.5 mg"}
+                         for i in range(16))
+    entries, meta = rx.catalog(fake_rx, images_dir=fake_rx / "test_images",
+                               image_col="images")
+    assert meta["image_column"] == "Images"
+    assert entries[0]["image_name"] == "case_000.jpg"
+    study = tmp_path / "publisher-header"
+    assert rx.scaffold(fake_rx, study, count=12,
+                       images_dir=fake_rx / "test_images")["publisher_test_rows"] == 16
+    stored = amr.load(study / "selection.json")
+    assert stored["test_csv"]["image_column"] == "Images"
+
+
+def test_verify_rejects_selection_and_manifest_swapped_after_their_hash(
+        fake_rx, tmp_path, monkeypatch):
+    study = approve(tmp_path, fake_rx)
+    sealed = tmp_path / "sealed"
+    rx.seal(study, sealed)
+    targets = {(sealed / name).resolve() for name in ("selection.json", "manifest.json")}
+    seen: set[Path] = set()
+    real_read = Path.read_bytes
+
+    def swap_first_snapshot(self):
+        data = real_read(self)
+        key = self.resolve()
+        if key in targets and key not in seen:
+            seen.add(key)
+            return data.replace(b"2.5 mg", b"850 mg")
+        return data
+
+    monkeypatch.setattr(Path, "read_bytes", swap_first_snapshot)
+    with pytest.raises(ValueError, match="RX_SOURCE_FREEZE_OR_CLAIM_TAMPERED"):
+        rx.verify(sealed)
+    assert seen == targets
+    assert b"850 mg" not in real_read(sealed / "selection.json")
+    assert b"850 mg" not in real_read(sealed / "manifest.json")
