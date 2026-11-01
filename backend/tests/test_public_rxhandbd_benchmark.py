@@ -1,7 +1,9 @@
 """RxHandBD public test-split CONTRACT tests only, fake images and fake model text."""
 from __future__ import annotations
 
+import copy
 import csv
+from pathlib import Path
 
 import pytest
 from PIL import Image, ImageDraw
@@ -120,3 +122,42 @@ def test_nested_test_images_seal_without_explicit_images_dir(fake_rx, tmp_path):
     sealed = tmp_path / "sealed"
     assert rx.seal(study, sealed)["scored"] == 12
     assert rx.verify(sealed)[0]["scored"] == 12
+
+
+def test_rx_replay_uses_exact_receipted_bytes_despite_file_swap(
+        fake_rx, tmp_path, monkeypatch):
+    study = approve(tmp_path, fake_rx)
+    sealed = tmp_path / "rx-sealed"
+    rx.seal(study, sealed)
+    monkeypatch.setattr(amr, "preflight",
+                        lambda arms: {"tesseract": "mock-tess"})
+    monkeypatch.setattr(rx, "infer_word", lambda arm, source: "MOCK 2.5 mg")
+    monkeypatch.setattr(rx.pytesseract, "get_tesseract_version",
+                        lambda: "mock-tess")
+    run = tmp_path / "rx-result"
+    rx.evaluate(sealed, run, ("tesseract",))
+    path = run / "raw_results.json"
+    original = amr.load(path)
+    altered = copy.deepcopy(original)
+    row = altered["cases"][0]
+    row["results"]["tesseract"]["transcription"] = "FORGED PREDICTION"
+    case = next(c for c in amr.load(sealed / "manifest.json")["cases"]
+                if c["id"] == row["id"])
+    row["results"]["tesseract"]["metrics"] = amr.score(
+        case["reference_text"], "FORGED PREDICTION")
+    altered["summaries"] = amr.aggregates(altered["cases"], ("tesseract",))
+    assert original["summaries"] != altered["summaries"]
+    initial_read = Path.read_bytes
+    switched = [False]
+
+    def replace_after_first_read(file):
+        data = initial_read(file)
+        if file == path and not switched[0]:
+            path.write_bytes(amr.raw_json(altered))
+            switched[0] = True
+        return data
+
+    monkeypatch.setattr(Path, "read_bytes", replace_after_first_read)
+    verified = rx.replay(sealed, run)
+    assert switched[0]
+    assert verified["summaries"] == original["summaries"]
