@@ -70,7 +70,34 @@ def _write(path: Path, payload: dict) -> None:
     temporary.replace(path)
 
 
+def _manifest_amr_pages(manifest: dict) -> dict[str, list[str]]:
+    pages = {}
+    for section in ("historical_regression", "development", "untouched_holdout"):
+        for row in manifest["amr"].get(section, []):
+            pages[row["id"]] = list(row["page_sha256"])
+    return pages
+
+
+def require_frozen_amr_pages(identifiers: list[str], manifest: dict, selection: dict, read_page) -> None:
+    """Intake page hashes must match the frozen partition, in order."""
+    expected = _manifest_amr_pages(manifest)
+    by_id = {row["id"]: row for row in selection["all_records"]}
+    root = Path(selection["source_root"])
+    for ident in identifiers:
+        record = by_id.get(ident)
+        if record is None or ident not in expected:
+            raise CheckpointRejected("source_not_in_partition")
+        recorded = [page["sha256"] for page in record["pages"]]
+        if recorded != expected[ident]:
+            raise CheckpointRejected("source_hash_mismatch")
+        for page, digest in zip(record["pages"], expected[ident]):
+            if sha(read_page(root / page["path"])) != digest:
+                raise CheckpointRejected("source_hash_mismatch")
+
+
 def _amr_case(selection: dict, ident: str) -> tuple[list[bytes], str, str]:
+    manifest = json.loads(MANIFEST.read_bytes())
+    require_frozen_amr_pages([ident], manifest, selection, lambda path: path.read_bytes())
     record = next(row for row in selection["all_records"] if row["id"] == ident)
     root = Path(selection["source_root"])
     pages = []
@@ -98,6 +125,8 @@ def reference_bytes_for(dataset: str, identifiers: list[str]) -> dict[str, bytes
     """Current gold bytes for this cohort. AMR uses the sealed truth file bytes."""
     if dataset == "amr":
         selection = json.loads(AMR_INTAKE.read_text())
+        manifest = json.loads(MANIFEST.read_bytes())
+        require_frozen_amr_pages(identifiers, manifest, selection, lambda path: path.read_bytes())
         by_id = {row["id"]: row for row in selection["all_records"]}
         root = Path(selection["source_root"])
         found = {}

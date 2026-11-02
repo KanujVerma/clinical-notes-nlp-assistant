@@ -57,8 +57,6 @@ def decide_screen(incumbent: dict, candidate: dict) -> dict:
     cand_occ = candidate.get("occurrence_fp")
     if inc_occ is not None and cand_occ is not None and cand_occ > inc_occ:
         reasons.append("occurrence false positives rose")
-    if candidate["scored"] == incumbent["scored"] and candidate["fp"] > incumbent["fp"]:
-        reasons.append("false positives rose")
     if candidate["rx_cer"] > incumbent["rx_cer"] + 0.01:
         reasons.append("Rx CER worsened")
     inc_rx_occ = incumbent.get("rx_occurrence_fp")
@@ -71,7 +69,7 @@ def decide_screen(incumbent: dict, candidate: dict) -> dict:
         return {"status": "rejected", "reason": "; ".join(reasons)}
     rx_improved = candidate["rx_cer"] + 1e-12 < incumbent["rx_cer"]
     if candidate["paired_cer"] + 1e-12 < incumbent["paired_cer"] or rx_improved or (
-        candidate["fp"] < incumbent["fp"] and candidate["paired_cer"] <= incumbent["paired_cer"] + 1e-12
+        candidate["paired_fp"] < incumbent["paired_fp"] and candidate["paired_cer"] <= incumbent["paired_cer"] + 1e-12
     ):
         return {
             "status": "accuracy_candidate",

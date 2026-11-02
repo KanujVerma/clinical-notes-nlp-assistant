@@ -8,7 +8,9 @@ from PIL import Image
 
 from evaluation import pr10_autoresearch, pr10_campaign
 from evaluation.pr10_campaign import _compare, _metrics, acquire_lock, campaign
-from evaluation.pr10_autoresearch import MODEL, build_identity, completed_status, predict_spec, run_spec
+from evaluation.pr10_autoresearch import (
+    MODEL, build_identity, completed_status, predict_spec, require_frozen_amr_pages, run_spec,
+)
 from evaluation.pr10_candidate import (
     changed_fields, historical_specs, mutation_queue, render_regions, resolve_spec,
 )
@@ -706,6 +708,58 @@ def test_resolve_spec_follows_a_fourth_generation_name():
         raise AssertionError("unknown mutation was resolved")
     except KeyError:
         pass
+
+
+def test_unpaired_false_positive_drop_is_not_an_accuracy_win():
+    swapped = decide_screen(_view(fp=2, paired_fp=1), _view(fp=0, paired_fp=1))
+    assert swapped["status"] == "rejected"
+    assert "no measured gain" in swapped["reason"]
+    assert decide_screen(_view(paired_fp=2), _view(paired_fp=1))["status"] == "accuracy_candidate"
+
+
+def test_amr_pages_must_match_the_frozen_partition(tmp_path):
+    page = tmp_path / "page.png"
+    page.write_bytes(b"page-v1")
+    digest = sha(b"page-v1")
+    other = sha(b"page-v2")
+    manifest = {
+        "amr": {
+            "development": [{"id": "AMR_035", "page_sha256": [digest]}],
+            "untouched_holdout": [{"id": "AMR_099", "page_sha256": [other]}],
+        }
+    }
+    selection = {
+        "source_root": str(tmp_path),
+        "all_records": [
+            {"id": "AMR_035", "pages": [{"path": "page.png", "sha256": digest}]},
+            {"id": "AMR_099", "pages": [{"path": "holdout.png", "sha256": other}]},
+        ],
+    }
+    read = []
+
+    def read_page(path):
+        read.append(path.name)
+        return path.read_bytes()
+
+    require_frozen_amr_pages(["AMR_035"], manifest, selection, read_page)
+    assert read == ["page.png"]
+    changed = {
+        "source_root": str(tmp_path),
+        "all_records": [
+            {"id": "AMR_035", "pages": [{"path": "page.png", "sha256": other}]},
+        ],
+    }
+    try:
+        require_frozen_amr_pages(["AMR_035"], manifest, changed, read_page)
+        raise AssertionError("changed intake hash was accepted")
+    except CheckpointRejected as error:
+        assert str(error) == "source_hash_mismatch"
+    page.write_bytes(b"page-v2")
+    try:
+        require_frozen_amr_pages(["AMR_035"], manifest, selection, read_page)
+        raise AssertionError("changed page bytes were accepted")
+    except CheckpointRejected as error:
+        assert str(error) == "source_hash_mismatch"
 
 
 def test_historical_audit_counts_legacy_without_writing(tmp_path):
