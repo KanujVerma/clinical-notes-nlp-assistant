@@ -18,7 +18,10 @@ from evaluation.pr10_candidate import (  # noqa: E402
     CANDIDATES, CONTEXT, GLM_OCR_SYSTEM, GLM_OCR_USER, historical_specs,
     postprocess, prompt_for, render_regions,
 )
-from evaluation.pr10_replay import critical_false_positives, micro_summary  # noqa: E402
+from evaluation.pr10_identity import (  # noqa: E402
+    IDENTITY_VERSION, CheckpointRejected, LegacyCheckpoint, assess_reuse, fingerprint,
+)
+from evaluation.pr10_replay import align_critical, critical_false_positives, micro_summary  # noqa: E402
 from evaluation.public_amr_benchmark import score, sha  # noqa: E402
 from services.inference_pipeline import get_installed_model_digest  # noqa: E402
 from services.multimodal_service import glm_ocr_infer  # noqa: E402
@@ -145,7 +148,7 @@ def predict_spec(spec: dict, pages: list[bytes]) -> tuple[str | None, int, str, 
         if len(retried.strip()) > len(text.strip()):
             text = retried
     elapsed = max(0, int((time.perf_counter() - started) * 1000))
-    return text, elapsed, "scored", passes
+    return text or "", elapsed, completed_status(text), passes
 
 
 def work_items(manifest: dict, stage: str, dataset: str) -> list[str]:
@@ -171,9 +174,28 @@ def run_screen(candidate: str, dataset: str, limit: int | None) -> dict:
     return run_spec(historical_specs()[candidate], "screen", dataset, limit)
 
 
+def completed_status(text: str | None) -> str:
+    if not isinstance(text, str) or not text.strip():
+        return "empty_transcription"
+    return "scored"
+
+
+def _existing_cases(out: Path, identifiers: list[str]) -> dict[str, dict]:
+    existing = {}
+    expected = set(identifiers)
+    for path in out.glob("*.json"):
+        if path.name == "summary.json":
+            continue
+        if path.stem not in expected:
+            raise CheckpointRejected("extra")
+        existing[path.stem] = json.loads(path.read_text())
+    return existing
+
+
 def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
     candidate = spec["name"]
-    manifest = json.loads(MANIFEST.read_text())
+    manifest_bytes = MANIFEST.read_bytes()
+    manifest = json.loads(manifest_bytes)
     screen = screening_selection(manifest)
     identifiers = work_items(manifest, stage, dataset)
     if limit is not None:
@@ -181,8 +203,9 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
     out = PRIVATE / stage / candidate / dataset
     out.mkdir(parents=True, exist_ok=True)
     summary_path = out / "summary.json"
-    if summary_path.exists() and all((out / f"{ident}.json").exists() for ident in identifiers):
-        return json.loads(summary_path.read_text())
+    existing = _existing_cases(out, identifiers)
+    if any(case.get("identity_version") != IDENTITY_VERSION for case in existing.values()):
+        raise LegacyCheckpoint(f"legacy_unverified {candidate} {stage} {dataset}")
     digest_before = get_installed_model_digest(MODEL)
     adapter = Path(glm_ocr_infer.__code__.co_filename).read_text()
     fragments = [
@@ -199,6 +222,40 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
     system, user = prompt_for(spec)
     prompt_sha = sha((system + "\n" + user).encode())
     spec_sha = sha(json.dumps(spec, sort_keys=True).encode())
+    experiment_fingerprint = fingerprint({
+        "identity_version": IDENTITY_VERSION,
+        "manifest_sha256": sha(manifest_bytes),
+        "dataset": dataset,
+        "stage": stage,
+        "selection_policy": screen["rule"],
+        "case_ids_sha256": sha("\n".join(identifiers).encode()),
+        "candidate": candidate,
+        "parent": spec.get("parent"),
+        "model": MODEL,
+        "model_digest": digest_before,
+        "num_ctx": spec.get("num_ctx"),
+        "prompt_sha256": prompt_sha,
+        "spec_sha256": spec_sha,
+    })
+    verdict = assess_reuse(existing, identifiers, experiment_fingerprint)
+    if verdict == "legacy_unverified":
+        raise LegacyCheckpoint(f"legacy_unverified {candidate} {stage} {dataset}")
+    if verdict in {"fingerprint_mismatch", "invalid", "extra", "duplicate_expected"}:
+        raise CheckpointRejected(f"{verdict} {candidate} {stage} {dataset}")
+    if verdict == "reusable":
+        cases = [existing[ident] for ident in identifiers]
+        recomputed = micro_summary(cases)
+        summary = {
+            "candidate": candidate, "stage": stage, "dataset": dataset, "model": MODEL,
+            "model_digest": digest_before, "prompt_sha256": prompt_sha,
+            "spec_sha256": spec_sha, "experiment_fingerprint": experiment_fingerprint,
+            "identity_version": IDENTITY_VERSION, "num_ctx": spec.get("num_ctx"),
+            "parent": spec.get("parent"), "family": spec.get("family"),
+            "hypothesis": spec.get("hypothesis"), "screen_rule": screen["rule"],
+            **recomputed,
+        }
+        _write(summary_path, summary)
+        return summary
     selection = json.loads(AMR_INTAKE.read_text()) if dataset == "amr" else None
     labels = _rx_labels() if dataset == "rx" else None
     expected = None
@@ -221,10 +278,17 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
             "reference_sha256": reference_sha, "latency_ms": latency,
             "passes": passes, "prediction": prediction,
             "completed_utc": datetime.now(timezone.utc).isoformat(),
+            "identity_version": IDENTITY_VERSION,
+            "experiment_fingerprint": experiment_fingerprint,
         }
-        if status == "scored" and prediction is not None:
+        if status == "scored" and isinstance(prediction, str) and prediction.strip():
+            aligned = align_critical(reference, prediction)
             payload["metrics"] = score(reference, prediction)
             payload["critical_false_positives"] = critical_false_positives(reference, prediction)
+            payload["unique_unmatched_critical_tokens"] = payload["critical_false_positives"]
+            payload["occurrence_hits"] = aligned["occurrence_hits"]
+            payload["occurrence_total"] = aligned["occurrence_total"]
+            payload["occurrence_false_positives"] = aligned["occurrence_false_positives"]
         _write(destination, payload)
         print(f"PR10_CASE {stage} {candidate} {dataset} {ident} {status} {latency}ms", flush=True)
         _write(PRIVATE / "run_state.json", {
@@ -240,7 +304,8 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
     summary = {
         "candidate": candidate, "stage": stage, "dataset": dataset, "model": MODEL,
         "model_digest": digest_before, "prompt_sha256": prompt_sha,
-        "spec_sha256": spec_sha, "num_ctx": spec.get("num_ctx"),
+        "spec_sha256": spec_sha, "experiment_fingerprint": experiment_fingerprint,
+        "identity_version": IDENTITY_VERSION, "num_ctx": spec.get("num_ctx"),
         "parent": spec.get("parent"), "family": spec.get("family"),
         "hypothesis": spec.get("hypothesis"), "screen_rule": screen["rule"],
         **recomputed,

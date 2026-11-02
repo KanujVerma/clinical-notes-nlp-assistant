@@ -11,7 +11,7 @@ Frozen from `pr10_partition_manifest.json` before any candidate:
 
 ## Keep rule
 
-Replace the incumbent only when AMR development CER falls, critical-token recall does not fall, numeric/unit false positives do not rise, coverage does not fall, and Rx word CER does not materially worsen.
+Undefined CER stays undefined. A candidate is rejected when AMR or Rx coverage falls, paired CER rises, critical-token hits fall, unique or occurrence-level false positives rise, or Rx CER rises by more than 0.01. A coverage-only gain is a reliability candidate. A paired CER gain that passes those gates is an accuracy candidate. Equal quality keeps the incumbent. Checkpoints without `pr10_run_identity_v2` are legacy and are not overwritten. A second campaign launch exits `already_running`.
 
 ## Budget
 
