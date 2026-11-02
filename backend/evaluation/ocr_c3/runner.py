@@ -9,12 +9,34 @@ import time
 from pathlib import Path
 
 from evaluation.ocr_c3.budget import BudgetExhausted, Ledger
-from evaluation.ocr_c3.protocol import load_protocol
+from evaluation.ocr_c3.protocol import CAMPAIGN_ID, load_protocol
 from evaluation.ocr_c3.schema import validate_result
 
 
 class HelperTimeout(RuntimeError):
     pass
+
+
+def _failure_envelope(payload: dict, request_id: str) -> bool:
+    return (
+        payload.get("schema_version") == "ocr_c3_vision_result_v1"
+        and payload.get("campaign_id") == CAMPAIGN_ID
+        and payload.get("request_id") == request_id
+        and payload.get("status") == "vision_request_failed"
+        and payload.get("error_code") == "vision_request_failed"
+        and "assembled_transcription" not in payload
+    )
+
+
+def _same_request(payload: dict, request_id: str, source_fingerprint: str, dataset: str, case_id: str, page_index: int, source_sha256: str) -> bool:
+    return (
+        payload.get("request_id") == request_id
+        and payload.get("dataset") == dataset
+        and payload.get("case_id") == case_id
+        and payload.get("page_index") == page_index
+        and payload.get("source_sha256") == source_sha256
+        and payload.get("source_code_fingerprint") == source_fingerprint
+    )
 
 
 def _kill_group(process: subprocess.Popen) -> None:
@@ -58,6 +80,8 @@ def run_helper(
         "--page-index", str(page_index),
         "--source-sha256", source_sha256,
     ]
+    if output_path.exists():
+        output_path.unlink()
     started = time.perf_counter()
     launcher = launch or _launch
     try:
@@ -75,8 +99,25 @@ def run_helper(
         return {"status": "vision_request_failed", "completed": False, "transcription": "", "elapsed_seconds": elapsed}
     try:
         payload = json.loads(output_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"status": "integrity_blocked", "completed": False, "transcription": "", "elapsed_seconds": elapsed}
+    if not isinstance(payload, dict):
+        return {"status": "integrity_blocked", "completed": False, "transcription": "", "elapsed_seconds": elapsed}
+    if payload.get("status") == "vision_request_failed":
+        if not _failure_envelope(payload, request_id):
+            return {"status": "integrity_blocked", "completed": False, "transcription": "", "elapsed_seconds": elapsed}
+        return {
+            "status": "vision_request_failed",
+            "completed": False,
+            "transcription": "",
+            "elapsed_seconds": elapsed,
+            "result": payload,
+        }
+    if not _same_request(payload, request_id, source_fingerprint, dataset, case_id, page_index, source_sha256):
+        return {"status": "integrity_blocked", "completed": False, "transcription": "", "elapsed_seconds": elapsed}
+    try:
         checked = validate_result(payload, prepared, protocol["runtime"]["vision_revision"])
-    except (OSError, json.JSONDecodeError, ValueError):
+    except ValueError:
         return {"status": "integrity_blocked", "completed": False, "transcription": "", "elapsed_seconds": elapsed}
     status = payload.get("status")
     return {

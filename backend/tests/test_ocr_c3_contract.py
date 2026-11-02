@@ -334,6 +334,60 @@ def test_budget_timeout_and_lock(tmp_path):
         launch=explode,
     )
     assert timed["status"] == "timeout"
+    stale = tmp_path / "stale.json"
+    stale.write_text('{"status":"completed","assembled_transcription":"old"}')
+
+    def leave_stale(argv, allowed, output_path):
+        return {"returncode": 7}
+
+    reused = run_helper(
+        Path("binary"), image, stale, "fresh", Path("config.json"), "fp",
+        "amr", "AMR_035", 0, "source", b"prepared", Ledger(tmp_path / "stale.jsonl", cap_seconds=7200),
+        launch=leave_stale,
+    )
+    assert reused["status"] == "vision_request_failed"
+    assert reused["completed"] is False
+    failed = tmp_path / "failed.json"
+
+    def write_failure(argv, allowed, output_path):
+        output_path.write_text(json.dumps({
+            "schema_version": "ocr_c3_vision_result_v1",
+            "campaign_id": CAMPAIGN_ID,
+            "request_id": "vision-fail",
+            "status": "vision_request_failed",
+            "error_code": "vision_request_failed",
+            "elapsed_seconds": 0.1,
+        }))
+        return {"returncode": 3}
+
+    envelope = run_helper(
+        Path("binary"), image, failed, "vision-fail", Path("config.json"), "fp",
+        "amr", "AMR_035", 0, "source", b"prepared", Ledger(tmp_path / "fail.jsonl", cap_seconds=7200),
+        launch=write_failure,
+    )
+    assert envelope["status"] == "vision_request_failed"
+    assert envelope["completed"] is False
+    mismatched = tmp_path / "mismatch.json"
+
+    def write_other_request(argv, allowed, output_path):
+        output_path.write_text(json.dumps({
+            "status": "completed",
+            "request_id": "other",
+            "dataset": "amr",
+            "case_id": "AMR_035",
+            "page_index": 0,
+            "source_sha256": "source",
+            "source_code_fingerprint": "fp",
+            "assembled_transcription": "5 mg",
+        }))
+        return {"returncode": 0}
+
+    foreign = run_helper(
+        Path("binary"), image, mismatched, "this-request", Path("config.json"), "fp",
+        "amr", "AMR_035", 0, "source", b"prepared", Ledger(tmp_path / "foreign.jsonl", cap_seconds=7200),
+        launch=write_other_request,
+    )
+    assert foreign["status"] == "integrity_blocked"
     first = acquire_lock(tmp_path / "study.lock")
     try:
         acquire_lock(tmp_path / "study.lock")
