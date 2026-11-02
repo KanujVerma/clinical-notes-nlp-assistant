@@ -127,7 +127,7 @@ def select_finalist(rows: list[dict]) -> dict:
     rejected = []
     for row in rows:
         reasons = []
-        if not row.get("provenance_ok", True) or not row.get("confirmation_complete", True):
+        if row.get("provenance_ok") is not True or row.get("confirmation_complete") is not True:
             reasons.append("invalid")
         if not row.get("preserves_successes", False):
             reasons.append("lost_success")

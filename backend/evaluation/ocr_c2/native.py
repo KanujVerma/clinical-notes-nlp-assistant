@@ -81,7 +81,7 @@ def interpret_native_response(response: dict, requested_model: str, expected_dig
         "eval_duration": response.get("eval_duration"),
     }
     if not isinstance(text, str) or response.get("done") is not True:
-        return {"status": "malformed_transport", "transcription": text or "", "scored": False, **meta}
+        return {"status": "malformed_transport", "transcription": "", "scored": False, **meta}
     if response.get("done_reason") == "length":
         return {"status": "generation_limit", "transcription": text, "scored": False, **meta}
     if not text.strip():

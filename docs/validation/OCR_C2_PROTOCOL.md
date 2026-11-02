@@ -60,7 +60,7 @@ Comparisons require the candidate's complete successes to include every baseline
 
 Selection order, before internal validation:
 
-1. Drop invalid provenance, incomplete confirmation, lost successes, and safety regressions.
+1. Drop a row unless `provenance_ok` and `confirmation_complete` are both explicitly true. Also drop lost successes and safety regressions. A missing flag is not a pass.
 2. Require paired normalized AMR CER `<= 0.90` times `B8192`. If the baseline CER is 0, no relative gain is claimable. Strict AMR CER/WER, normalized WER, paired Rx normalized CER/WER, and full-cohort normalized AMR CER must not worsen.
 3. At least one paired prediction must differ after whitespace normalization.
 4. Product eligibility needs cold single-page p95 `<= 60` seconds. Rank is `ceil(0.95 * n)` on the sorted sample, 1-based.

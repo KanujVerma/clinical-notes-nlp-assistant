@@ -189,6 +189,10 @@ def test_selection_rule_uses_the_near_best_set():
     assert "N4" not in decision["near_best"]
     blocked = select_finalist([{**common, "candidate": "slow", "paired_norm_cer": 0.30, "cold_page_seconds": [61, 61, 61, 90]}])
     assert blocked["status"] == "latency_blocker"
+    omitted = {key: value for key, value in common.items() if key not in {"provenance_ok", "confirmation_complete"}}
+    hidden = select_finalist([{**omitted, "candidate": "N1", "paired_norm_cer": 0.30, "cold_page_seconds": [10, 10, 10, 10]}])
+    assert hidden["status"] == "no_candidate"
+    assert hidden["rejected"][0]["reasons"] == ["invalid"]
 
 
 def test_budget_stops_inside_the_call_loop_and_charges_crashes(tmp_path):
@@ -523,6 +527,17 @@ def test_non_object_transport_is_recorded_as_malformed(tmp_path):
         assert result["regions"][0]["status"] == "malformed_transport"
         assert [row["event"] for row in ledger.rows()] == ["begin", "finish"]
         assert ledger.charged() == 0
+    listed = {
+        "model": "glm-ocr:q8_0", "response": ["5 mg"], "done": True, "done_reason": "stop",
+        "model_digest": "aa",
+    }
+    ledger = Ledger(tmp_path / "listed.jsonl", cap_seconds=100)
+    result = run_page(image, "N1", lambda prepared, candidate, allowed: listed, ledger, "listed", "aa")
+    assert result["status"] == "incomplete"
+    assert result["regions"][0]["status"] == "malformed_transport"
+    assert result["regions"][0]["transcription"] == ""
+    assert result["regions"][0]["raw_response"] == ["5 mg"]
+    assert result["prediction"] == ""
 
 
 def test_generation_limit_on_a_blank_margin_keeps_the_page_incomplete(tmp_path):
