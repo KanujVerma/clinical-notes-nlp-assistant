@@ -6,7 +6,7 @@ from pathlib import Path
 
 from evaluation.public_amr_benchmark import sha
 
-IDENTITY_VERSION = "pr10_run_identity_v3"
+IDENTITY_VERSION = "pr10_run_identity_v4"
 ROOT = Path(__file__).resolve().parents[2]
 DECODING = {
     "temperature": 0,
@@ -58,6 +58,7 @@ REQUIRED = (
     "identity_sha256",
     "inference_fingerprint",
     "scoring_fingerprint",
+    "reference_sha256",
 )
 DECODING_LITERALS = (
     '"temperature": 0',

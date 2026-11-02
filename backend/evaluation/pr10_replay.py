@@ -44,6 +44,13 @@ def decide_screen(incumbent: dict, candidate: dict) -> dict:
         reasons.append("paired CER rose")
     if candidate["paired_hits"] < incumbent["paired_hits"]:
         reasons.append("paired critical hits fell")
+    inc_occurrence_hits = incumbent.get("paired_occurrence_hits")
+    cand_occurrence_hits = candidate.get("paired_occurrence_hits")
+    if (
+        inc_occurrence_hits is not None and cand_occurrence_hits is not None
+        and cand_occurrence_hits < inc_occurrence_hits
+    ):
+        reasons.append("paired occurrence hits fell")
     if candidate["paired_fp"] > incumbent["paired_fp"]:
         reasons.append("paired false positives rose")
     inc_occ = incumbent.get("occurrence_fp")
@@ -335,7 +342,9 @@ def classify_saved_run(
         code = mismatch_code(case, expected)
         if code:
             return {"classification": code, "cases": present}
-        if sources and case["id"] in sources:
+        if sources is not None:
+            if case["id"] not in sources:
+                return {"classification": "reference_missing", "cases": present}
             if sha(sources[case["id"]]) != case.get("reference_sha256"):
                 return {"classification": "reference_hash_mismatch", "cases": present}
         elif case.get("status") == "scored" and not _sha256_hex(case.get("reference_sha256")):

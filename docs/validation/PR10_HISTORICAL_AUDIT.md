@@ -4,7 +4,7 @@ Read-only classification of the finished 30-candidate campaign. No predictions w
 
 ## Provenance
 
-All 66 saved screen and confirm runs are `legacy_unverified`. None carry `pr10_run_identity_v3`. They cannot be reused or promoted by the current loader. Case files still contain the original model name `glm-ocr:q8_0`, a model digest, a prompt hash, and per-case metrics. Those fields are historical records, not a current implementation fingerprint.
+All 66 saved screen and confirm runs are `legacy_unverified`. None carry `pr10_run_identity_v4`. They cannot be reused or promoted by the current loader. Case files still contain the original model name `glm-ocr:q8_0`, a model digest, a prompt hash, and per-case metrics. Those fields are historical records, not a current implementation fingerprint.
 
 The campaign remains stopped at `experiment_budget`. The saved best name is still `jpeg_ctx8192__spaces`.
 

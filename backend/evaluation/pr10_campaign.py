@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from evaluation.pr10_autoresearch import (
-    MANIFEST, MODEL, PRIVATE, build_identity, run_spec, work_items,
+    MANIFEST, MODEL, PRIVATE, build_identity, reference_bytes_for, run_spec, work_items,
 )
 from evaluation.pr10_candidate import historical_specs, mutation_queue, resolve_spec
 from evaluation.pr10_identity import CheckpointRejected, LegacyCheckpoint
@@ -113,7 +113,10 @@ def _cases(stage: str, name: str, dataset: str) -> list[dict]:
     manifest = json.loads(MANIFEST.read_bytes())
     identifiers = work_items(manifest, stage, dataset)
     folder = PRIVATE / stage / name / dataset
-    return load_verified_run(folder, _expected(stage, name, dataset, identifiers), identifiers)
+    sources = reference_bytes_for(dataset, identifiers)
+    return load_verified_run(
+        folder, _expected(stage, name, dataset, identifiers), identifiers, sources,
+    )
 
 
 def verify_finished_batch() -> dict:
@@ -222,6 +225,7 @@ def _metrics(
         "fp": amr["critical_false_positives"],
         "paired_cer": paired["cer_micro"],
         "paired_hits": paired["critical_hit"],
+        "paired_occurrence_hits": paired["occurrence_hits"],
         "paired_fp": paired["critical_false_positives"],
         "paired_p95": paired["p95_latency_ms"] or 0,
         "rx_cer": rx_paired["cer_micro"],

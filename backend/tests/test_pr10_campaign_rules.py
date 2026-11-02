@@ -9,14 +9,17 @@ from PIL import Image
 from evaluation import pr10_autoresearch, pr10_campaign
 from evaluation.pr10_campaign import _compare, _metrics, acquire_lock, campaign
 from evaluation.pr10_autoresearch import MODEL, build_identity, completed_status, predict_spec, run_spec
-from evaluation.pr10_candidate import changed_fields, historical_specs, mutation_queue, render_regions
+from evaluation.pr10_candidate import (
+    changed_fields, historical_specs, mutation_queue, render_regions, resolve_spec,
+)
 from evaluation.pr10_identity import (
     BOUND_FILES, IDENTITY_VERSION, CheckpointRejected, LegacyCheckpoint, assess_reuse,
     fingerprint, implementation_hashes, inference_fingerprint, scoring_fingerprint,
 )
 from evaluation.pr10_replay import (
-    align_critical, audit_saved_runs, classify_saved_run, cohorts_match, decide_screen,
-    load_run, load_verified_run, micro_summary, paired_population, rescore_case,
+    align_critical, audit_saved_runs, classify_saved_run, cohorts_match,
+    critical_false_positives, decide_screen, load_run, load_verified_run,
+    micro_summary, paired_population, rescore_case,
 )
 from evaluation.public_amr_benchmark import infer_image, score, sha
 
@@ -216,6 +219,7 @@ def _identity(**overrides):
         "transform_sha256": "2" * 64,
         "scoring_sha256": "3" * 64,
         "identity_sha256": "4" * 64,
+        "reference_sha256": "5" * 64,
     }
     parts.update(overrides)
     parts["inference_fingerprint"] = inference_fingerprint(parts)
@@ -344,7 +348,10 @@ def test_component_hashes_bind_adapter_transform_and_scorer():
 def test_saved_run_validation_rejects_incomplete_or_forged_identity(tmp_path):
     spec = historical_specs()["jpeg_ctx8192"]
     identifiers = ["A", "B"]
-    identity = build_identity(spec, "screen", "amr", "c" * 64, identifiers)
+    identity = build_identity(
+        spec, "screen", "amr", "c" * 64, identifiers,
+        reference_hashes={item: "ab" * 32 for item in identifiers},
+    )
     cases = [
         _stamp(_population_case(case_id, 1, 4), identity)
         for case_id in identifiers
@@ -443,6 +450,10 @@ def test_digest_change_blocks_before_a_summary(monkeypatch, tmp_path):
     monkeypatch.setattr(
         pr10_autoresearch, "get_installed_model_digest", lambda model: next(digests),
     )
+    monkeypatch.setattr(
+        pr10_autoresearch, "reference_hashes_for",
+        lambda dataset, identifiers: {item: "ab" * 32 for item in identifiers},
+    )
     seen = []
 
     def fake(image_bytes, page_number=1, model=None, num_ctx=None, system_prompt=None, user_prompt=None):
@@ -514,9 +525,22 @@ def test_paired_rx_gate_ignores_recovered_crops():
     )["status"] == "duplicate_case"
 
 
+def _patch_references(monkeypatch) -> None:
+    digest = sha(b"5 mg\n")
+    monkeypatch.setattr(
+        pr10_autoresearch, "reference_hashes_for",
+        lambda dataset, identifiers: {item: digest for item in identifiers},
+    )
+    monkeypatch.setattr(
+        pr10_campaign, "reference_bytes_for",
+        lambda dataset, identifiers: {item: b"5 mg\n" for item in identifiers},
+    )
+
+
 def test_compare_rejects_whitespace_only_cer_drop(monkeypatch, tmp_path):
     monkeypatch.setattr(pr10_campaign, "PRIVATE", tmp_path)
     monkeypatch.setattr(pr10_campaign, "_installed_digest", lambda: "c" * 64)
+    _patch_references(monkeypatch)
     monkeypatch.setattr(
         pr10_campaign, "work_items",
         lambda manifest, stage, dataset: ["A"] if dataset == "amr" else ["R1"],
@@ -541,6 +565,7 @@ def test_compare_rejects_whitespace_only_cer_drop(monkeypatch, tmp_path):
 def test_compare_refuses_legacy_evidence(monkeypatch, tmp_path):
     monkeypatch.setattr(pr10_campaign, "PRIVATE", tmp_path)
     monkeypatch.setattr(pr10_campaign, "_installed_digest", lambda: "c" * 64)
+    _patch_references(monkeypatch)
     folder = tmp_path / "screen" / "jpeg_baseline" / "amr"
     folder.mkdir(parents=True)
     case = _population_case("AMR_035", 1, 4)
@@ -588,6 +613,101 @@ def test_whitespace_only_change_is_not_an_accuracy_win():
     assert not has_recognition_change(incumbent, candidate)
 
 
+def test_reference_hash_is_part_of_run_identity():
+    spec = historical_specs()["jpeg_ctx8192"]
+    identifiers = ["R1", "R2"]
+    first = build_identity(
+        spec, "screen", "rx", "c" * 64, identifiers,
+        reference_hashes={item: "a" * 64 for item in identifiers},
+    )
+    second = build_identity(
+        spec, "screen", "rx", "c" * 64, identifiers,
+        reference_hashes={"R1": "a" * 64, "R2": "b" * 64},
+    )
+    assert first["reference_sha256"] != second["reference_sha256"]
+    assert first["experiment_fingerprint"] != second["experiment_fingerprint"]
+    assert first["inference_fingerprint"] == second["inference_fingerprint"]
+    case = _stamp(_population_case("R1", 1, 4), first)
+    assert assess_reuse(
+        {"R1": {
+            "identity_version": IDENTITY_VERSION,
+            "experiment_fingerprint": first["experiment_fingerprint"],
+            "status": "scored",
+            "prediction": "5 mg",
+        }},
+        ["R1"],
+        second["experiment_fingerprint"],
+    ) == "fingerprint_mismatch"
+    assert case["reference_sha256"] == sha(b"5 mg\n")
+
+
+def test_changed_reference_bytes_are_not_reused(tmp_path):
+    spec = historical_specs()["jpeg_ctx8192"]
+    identifiers = ["A"]
+    identity = build_identity(
+        spec, "screen", "amr", "c" * 64, identifiers,
+        reference_hashes={"A": sha(b"5 mg\n")},
+    )
+    folder = tmp_path / "run"
+    _write_verified(folder, identity, [_stamp(_population_case("A", 1, 4), identity)])
+    before = (folder / "A.json").read_bytes()
+    assert classify_saved_run(
+        folder, identity, identifiers, {"A": b"5 mg\n"},
+    )["classification"] == "verified"
+    assert classify_saved_run(
+        folder, identity, identifiers, {"A": b"50 mg\n"},
+    )["classification"] == "reference_hash_mismatch"
+    assert (folder / "A.json").read_bytes() == before
+
+
+def test_dropped_repeated_dose_is_not_an_accuracy_win():
+    reference = "5 mg\n5 mg\nsafe"
+    kept = "5 mg\n5 mg\nxxxxxxxxxxxxxxxx"
+    dropped = "5 mg\nsafe"
+
+    def case(prediction: str) -> dict:
+        aligned = align_critical(reference, prediction)
+        return {
+            "id": "A",
+            "status": "scored",
+            "latency_ms": 5,
+            "prediction": prediction,
+            "critical_false_positives": critical_false_positives(reference, prediction),
+            "occurrence_hits": aligned["occurrence_hits"],
+            "occurrence_total": aligned["occurrence_total"],
+            "occurrence_false_positives": aligned["occurrence_false_positives"],
+            "metrics": score(reference, prediction),
+        }
+
+    incumbent = case(kept)
+    candidate = case(dropped)
+    assert incumbent["occurrence_hits"] == 2
+    assert candidate["occurrence_hits"] == 1
+    rx = [_population_case("R1", 1, 10)]
+    inc = _metrics([incumbent], rx, {"A"}, {"R1"})
+    cand = _metrics([candidate], rx, {"A"}, {"R1"})
+    assert cand["paired_cer"] < inc["paired_cer"]
+    assert cand["paired_hits"] == inc["paired_hits"]
+    decision = decide_screen(inc, cand)
+    assert decision["status"] == "rejected"
+    assert "paired occurrence hits fell" in decision["reason"]
+
+
+def test_resolve_spec_follows_a_fourth_generation_name():
+    name = "jpeg_ctx8192__no_infer__png__contrast__grayscale"
+    spec = resolve_spec(name)
+    assert spec["name"] == name
+    assert spec["prompt"] == "no_infer"
+    assert spec["encode"] == "png"
+    assert spec["contrast"] == "autocontrast"
+    assert spec["grayscale"] is True
+    try:
+        resolve_spec(name + "__not-a-mutation")
+        raise AssertionError("unknown mutation was resolved")
+    except KeyError:
+        pass
+
+
 def test_historical_audit_counts_legacy_without_writing(tmp_path):
     run = tmp_path / "screen" / "old" / "amr"
     run.mkdir(parents=True)
@@ -621,7 +741,7 @@ def _stamp(case: dict, identity: dict) -> dict:
         "transform_sha256": identity["transform_sha256"],
         "scoring_sha256": identity["scoring_sha256"],
         "identity_sha256": identity["identity_sha256"],
-        "reference_sha256": "ab" * 32,
+        "reference_sha256": sha(b"5 mg\n"),
     })
     return stamped
 

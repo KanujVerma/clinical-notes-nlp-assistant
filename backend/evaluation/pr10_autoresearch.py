@@ -94,6 +94,37 @@ def _rx_labels() -> dict[str, str]:
     return labels
 
 
+def reference_bytes_for(dataset: str, identifiers: list[str]) -> dict[str, bytes]:
+    """Current gold bytes for this cohort. AMR uses the sealed truth file bytes."""
+    if dataset == "amr":
+        selection = json.loads(AMR_INTAKE.read_text())
+        by_id = {row["id"]: row for row in selection["all_records"]}
+        root = Path(selection["source_root"])
+        found = {}
+        for ident in identifiers:
+            record = by_id.get(ident)
+            if record is None:
+                raise CheckpointRejected("reference_missing")
+            truth = (root / record["truth"]).read_bytes()
+            if sha(truth) != record["truth_sha256"]:
+                raise CheckpointRejected("reference_hash_mismatch")
+            found[ident] = truth
+        return found
+    if dataset == "rx":
+        labels = _rx_labels()
+        found = {}
+        for ident in identifiers:
+            if ident not in labels:
+                raise CheckpointRejected("reference_missing")
+            found[ident] = labels[ident].encode("utf-8")
+        return found
+    raise CheckpointRejected("reference_missing")
+
+
+def reference_hashes_for(dataset: str, identifiers: list[str]) -> dict[str, str]:
+    return {ident: sha(payload) for ident, payload in reference_bytes_for(dataset, identifiers).items()}
+
+
 def _rx_case(name: str, labels: dict[str, str], expected_sha: str) -> tuple[list[bytes], str, str]:
     raw = (RX_TRAIN_DIR / name).read_bytes()
     digest = sha(raw)
@@ -204,6 +235,14 @@ def _existing_cases(out: Path, identifiers: list[str]) -> dict[str, dict]:
     return existing
 
 
+def cohort_reference_sha256(identifiers: list[str], reference_hashes: dict[str, str]) -> str:
+    missing = [ident for ident in identifiers if ident not in reference_hashes]
+    if missing:
+        raise CheckpointRejected("reference_missing")
+    lines = [f"{ident} {reference_hashes[ident]}" for ident in identifiers]
+    return sha("\n".join(lines).encode())
+
+
 def build_identity(
     spec: dict,
     stage: str,
@@ -211,12 +250,14 @@ def build_identity(
     model_digest: str,
     identifiers: list[str],
     manifest_bytes: bytes | None = None,
+    reference_hashes: dict[str, str] | None = None,
 ) -> dict:
     """Inference, scoring, and full run fingerprints for one exact cohort."""
     manifest_bytes = MANIFEST.read_bytes() if manifest_bytes is None else manifest_bytes
     manifest = json.loads(manifest_bytes)
     screen = screening_selection(manifest)
     system, user = prompt_for(spec)
+    hashes = reference_hashes if reference_hashes is not None else reference_hashes_for(dataset, identifiers)
     parts = {
         "identity_version": IDENTITY_VERSION,
         "manifest_sha256": sha(manifest_bytes),
@@ -235,6 +276,7 @@ def build_identity(
         "num_predict": DECODING["num_predict"],
         "timeout_s": DECODING["timeout_s"],
         "keep_alive": DECODING["keep_alive"],
+        "reference_sha256": cohort_reference_sha256(identifiers, hashes),
         **implementation_hashes(),
     }
     parts["inference_fingerprint"] = inference_fingerprint(parts)
@@ -262,6 +304,7 @@ def _summary_payload(spec: dict, stage: str, dataset: str, identity: dict, cases
         "num_ctx": spec.get("num_ctx"),
         "temperature": identity["temperature"],
         "num_predict": identity["num_predict"],
+        "reference_sha256": identity["reference_sha256"],
         "parent": spec.get("parent"), "family": spec.get("family"),
         "hypothesis": spec.get("hypothesis"), "screen_rule": identity["screen_rule"],
         **micro_summary(cases),
