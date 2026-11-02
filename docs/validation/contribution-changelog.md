@@ -54,7 +54,7 @@ The Validation Workbench overhaul introduced enterprise-grade provenance, defens
   - Server-derived disposition (`reviewed_unchanged` vs `reviewed_corrected`).
 
 ### Strict Statistical Evaluator (`backend/evaluation/strict_evaluator.py`)
-- **Multiset Pairwise Alignment**: Maximum-weight bipartite matching (Hungarian algorithm) preventing score distortion.
+- **Source-occurrence-first pairing**: Same-name medications pair by source occurrence, then by a bounded span-overlap assignment. This is not the Hungarian algorithm. The bound stops a scorer from awarding a true positive by swapping duplicate doses.
 - **Attribute-Level Scoring**: Discrete evaluation of medication name, dose, route, frequency, duration, qualifier.
 - **Zero-Support Rule**: Strict `N/A` handling when ground truth and predictions are absent.
 - **Immutable Artifact Bundles**: Generation of `run_metadata.json`, `summary_metrics.json`, `case_results.json`, and `manifest.json`.
@@ -70,3 +70,15 @@ The Validation Workbench overhaul introduced enterprise-grade provenance, defens
 - **Vitest Test Suite**: **68 passed** tests.
 - **Playwright Chromium Suite**: **21 passed** end-to-end browser tests.
 - **ESLint & TypeScript**: Zero compiler errors, zero ESLint errors.
+
+## 2026-11-02 — v1 release candidate packaging
+
+AI-assisted implementation on `feat/clinical-nlp-v1-release`, based on `0dd45ab`. The owner did not merge this branch in the same change. Handwriting PRs #9–#12 were left untouched.
+
+- Rejected an idempotent replay that still looked like the current completion after the source moved.
+- Rejected a parent medication edit that scored a correction without changing an attribute.
+- Pointed quality CI at `main` and required a disposable PostgreSQL job.
+- Replaced user-facing Hungarian-algorithm wording with the source-occurrence-first matcher the code runs.
+- Added the versioned validation-loop fixture and showed the frozen 24-image aggregate separately from the 3-case Tesseract recording.
+
+Counts for this commit belong in `docs/validation/V1_RELEASE_EVIDENCE.md`, not in the historical numbers above.

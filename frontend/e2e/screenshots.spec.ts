@@ -83,4 +83,40 @@ test.describe("README screenshots", () => {
     await page.waitForTimeout(1000);
     await page.screenshot({ path: `${OUT}/metrics.png`, fullPage: false });
   });
+
+  test("validation issue and showcase", async ({ page }) => {
+    await page.goto(BASE);
+    await page.getByPlaceholder("Paste clinical note text here...").fill(`Patient: Alex Rivera
+Date of Service: 2026-04-02
+Provider: Dr. Jordan Hale
+
+Vitals:
+BP: 128/76. HR: 80 bpm.
+
+Medications:
+- metformin 500 mg PO BID
+- metformin 1000 mg PO nightly
+- warfarin 2.5 mg PO daily
+- hold lisinopril 10 mg PO daily
+
+Follow up with clinic in 1 week.
+`);
+    await page.getByRole("button", { name: /Extract & Review/i }).click();
+    await waitForReview(page);
+    await page.getByRole("button", { name: /^Issues/ }).click();
+    await page.getByText("A02_DUPLICATE_MEDICATION_CONFLICT").waitFor({ timeout: 10_000 });
+    await page.screenshot({ path: `${OUT}/review-issue.png`, fullPage: false });
+
+    await page.goto(`${BASE}/metrics/drilldown?kind=issues&severity=warning&state=open`);
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}/drilldown.png`, fullPage: false });
+
+    await page.goto(`${BASE}/validation-lab`);
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}/validation-lab.png`, fullPage: false });
+
+    await page.goto(`${BASE}/showcase`);
+    await page.getByRole("heading", { name: "Frozen 24-image printed-synthetic benchmark" }).waitFor();
+    await page.screenshot({ path: `${OUT}/showcase.png`, fullPage: true });
+  });
 });

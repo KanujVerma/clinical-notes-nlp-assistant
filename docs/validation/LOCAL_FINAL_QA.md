@@ -1,5 +1,7 @@
 # PR #1 — Single Mac-only verification runbook
 
+> Historical runbook. The v1 release check is `make verify-release` on `feat/clinical-nlp-v1-release`, recorded in `docs/validation/V1_RELEASE_EVIDENCE.md`. Do not treat the branch name or counts below as the current release.
+
 This is the consolidated local execution handoff. The PR already includes the
 backend worker, inference service, job API, React polling, tests and printed
 visual benchmark generator. Do not rebuild the architecture.

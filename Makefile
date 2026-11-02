@@ -1,5 +1,5 @@
 # Local-only synthetic workbench. No cloud deployment, API keys or paid calls.
-.PHONY: dev backend-tests frontend-tests browser-tests check
+.PHONY: dev backend-tests frontend-tests browser-tests check verify-release
 
 dev:
 	bash scripts/dev.sh
@@ -16,3 +16,6 @@ browser-tests:
 check: backend-tests frontend-tests
 	npm run build --prefix frontend
 	npm run lint --prefix frontend
+
+verify-release:
+	.venv/bin/python scripts/verify_v1_release.py

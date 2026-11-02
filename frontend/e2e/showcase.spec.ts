@@ -11,6 +11,10 @@ test("showcase presents only the committed measured Tesseract result", async ({ 
   await expect(page.getByText("27.14%")).toBeVisible();
   await expect(page.getByText("11/11")).toBeVisible();
   await expect(page.getByText(/No reviewed local-model recordings are published/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Frozen 24-image printed-synthetic benchmark" })).toBeVisible();
+  await expect(page.getByText("11/3/12")).toBeVisible();
+  await expect(page.getByText("23/0/0")).toBeVisible();
+  await expect(page.getByText(/Raw model transcripts are not published here/i)).toBeVisible();
   await page.getByText(/synthetic print decimal/i).click();
   await expect(page.getByLabel(/Recorded OCR transcript for synthetic_print_decimal/i)).toContainText("2.5 mg");
 });

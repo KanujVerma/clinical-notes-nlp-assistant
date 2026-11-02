@@ -39,6 +39,62 @@ const example = {
     models: [],
     message: "No approved AI recordings",
   },
+  frozen_benchmark: {
+    dataset_role: "frozen_printed_synthetic_image_benchmark",
+    case_count: 24,
+    attempted_cases: 24,
+    valid_predictions: 24,
+    exclusions: 0,
+    medication_support: 23,
+    vital_support: 5,
+    manifest_sha256: "c".repeat(64),
+    evidence_zip_sha256: "d".repeat(64),
+    source_document: "docs/validation/PR8_REAL_THREE_ARM_RESULTS.md",
+    matcher: "source_occurrence_first_bounded_assignment",
+    raw_recordings_published: false as const,
+    not_clinical_validation: true as const,
+    limitations: "Not clinical validation",
+    arms: [{
+      id: "tesseract",
+      label: "Tesseract 5.5.2 + parser",
+      medication_tp: 11,
+      medication_fp: 3,
+      medication_fn: 12,
+      medication_precision: 11 / 14,
+      medication_recall: 11 / 23,
+      medication_f1: 22 / 37,
+      vital_tp: 4,
+      vital_fp: 0,
+      vital_fn: 1,
+      vital_f1: 8 / 9,
+      ocr_cer: 124 / 2896,
+      ocr_wer: 164 / 494,
+      ocr_available: true,
+      critical_hits: 42,
+      critical_total: 55,
+    }, {
+      id: "qwen3_vl",
+      label: "Qwen3-VL 4B direct",
+      medication_tp: 15,
+      medication_fp: 8,
+      medication_fn: 8,
+      medication_precision: 15 / 23,
+      medication_recall: 15 / 23,
+      medication_f1: 30 / 46,
+      vital_tp: 0,
+      vital_fp: 7,
+      vital_fn: 5,
+      vital_f1: 0,
+      ocr_cer: null,
+      ocr_wer: null,
+      ocr_available: false,
+      critical_hits: null,
+      critical_total: null,
+    }],
+    documented_failure_examples: [
+      { case_id: "h21", arm: "qwen3_vl", summary: "Omitted PRN." },
+    ],
+  },
 };
 
 function renderPage() {
@@ -56,6 +112,9 @@ describe("EvidenceShowcase", () => {
     expect(screen.getByText("27.14%")).toBeInTheDocument();
     expect(screen.getByText("11/11")).toBeInTheDocument();
     expect(screen.getByText(/No reviewed local-model recordings are published/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Frozen 24-image printed-synthetic benchmark" })).toBeInTheDocument();
+    expect(screen.getByText("11/3/12")).toBeInTheDocument();
+    expect(screen.getByText("N/A")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open review queue" })).toHaveAttribute("href", "/queue");
   });
 

@@ -19,6 +19,7 @@ from services.review_service import (
     IdempotencyConflictError,
     IncompleteReviewError,
     BlockedReviewError,
+    InvalidReviewPayloadError,
 )
 from validation.checker import check_extraction
 
@@ -668,4 +669,134 @@ def test_idempotent_retry_and_conflicting_idempotency_key(tmp_path):
         )
         with pytest.raises(IdempotencyConflictError):
             process_review_mutation(session, "ws-idemp", conflicting_req)
+
+
+def _completed_review_request(**overrides) -> ReviewMutationRequest:
+    payload = dict(
+        note_id=8,
+        source_revision_id="rev-8",
+        extraction_id="ext-8",
+        source_hash="unused",
+        expected_lock_version=0,
+        expected_head_event_id=None,
+        idempotency_key="v1-replay-key",
+        event_kind="review_completed",
+        item_decisions={},
+        category_acknowledgments={
+            "metadata": True,
+            "vitals": True,
+            "medications": True,
+            "instructions": True,
+        },
+    )
+    payload.update(overrides)
+    return ReviewMutationRequest(**payload)
+
+
+def test_idempotent_replay_after_source_change_is_not_current_completion(db_session):
+    raw_text = "Synthetic note before a source revision."
+    text_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+    note = Note(id=8, workspace_id="ws-123", raw_text=raw_text, source="paste", lock_version=0)
+    db_session.add(note)
+    db_session.flush()
+    db_session.add(NoteRevision(
+        id="rev-8", note_id=8, workspace_id="ws-123", revision_number=1,
+        raw_text=raw_text, normalized_text=raw_text, sha256=text_hash,
+    ))
+    db_session.add(Extraction(
+        id=8, public_id="ext-8", note_id=8, workspace_id="ws-123",
+        source_revision_id="rev-8", extracted_json="{}", pipeline_version="1.0.0",
+    ))
+    note.current_source_revision_id = "rev-8"
+    note.current_extraction_id = "ext-8"
+    db_session.commit()
+
+    req = _completed_review_request(source_hash=text_hash)
+    event, is_replay = process_review_mutation(db_session, "ws-123", req)
+    assert is_replay is False
+
+    same, replayed = process_review_mutation(db_session, "ws-123", req)
+    assert replayed is True
+    assert same.id == event.id
+
+    note.current_source_revision_id = "rev-8b"
+    note.current_extraction_id = "ext-8b"
+    note.review_head_event_id = None
+    note.status = "needs_review"
+    db_session.commit()
+
+    with pytest.raises(StaleReviewError, match="no longer the current"):
+        process_review_mutation(db_session, "ws-123", req)
+    assert db_session.query(ReviewEvent).filter_by(note_id=8).count() == 1
+
+
+def test_parent_medication_edit_without_attribute_change_is_rejected(db_session):
+    raw_text = "metformin 500 mg PO BID"
+    text_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+    extracted = {
+        "medications": [{
+            "id": "m1",
+            "name": "metformin",
+            "dose": "500 mg",
+            "route": "PO",
+            "frequency": "BID",
+        }],
+    }
+    note = Note(id=9, workspace_id="ws-123", raw_text=raw_text, source="paste", lock_version=0)
+    db_session.add(note)
+    db_session.flush()
+    db_session.add(NoteRevision(
+        id="rev-9", note_id=9, workspace_id="ws-123", revision_number=1,
+        raw_text=raw_text, normalized_text=raw_text, sha256=text_hash,
+    ))
+    ext = Extraction(
+        id=9, public_id="ext-9", note_id=9, workspace_id="ws-123",
+        source_revision_id="rev-9", extracted_json=json.dumps(extracted),
+        pipeline_version="1.0.0",
+    )
+    db_session.add(ext)
+    note.current_source_revision_id = "rev-9"
+    note.current_extraction_id = "ext-9"
+    db_session.commit()
+
+    noop = _completed_review_request(
+        note_id=9,
+        source_revision_id="rev-9",
+        extraction_id="ext-9",
+        source_hash=text_hash,
+        idempotency_key="parent-edit-noop",
+        item_decisions={
+            "m1": {"decision": "edit", "value": "metformin 5000 mg"},
+            "m1.name": {"decision": "accept"},
+            "m1.dose": {"decision": "accept"},
+            "m1.route": {"decision": "accept"},
+            "m1.frequency": {"decision": "accept"},
+        },
+    )
+    with pytest.raises(InvalidReviewPayloadError, match="without an attribute change"):
+        process_review_mutation(db_session, "ws-123", noop)
+    db_session.refresh(note)
+    assert note.review_head_event_id is None
+    assert json.loads(ext.extracted_json)["medications"][0]["dose"] == "500 mg"
+
+    applied = _completed_review_request(
+        note_id=9,
+        source_revision_id="rev-9",
+        extraction_id="ext-9",
+        source_hash=text_hash,
+        idempotency_key="attribute-edit",
+        item_decisions={
+            "m1.name": {"decision": "accept"},
+            "m1.dose": {"decision": "edit", "value": "1000 mg"},
+            "m1.route": {"decision": "accept"},
+            "m1.frequency": {"decision": "accept"},
+        },
+    )
+    event, is_replay = process_review_mutation(db_session, "ws-123", applied)
+    assert is_replay is False
+    assert event.derived_outcome == "reviewed_corrected"
+    snapshot = json.loads(event.reviewed_snapshot_json)
+    assert snapshot["medications"][0]["dose"] == "1000 mg"
+    db_session.refresh(ext)
+    assert json.loads(ext.extracted_json)["medications"][0]["dose"] == "500 mg"
 

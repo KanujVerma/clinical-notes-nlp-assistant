@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 
 export default function ValidationLab() {
@@ -68,7 +69,9 @@ export default function ValidationLab() {
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-400">
-              Offline multiset medication evaluation, attribute-level matching, and error attribution.
+              Offline evaluation of the 20-note synthetic development corpus. Pairing is source-occurrence-first
+              with a bounded assignment fallback. This page is not the frozen 24-image printed benchmark.{" "}
+              <Link to="/showcase" className="text-cyan-300 underline">Open that separate evidence</Link>.
             </p>
           </div>
           <button

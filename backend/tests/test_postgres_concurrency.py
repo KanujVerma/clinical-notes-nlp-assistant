@@ -3,6 +3,7 @@
 Spins up a lightweight isolated local PostgreSQL instance, executes Alembic migrations
 to head, and tests multithreaded barrier concurrency with real database connections.
 """
+import glob
 import os
 import shutil
 import socket
@@ -25,13 +26,46 @@ def find_free_port() -> int:
         return s.getsockname()[1]
 
 
+def _postgres_binaries() -> tuple[str | None, str | None]:
+    """Locate initdb and pg_ctl for a disposable cluster. Never uses a live server."""
+    candidates: list[str] = []
+    override = os.environ.get("CLINICAL_NLP_PG_BIN", "").strip()
+    if override:
+        candidates.append(override)
+    discovered = shutil.which("initdb")
+    if discovered:
+        candidates.append(os.path.dirname(discovered))
+    candidates.extend([
+        "/opt/homebrew/opt/postgresql@17/bin",
+        "/opt/homebrew/opt/postgresql@16/bin",
+        "/opt/homebrew/opt/postgresql@15/bin",
+        "/usr/lib/postgresql/17/bin",
+        "/usr/lib/postgresql/16/bin",
+        "/usr/lib/postgresql/15/bin",
+        "/usr/lib/postgresql/14/bin",
+    ])
+    candidates.extend(sorted(glob.glob("/usr/lib/postgresql/*/bin"), reverse=True))
+    seen: set[str] = set()
+    for directory in candidates:
+        if directory in seen:
+            continue
+        seen.add(directory)
+        initdb_path = os.path.join(directory, "initdb")
+        pg_ctl_path = os.path.join(directory, "pg_ctl")
+        if os.path.isfile(initdb_path) and os.path.isfile(pg_ctl_path):
+            return initdb_path, pg_ctl_path
+    return None, None
+
+
 @pytest.fixture(scope="module")
 def postgres_service():
     """Boots an ephemeral PostgreSQL cluster on a random port, yielding its connection URL."""
-    initdb_path = "/opt/homebrew/opt/postgresql@15/bin/initdb"
-    pg_ctl_path = "/opt/homebrew/opt/postgresql@15/bin/pg_ctl"
-    if not os.path.exists(initdb_path) or not os.path.exists(pg_ctl_path):
-        pytest.skip("PostgreSQL 15 binary not available for disposable test cluster")
+    initdb_path, pg_ctl_path = _postgres_binaries()
+    if not initdb_path or not pg_ctl_path:
+        message = "PostgreSQL client binaries were not found for a disposable test cluster"
+        if os.environ.get("REQUIRE_POSTGRES") == "1":
+            pytest.fail(message)
+        pytest.skip(message)
 
     temp_dir = tempfile.mkdtemp(prefix="test_pg_")
     data_dir = os.path.join(temp_dir, "data")

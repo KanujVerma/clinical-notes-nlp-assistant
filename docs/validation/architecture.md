@@ -88,7 +88,7 @@ To protect against extraction anomalies before human signoff, pure validation fu
 
 The benchmark engine implements strict statistical evaluation against 20 synthetic reference notes:
 
-- **Multiset Pairwise Alignment**: Solves the maximum-weight bipartite matching problem (Hungarian algorithm) to match predicted medications to ground-truth entities. This eliminates distortion caused by dictionary collapsing or greedy name matching.
+- **Source-occurrence-first pairing**: Medications that share a source occurrence id and canonical name pair first. Remaining same-name items use a bounded one-to-one assignment on span overlap, not a dose-optimizing Hungarian solver. Duplicate names therefore stay distinct instead of being matched to whichever dose would inflate the score.
 - **Attribute Strictness**: Medications are evaluated across individual attributes (`name`, `dose`, `route`, `frequency`, `duration`, `qualifier`). Partial attribute errors are penalized.
 - **Zero-Support Handling**: In accordance with Rule A06, when support and predictions are zero, metrics evaluate to `N/A` rather than artificial `1.0` or `0.0`.
 - **Immutable Run Bundles**: Every benchmark run generates an export directory containing `run_metadata.json`, `summary_metrics.json`, `case_results.json`, and `manifest.json`.

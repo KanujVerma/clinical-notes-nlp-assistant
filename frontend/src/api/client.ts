@@ -73,6 +73,42 @@ export interface PublicShowcaseEvidence {
       }>;
     }>;
   };
+  frozen_benchmark: {
+    dataset_role: string;
+    case_count: number;
+    attempted_cases: number;
+    valid_predictions: number;
+    exclusions: number;
+    medication_support: number;
+    vital_support: number;
+    manifest_sha256: string;
+    evidence_zip_sha256: string;
+    source_document: string;
+    matcher: string;
+    raw_recordings_published: false;
+    not_clinical_validation: true;
+    limitations: string;
+    arms: Array<{
+      id: string;
+      label: string;
+      medication_tp: number;
+      medication_fp: number;
+      medication_fn: number;
+      medication_precision: number | null;
+      medication_recall: number | null;
+      medication_f1: number | null;
+      vital_tp: number;
+      vital_fp: number;
+      vital_fn: number;
+      vital_f1: number | null;
+      ocr_cer: number | null;
+      ocr_wer: number | null;
+      ocr_available: boolean;
+      critical_hits: number | null;
+      critical_total: number | null;
+    }>;
+    documented_failure_examples: Array<{ case_id: string; arm: string; summary: string }>;
+  };
 }
 
 export interface MetricEvidenceRow {
