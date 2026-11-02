@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import io
+import time
 
 from PIL import Image
 
@@ -523,6 +524,7 @@ def test_non_object_transport_is_recorded_as_malformed(tmp_path):
     image = _page(40, 40, _rows(10, 20, 40))
     for index, payload in enumerate((None, [])):
         def transport(prepared, candidate, allowed, payload=payload):
+            time.sleep(0.05)
             return payload
 
         ledger = Ledger(tmp_path / f"bad-{index}.jsonl", cap_seconds=100)
@@ -531,7 +533,7 @@ def test_non_object_transport_is_recorded_as_malformed(tmp_path):
         assert result["completed"] is False
         assert result["regions"][0]["status"] == "malformed_transport"
         assert [row["event"] for row in ledger.rows()] == ["begin", "finish"]
-        assert ledger.charged() == 0
+        assert ledger.charged() >= 0.04
     listed = {
         "model": "glm-ocr:q8_0", "response": ["5 mg"], "done": True, "done_reason": "stop",
         "model_digest": "aa",
@@ -543,6 +545,18 @@ def test_non_object_transport_is_recorded_as_malformed(tmp_path):
     assert result["regions"][0]["transcription"] == ""
     assert result["regions"][0]["raw_response"] == ["5 mg"]
     assert result["prediction"] == ""
+
+    def untimed(prepared, candidate, allowed):
+        time.sleep(0.05)
+        return {
+            "model": "glm-ocr:q8_0", "response": "5 mg", "done": True, "done_reason": "stop",
+            "model_digest": "aa",
+        }
+
+    missing = Ledger(tmp_path / "untimed.jsonl", cap_seconds=100)
+    scored = run_page(image, "N1", untimed, missing, "untimed", "aa")
+    assert scored["completed"] is True
+    assert missing.charged() >= 0.04
 
 
 def test_generation_limit_on_a_blank_margin_keeps_the_page_incomplete(tmp_path):

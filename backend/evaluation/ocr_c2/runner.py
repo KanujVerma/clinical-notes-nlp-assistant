@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import time
 
 from PIL import Image
 
@@ -52,13 +53,16 @@ def run_page(
                 "regions": regions,
                 "prediction": "\n".join(transcripts),
             }
+        started = time.perf_counter()
         response = transport(prepared, candidate, allowed)
+        measured = time.perf_counter() - started
         if isinstance(response, dict):
-            elapsed = float(response.get("elapsed_seconds") or 0)
             raw_response = response.get("response")
+            reported = response.get("elapsed_seconds")
+            elapsed = measured if reported is None else max(0.0, float(reported))
         else:
-            elapsed = 0.0
             raw_response = None
+            elapsed = measured
         ledger.finish(request_id, elapsed)
         page_remaining -= elapsed
         interpreted = interpret_native_response(
