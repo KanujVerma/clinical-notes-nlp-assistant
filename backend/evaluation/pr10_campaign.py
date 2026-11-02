@@ -1,6 +1,7 @@
 """Detached PR #10 keep/discard loop. Resumes from case checkpoints."""
 from __future__ import annotations
 
+import fcntl
 import json
 import traceback
 from datetime import datetime, timezone
@@ -8,7 +9,8 @@ from pathlib import Path
 
 from evaluation.pr10_autoresearch import PRIVATE, run_spec
 from evaluation.pr10_candidate import historical_specs, mutation_queue
-from evaluation.pr10_replay import decide_screen, micro_summary
+from evaluation.pr10_identity import CheckpointRejected, LegacyCheckpoint
+from evaluation.pr10_replay import cohorts_match, decide_screen, micro_summary
 
 DECISIONS = PRIVATE / "decisions.jsonl"
 BEST = PRIVATE / "best.json"
@@ -27,6 +29,18 @@ TRACKED = (
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def acquire_lock(path: Path):
+    """One campaign owner. A second launch fails without starting inference."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a+")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as blocked:
+        handle.close()
+        raise RuntimeError("already_running") from blocked
+    return handle
 
 
 def _write(path: Path, payload: dict) -> None:
@@ -166,17 +180,32 @@ def _metrics(amr_cases: list[dict], rx_cases: list[dict], paired_ids: set[str]) 
     return {
         "scored": amr["scored"],
         "fp": amr["critical_false_positives"],
-        "paired_cer": 0.0 if paired["cer_micro"] is None else paired["cer_micro"],
+        "paired_cer": paired["cer_micro"],
         "paired_hits": paired["critical_hit"],
         "paired_fp": paired["critical_false_positives"],
         "paired_p95": paired["p95_latency_ms"] or 0,
-        "rx_cer": 0.0 if rx["cer_micro"] is None else rx["cer_micro"],
+        "rx_cer": rx["cer_micro"],
+        "rx_scored": rx["scored"],
+        "occurrence_fp": paired["occurrence_false_positives"],
     }
 
 
 def _compare(stage: str, incumbent: str, candidate: str) -> dict:
     inc_amr, inc_rx = _view(stage, incumbent)
     cand_amr, cand_rx = _view(stage, candidate)
+    if not cohorts_match(
+        (case["id"] for case in inc_amr), (case["id"] for case in cand_amr)
+    ) or not cohorts_match(
+        (case["id"] for case in inc_rx), (case["id"] for case in cand_rx)
+    ):
+        return {
+            "status": "inconclusive",
+            "reason": "attempted cohorts differ",
+            "candidate": candidate,
+            "incumbent": incumbent,
+            "stage": stage,
+            "utc": _now(),
+        }
     paired_ids = {
         case["id"] for case in inc_amr if case["status"] == "scored"
     } & {
@@ -194,7 +223,10 @@ def _latest(decisions: list[dict]) -> list[dict]:
     ordered = []
     index = {}
     for row in decisions:
-        if row["status"] not in {"keep", "discard"}:
+        if row["status"] not in {
+            "keep", "discard", "rejected", "reliability_candidate",
+            "accuracy_candidate", "inconclusive",
+        }:
             continue
         name = row["candidate"]
         if name in index:
@@ -218,7 +250,7 @@ def _stopping(decisions: list[dict]) -> str | None:
     families = {row.get("family") for row in finished}
     tail = 0
     for row in reversed(finished):
-        if row["status"] != "discard":
+        if row["status"] not in {"discard", "rejected"}:
             break
         tail += 1
     if len(finished) >= 20 and tail >= 10 and {"A", "B", "C", "D", "E"} <= families:
@@ -244,6 +276,13 @@ def _record(spec: dict, decision: dict) -> None:
 
 def campaign() -> int:
     try:
+        campaign.lock_handle = acquire_lock(PRIVATE / "campaign.lock")
+    except RuntimeError as blocked:
+        if str(blocked) != "already_running":
+            raise
+        print("PR10_STOP already_running", flush=True)
+        return 0
+    try:
         verify_finished_batch()
     except Exception:
         traceback.print_exc()
@@ -252,6 +291,11 @@ def campaign() -> int:
         return 0
     try:
         return _run()
+    except (LegacyCheckpoint, CheckpointRejected) as blocked:
+        _write(STATE, {"status": "stopped", "reason": str(blocked), "utc": _now(),
+                       "elapsed_ms": elapsed_ms()})
+        print(f"PR10_STOP {blocked}", flush=True)
+        return 0
     except Exception:
         traceback.print_exc()
         _write(STATE, {"status": "crashed", "utc": _now(), "elapsed_ms": elapsed_ms()})
@@ -277,7 +321,7 @@ def _run() -> int:
             if _ready("screen", "jpeg_ctx8192", "amr") and _ready("screen", "jpeg_ctx8192", "rx"):
                 decision = _compare("screen", "jpeg_baseline", "jpeg_ctx8192")
                 _record(historical_specs()["jpeg_ctx8192"], decision)
-                if decision["status"] == "keep":
+                if decision["status"] in {"keep", "accuracy_candidate"}:
                     _write(PENDING, historical_specs()["jpeg_ctx8192"])
                 continue
         if pending:
@@ -290,7 +334,7 @@ def _run() -> int:
                 continue
             decision = _compare("confirm", best["name"], pending["name"])
             _record(pending, decision)
-            if decision["status"] == "keep":
+            if decision["status"] in {"keep", "accuracy_candidate"}:
                 _save_best(pending, decision["reason"])
             PENDING.unlink(missing_ok=True)
             continue
@@ -310,7 +354,7 @@ def _run() -> int:
             continue
         decision = _compare("screen", best["name"], child["name"])
         _record(child, decision)
-        if decision["status"] == "keep":
+        if decision["status"] in {"keep", "accuracy_candidate"}:
             _write(PENDING, child)
     return 0
 

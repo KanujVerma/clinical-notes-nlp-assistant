@@ -88,6 +88,17 @@ def historical_specs() -> dict[str, dict]:
     }
 
 
+TRACKED = (
+    "encode", "contrast", "grayscale", "gamma", "sharpen", "denoise", "trim",
+    "longest", "num_ctx", "prompt", "dedupe_lines", "collapse_spaces",
+    "second_pass", "segment", "jpeg_quality",
+)
+
+
+def changed_fields(parent: dict, child: dict) -> list[str]:
+    return [key for key in TRACKED if child.get(key) != parent.get(key)]
+
+
 def mutation_queue(parent: dict) -> list[dict]:
     """One-variable children of the incumbent, in priority order."""
     name = parent["name"]
@@ -131,6 +142,8 @@ def mutation_queue(parent: dict) -> list[dict]:
         spec["parent"] = name
         spec["family"] = family
         spec["hypothesis"] = hypothesis
+        if changed_fields(parent, spec) != [next(iter(change))]:
+            continue
         children.append(spec)
     return children
 
