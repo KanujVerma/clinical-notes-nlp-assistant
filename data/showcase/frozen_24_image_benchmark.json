@@ -1,0 +1,95 @@
+{
+  "schema_version": "1",
+  "dataset_role": "frozen_printed_synthetic_image_benchmark",
+  "synthetic_only": true,
+  "not_clinical_validation": true,
+  "raw_recordings_published": false,
+  "case_count": 24,
+  "attempted_cases": 24,
+  "exclusions": 0,
+  "medication_support": 23,
+  "vital_support": 5,
+  "manifest_sha256": "c30cfdd3ce457b157d1ee89a7859dfbe137c71e17990e84dcab49a74c6e6c332",
+  "evidence_zip_sha256": "d073a12c5f9f7b9ff2a3cb406a5d4c06e50c7812f4ddda43e72001007a73a80d",
+  "source_document": "docs/validation/PR8_REAL_THREE_ARM_RESULTS.md",
+  "arms": [
+    {
+      "id": "tesseract",
+      "label": "Tesseract 5.5.2 + parser",
+      "medication_tp": 11,
+      "medication_fp": 3,
+      "medication_fn": 12,
+      "vital_tp": 4,
+      "vital_fp": 0,
+      "vital_fn": 1,
+      "cer_errors": 124,
+      "cer_chars": 2896,
+      "wer_errors": 164,
+      "wer_words": 494,
+      "critical_hits": 42,
+      "critical_total": 55,
+      "ocr_available": true
+    },
+    {
+      "id": "glm_ocr",
+      "label": "GLM-OCR q8_0 + parser",
+      "medication_tp": 23,
+      "medication_fp": 0,
+      "medication_fn": 0,
+      "vital_tp": 5,
+      "vital_fp": 0,
+      "vital_fn": 0,
+      "cer_errors": 17,
+      "cer_chars": 2896,
+      "wer_errors": 13,
+      "wer_words": 494,
+      "critical_hits": 55,
+      "critical_total": 55,
+      "ocr_available": true
+    },
+    {
+      "id": "qwen3_vl",
+      "label": "Qwen3-VL 4B direct",
+      "medication_tp": 15,
+      "medication_fp": 8,
+      "medication_fn": 8,
+      "vital_tp": 0,
+      "vital_fp": 7,
+      "vital_fn": 5,
+      "cer_errors": null,
+      "cer_chars": null,
+      "wer_errors": null,
+      "wer_words": null,
+      "critical_hits": null,
+      "critical_total": null,
+      "ocr_available": false
+    }
+  ],
+  "documented_failure_examples": [
+    {
+      "case_id": "h11",
+      "arm": "qwen3_vl",
+      "summary": "Combined route and frequency into POQHS."
+    },
+    {
+      "case_id": "h13",
+      "arm": "qwen3_vl",
+      "summary": "Used Stop taking where the annotation action is stop."
+    },
+    {
+      "case_id": "h21",
+      "arm": "qwen3_vl",
+      "summary": "Omitted PRN."
+    },
+    {
+      "case_id": "h24",
+      "arm": "qwen3_vl",
+      "summary": "Used action stopped rather than stop."
+    },
+    {
+      "case_id": "h12_budesonide_inhaler",
+      "arm": "qwen3_vl",
+      "summary": "Proposed 90 mg where the annotation is 90 mcg."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+Patient: Alex Rivera
+Date of Service: 2026-04-02
+Provider: Dr. Jordan Hale
+
+Vitals:
+BP: 128/76. HR: 80 bpm.
+
+Medications:
+- metformin 500 mg PO BID
+- metformin 1000 mg PO nightly
+- warfarin 2.5 mg PO daily
+- hold lisinopril 10 mg PO daily
+
+Follow up with clinic in 1 week.

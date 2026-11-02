@@ -1,0 +1,11 @@
+{
+  "label": "controlled_engineering_counterexample",
+  "not_an_extractor_output": true,
+  "fixture": "data/validation_loop/v1_synthetic_note.txt",
+  "mutation": "On a copy of the deterministic extraction, replace the warfarin dose 2.5 mg with .5 mg and set evidence.raw_quote to 25 mg while keeping the original source span. The source note is unchanged.",
+  "expected_issue_codes": [
+    "A09_DECIMAL_DOSE_LEADING_ZERO_MISSING",
+    "A08_EVIDENCE_QUOTE_MISMATCH"
+  ],
+  "do_not_claim": "The extractor did not produce this error. It is planted so the independent checker can be shown detecting a known bad proposal."
+}

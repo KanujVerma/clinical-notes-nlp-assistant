@@ -20,6 +20,7 @@ frontend/dist/
 .superpowers/
 .vercel
 .pytest_cache/
+artifacts/verification/
 test-results/
 frontend/test-results/
 backend/data/storage/

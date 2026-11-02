@@ -339,6 +339,7 @@ def derive_reviewed_snapshot(
             or (item_decisions or {}).get(f"med.{idx}.name")
         )
         is_med_removed = False
+        parent_claimed_edit = False
         nested_name_dec = None
         if med_dec and isinstance(med_dec, dict) and med_dec.get("attribute_decisions"):
             nested_name_dec = med_dec["attribute_decisions"].get("name")
@@ -355,7 +356,10 @@ def derive_reviewed_snapshot(
         elif med_dec:
             act = _get_decision_str(med_dec)
             if act == "edit":
-                has_corrections = True
+                # A parent "edit" is not itself a correction. Only an attribute
+                # change may mark the review corrected, and a no-op edit is rejected
+                # below so metrics cannot count an unchanged medication as corrected.
+                parent_claimed_edit = True
             elif act == "pending" and is_completing:
                 raise IncompleteReviewError(f"Medication '{med_id}' is pending.")
 
@@ -390,10 +394,24 @@ def derive_reviewed_snapshot(
                         med_copy.pop(attr, None)
                         has_corrections = True
                     elif a_act == "edit":
-                        med_copy[attr] = _get_decision_val(a_dec)
-                        has_corrections = True
+                        new_val = _get_decision_val(a_dec)
+                        if new_val != med.get(attr):
+                            med_copy[attr] = new_val
+                            has_corrections = True
                     elif a_act == "pending" and is_completing:
                         raise IncompleteReviewError(f"Attribute '{med_id}.{attr}' is pending.")
+
+            if parent_claimed_edit and not is_med_removed:
+                comparable = (
+                    "name", "dose", "route", "frequency", "duration", "qualifier",
+                    "prn", "action", "status", "temporal_status",
+                )
+                changed = any(med_copy.get(attr) != med.get(attr) for attr in comparable)
+                if not changed:
+                    raise InvalidReviewPayloadError(
+                        f"Medication '{med_id}' was marked edited without an attribute change. "
+                        "Edit the attribute directly; a parent edit does not rewrite the medication."
+                    )
 
             if not is_med_removed:
                 reviewed_meds.append(med_copy)
@@ -484,6 +502,31 @@ def canonical_hash(data: Dict[str, Any]) -> str:
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
+def _replay_if_still_current(session, workspace_id: str, existing: ReviewEvent):
+    """Return an identical idempotent event only while it is still the current review.
+
+    A matching key must not look like a fresh completion after the source
+    revision, extraction, or review head has moved. The historical event stays
+    in the table; the caller does not insert another one.
+    """
+    note = (
+        session.query(Note)
+        .filter(Note.id == existing.note_id, Note.workspace_id == workspace_id)
+        .first()
+    )
+    if (
+        note is None
+        or note.current_source_revision_id != existing.source_revision_id
+        or note.current_extraction_id != existing.extraction_id
+        or note.review_head_event_id != existing.id
+    ):
+        raise StaleReviewError(
+            "Idempotent replay matches a historical review that is no longer the current "
+            "source or review head. Refresh required."
+        )
+    return existing, True
+
+
 def process_review_mutation(
     session: Session,
     workspace_id: str,
@@ -552,8 +595,7 @@ def process_review_mutation(
         )
         if existing:
             if existing.request_hash == req_hash:
-                # Exact identical replay
-                return existing, True
+                return _replay_if_still_current(session, workspace_id, existing)
             else:
                 raise IdempotencyConflictError(
                     f"Idempotency key '{req.idempotency_key}' reused with conflicting request payload."
@@ -755,7 +797,7 @@ def process_review_mutation(
             )
             if existing:
                 if existing.request_hash == req_hash:
-                    return existing, True
+                    return _replay_if_still_current(session, workspace_id, existing)
                 else:
                     raise IdempotencyConflictError(
                         f"Idempotency key '{req.idempotency_key}' reused with conflicting request payload."

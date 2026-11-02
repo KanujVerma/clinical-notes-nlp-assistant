@@ -1,12 +1,16 @@
 # Clinical Notes NLP Assistant
 
-A **full-stack, synthetic clinical-note extraction and human-review prototype** built with React, TypeScript, Flask, SQLAlchemy, spaCy/medSpaCy, and deterministic rules. It extracts structured fields, lets a reviewer inspect and correct them against the source, and records reviewer activity.
+Synthetic clinical notes are easy to turn into structured fields and easy to trust too quickly. This workbench extracts medications, vitals, instructions, and metadata with deterministic rules, checks those proposals independently, and keeps a human review bound to the exact source revision.
 
-> **Code and deployment are separate.** The validation workbench, synthetic showcase, and 30-image local vision benchmark are merged on `main`. Production Vercel and Render auto-deploys remain disabled. A passing code gate does not establish that the hosted demo runs this revision.
+The intended user is a synthetic reviewer or an engineer inspecting the workflow. It is not a clinician tool, not an EHR, and not a prescribing system.
 
-> **Synthetic engineering demo — not for clinical use.** Do not submit real patient information. This is not clinically validated, does not verify patient identity, and is not an EHR or prescribing tool. Session-based workspace separation is not authentication.
+The core extraction is rule-based. An optional local model or paid explainer never becomes the authority for a completed review. Independent checks exist because a plausible dose, span, or benchmark score can still be wrong: a decimal can move, two orders of the same drug can be collapsed, or a completed review can be replayed against a newer source.
 
-**Hosted demo:** [clinical-nlp.vercel.app](https://clinical-nlp.vercel.app/) (availability and deployment version are not guaranteed by this README). For reproducible behavior, run the checked-out revision locally.
+The main engineering contribution is the lineage from source asset to note revision, extraction, independent check, review event, and current review state, including optimistic concurrency and idempotency.
+
+> **Synthetic engineering demo — not for clinical use.** Do not submit real patient information. This project is not clinically validated and does not claim HIPAA compliance.
+
+The canonical demonstration is a local build plus the recorded synthetic walkthrough in [`docs/validation/demo-script.md`](docs/validation/demo-script.md). A previously hosted URL is not guaranteed to run this commit, and this repository does not treat it as the v1 release. Auto-deploy remains disabled for `main` and for `feat/clinical-nlp-v1-release`.
 
 ## Product walkthrough
 
@@ -68,6 +72,7 @@ git switch main
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+python -m pip install 'pillow==10.4.0'
 
 cd frontend
 npm ci
@@ -132,31 +137,39 @@ Comprehensive documentation is available in [`docs/validation/`](docs/validation
 
 ## Verification
 
-From the repository root:
+From the repository root, after the setup above:
 
 ```bash
-# Backend pytest suite (rerun and record counts for this exact commit)
-source .venv/bin/activate
-python -m pytest backend/tests/ -q
-
-# Frontend unit tests, linting, and build
-cd frontend
-npm test
-npm run lint
-npm run build
-
-# End-to-end browser tests (counts depend on checked-out revision)
-# Requires Flask (port 5000) and Vite (port 5173) running:
-npx playwright test
+make verify-release
 ```
+
+That command runs backend tests, disposable PostgreSQL migration/concurrency tests, frontend unit tests, lint, the production build, restart persistence, and the frozen benchmark archive hash check. It writes `artifacts/verification/v1-release-<sha>/summary.json`, which is gitignored.
+
+Browser coverage, with Flask and Vite started by the script when those ports are free:
+
+```bash
+.venv/bin/python scripts/verify_v1_release.py --with-browser
+```
+
+Individual commands match CI: `make backend-tests`, `make frontend-tests`, `npm run lint --prefix frontend`, `npm run build --prefix frontend`, and `make browser-tests`. PostgreSQL tests fail closed when `REQUIRE_POSTGRES=1` and no disposable binaries are available. They do not use a live database.
 
 ## Known limitations and operational boundaries
 
 - **Synthetic only:** The system is restricted to synthetic, de-identified clinical scenarios. It is not HIPAA-certified, does not connect to EHRs, does not verify patient identity, and must never be used for real clinical decision-making.
 - **Extraction bounds:** Ambiguous clinical phrasing, novel abbreviations, and unformatted narrative text require human verification. The deterministic pipeline flags anomalies via canaries rather than making autonomous clinical decisions.
 - **Optional local AI:** On-device GLM-OCR and Qwen3-VL adapters exist. PR #5 records real local inference on 30 hash-pinned generator-derived printed/noisy/photographed-effect synthetic images, **not** handwriting or an independent holdout. Model suggestions remain separate from reviewer-approved state. Vision requests without an original image source fail closed; paid terminology explanation stays opt-in.
-- **Real synthetic model benchmark:** Original image/source hashes, saved local predictions, model digests, CER/WER, critical tokens, and strict entity scores are in `artifacts/evaluation/paired_local_17f5737320b78e10.json`. See the [independent source audit](docs/validation/THIRTY_CASE_BENCHMARK_AUDIT.md). The [medication parser replay](docs/validation/MEDICATION_GOLD_REPLAY.md) separately scores the current deterministic extractor against perfect synthetic transcripts and those saved OCR predictions. None of these development scores is a held-out or clinical validation estimate.
-- **Evaluation limits:** The historical 20-note synthetic corpus was inspected during development and is not a held-out or clinically adjudicated set. Older saved benchmark artifacts use earlier matching rules and cannot be treated as a comparable strict baseline.
+Measured evidence stays in separate tiers. Do not pool them.
+
+| Tier | What it is | What it is not |
+|---|---|---|
+| Unit and regression fixtures | Deterministic checks, including `data/validation_loop/` | A benchmark |
+| 20-note development corpus | Validation Lab text evaluation | The 24-image vision run |
+| 3-case Tesseract recording | Published development OCR transcripts on `/showcase` | The 24-image comparison |
+| Frozen 24-image printed-synthetic run | Documented aggregate in [`PR8_REAL_THREE_ARM_RESULTS.md`](docs/validation/PR8_REAL_THREE_ARM_RESULTS.md), shown on `/showcase` without raw transcripts | Handwriting accuracy or clinical validation |
+| Earlier local model archives | Historical development runs such as `artifacts/evaluation/paired_local_17f5737320b78e10.json` | A paired replacement for the frozen 24-image scores |
+| Clinical validation | Not conducted | — |
+
+Medication matching is source-occurrence-first, then a bounded one-to-one assignment. It is not the Hungarian algorithm. Duplicate drug names stay separate so the scorer cannot trade a wrong dose for a higher F1. Empty support is N/A. OCR CER/WER is reported only for arms that produced transcription text. Correction counts measure reviewer activity, not extraction accuracy. A synthetic F1 score does not establish clinical safety.
 - **Release status:** GitHub Actions verifies synthetic/offline and hosted-mode contracts on each changed PR head. The [acceptance matrix](docs/validation/acceptance-matrix.md) contains historical verification snapshots; production deployment, migrations, EHR integration, and handling actual patient information remain unapproved.
 
 ## Project scope and contributions
