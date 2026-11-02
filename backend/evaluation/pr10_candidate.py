@@ -95,6 +95,24 @@ TRACKED = (
 )
 
 
+def resolve_spec(name: str) -> dict:
+    """Rebuild a historical or one-variable child spec. Does not read checkpoints."""
+    found: dict[str, dict] = {}
+
+    def walk(spec: dict, depth: int) -> None:
+        if spec["name"] in found or depth > 3:
+            return
+        found[spec["name"]] = spec
+        for child in mutation_queue(spec):
+            walk(child, depth + 1)
+
+    for spec in historical_specs().values():
+        walk(spec, 0)
+    if name not in found:
+        raise KeyError(name)
+    return found[name]
+
+
 def changed_fields(parent: dict, child: dict) -> list[str]:
     return [key for key in TRACKED if child.get(key) != parent.get(key)]
 

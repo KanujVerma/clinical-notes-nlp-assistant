@@ -19,9 +19,12 @@ from evaluation.pr10_candidate import (  # noqa: E402
     postprocess, prompt_for, render_regions,
 )
 from evaluation.pr10_identity import (  # noqa: E402
-    IDENTITY_VERSION, CheckpointRejected, LegacyCheckpoint, assess_reuse, fingerprint,
+    DECODING, IDENTITY_VERSION, CheckpointRejected, LegacyCheckpoint,
+    fingerprint, implementation_hashes, inference_fingerprint, scoring_fingerprint,
 )
-from evaluation.pr10_replay import align_critical, critical_false_positives, micro_summary  # noqa: E402
+from evaluation.pr10_replay import (  # noqa: E402
+    align_critical, classify_saved_run, critical_false_positives, micro_summary,
+)
 from evaluation.public_amr_benchmark import score, sha  # noqa: E402
 from services.inference_pipeline import get_installed_model_digest  # noqa: E402
 from services.multimodal_service import glm_ocr_infer  # noqa: E402
@@ -104,6 +107,23 @@ def _predict(candidate: str, pages: list[bytes]) -> tuple[str | None, int, str]:
     return prediction, latency, status
 
 
+def _call_ocr(transformed: bytes, label: int, spec: dict, system: str, user: str, frozen: bool) -> dict:
+    """Call the frozen model explicitly. The environment default is not the experiment model."""
+    try:
+        result = glm_ocr_infer(
+            transformed, page_number=label, model=MODEL, num_ctx=spec.get("num_ctx"),
+            system_prompt=None if frozen else system,
+            user_prompt=None if frozen else user,
+        )
+    except ValueError as error:
+        if "allowlist" in str(error):
+            raise CheckpointRejected("model_mismatch") from error
+        raise
+    if result.get("model") != MODEL:
+        raise CheckpointRejected("model_mismatch")
+    return result
+
+
 def predict_spec(spec: dict, pages: list[bytes]) -> tuple[str | None, int, str, int]:
     started = time.perf_counter()
     system, user_template = prompt_for(spec)
@@ -117,11 +137,7 @@ def predict_spec(spec: dict, pages: list[bytes]) -> tuple[str | None, int, str, 
                 return None, elapsed, "transform_too_large", 1
             label = page_number if len(regions) == 1 else region_number
             user = user_template.format(page_number=label)
-            result = glm_ocr_infer(
-                transformed, page_number=label, num_ctx=spec.get("num_ctx"),
-                system_prompt=None if frozen else system,
-                user_prompt=None if frozen else user,
-            )
+            result = _call_ocr(transformed, label, spec, system, user, frozen)
             if result.get("status") != "completed" or not isinstance(result.get("transcribed_text"), str):
                 elapsed = max(0, int((time.perf_counter() - started) * 1000))
                 return None, elapsed, result.get("error_code") or "glm_failed", 1
@@ -135,11 +151,7 @@ def predict_spec(spec: dict, pages: list[bytes]) -> tuple[str | None, int, str, 
             for region_number, transformed in enumerate(render_regions(spec, original), start=1):
                 label = page_number if region_number == 1 else region_number
                 user = user_template.format(page_number=label)
-                result = glm_ocr_infer(
-                    transformed, page_number=label, num_ctx=spec.get("num_ctx"),
-                    system_prompt=None if frozen else system,
-                    user_prompt=None if frozen else user,
-                )
+                result = _call_ocr(transformed, label, spec, system, user, frozen)
                 if result.get("status") != "completed" or not isinstance(result.get("transcribed_text"), str):
                     elapsed = max(0, int((time.perf_counter() - started) * 1000))
                     return None, elapsed, result.get("error_code") or "glm_failed", passes
@@ -192,11 +204,74 @@ def _existing_cases(out: Path, identifiers: list[str]) -> dict[str, dict]:
     return existing
 
 
+def build_identity(
+    spec: dict,
+    stage: str,
+    dataset: str,
+    model_digest: str,
+    identifiers: list[str],
+    manifest_bytes: bytes | None = None,
+) -> dict:
+    """Inference, scoring, and full run fingerprints for one exact cohort."""
+    manifest_bytes = MANIFEST.read_bytes() if manifest_bytes is None else manifest_bytes
+    manifest = json.loads(manifest_bytes)
+    screen = screening_selection(manifest)
+    system, user = prompt_for(spec)
+    parts = {
+        "identity_version": IDENTITY_VERSION,
+        "manifest_sha256": sha(manifest_bytes),
+        "dataset": dataset,
+        "stage": stage,
+        "selection_policy": screen["rule"],
+        "case_ids_sha256": sha("\n".join(identifiers).encode()),
+        "candidate": spec["name"],
+        "parent": spec.get("parent"),
+        "model": MODEL,
+        "model_digest": model_digest,
+        "num_ctx": spec.get("num_ctx"),
+        "prompt_sha256": sha((system + "\n" + user).encode()),
+        "spec_sha256": sha(json.dumps(spec, sort_keys=True).encode()),
+        "temperature": DECODING["temperature"],
+        "num_predict": DECODING["num_predict"],
+        "timeout_s": DECODING["timeout_s"],
+        "keep_alive": DECODING["keep_alive"],
+        **implementation_hashes(),
+    }
+    parts["inference_fingerprint"] = inference_fingerprint(parts)
+    parts["scoring_fingerprint"] = scoring_fingerprint(parts)
+    parts["experiment_fingerprint"] = fingerprint(parts)
+    parts["screen_rule"] = screen["rule"]
+    return parts
+
+
+def _summary_payload(spec: dict, stage: str, dataset: str, identity: dict, cases: list[dict]) -> dict:
+    return {
+        "candidate": spec["name"], "stage": stage, "dataset": dataset, "model": MODEL,
+        "model_digest": identity["model_digest"], "prompt_sha256": identity["prompt_sha256"],
+        "spec_sha256": identity["spec_sha256"],
+        "experiment_fingerprint": identity["experiment_fingerprint"],
+        "inference_fingerprint": identity["inference_fingerprint"],
+        "scoring_fingerprint": identity["scoring_fingerprint"],
+        "inference_sha256": identity["inference_sha256"],
+        "transform_sha256": identity["transform_sha256"],
+        "scoring_sha256": identity["scoring_sha256"],
+        "identity_sha256": identity["identity_sha256"],
+        "identity_version": IDENTITY_VERSION,
+        "manifest_sha256": identity["manifest_sha256"],
+        "case_ids_sha256": identity["case_ids_sha256"],
+        "num_ctx": spec.get("num_ctx"),
+        "temperature": identity["temperature"],
+        "num_predict": identity["num_predict"],
+        "parent": spec.get("parent"), "family": spec.get("family"),
+        "hypothesis": spec.get("hypothesis"), "screen_rule": identity["screen_rule"],
+        **micro_summary(cases),
+    }
+
+
 def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
     candidate = spec["name"]
     manifest_bytes = MANIFEST.read_bytes()
     manifest = json.loads(manifest_bytes)
-    screen = screening_selection(manifest)
     identifiers = work_items(manifest, stage, dataset)
     if limit is not None:
         identifiers = identifiers[:limit]
@@ -205,9 +280,11 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
     summary_path = out / "summary.json"
     existing = _existing_cases(out, identifiers)
     if any(case.get("identity_version") != IDENTITY_VERSION for case in existing.values()):
-        raise LegacyCheckpoint(f"legacy_unverified {candidate} {stage} {dataset}")
+        raise LegacyCheckpoint("legacy_unverified")
     digest_before = get_installed_model_digest(MODEL)
-    adapter = Path(glm_ocr_infer.__code__.co_filename).read_text()
+    if not isinstance(digest_before, str) or not digest_before:
+        raise CheckpointRejected("model_digest_mismatch")
+    adapter = (ROOT / "backend" / "services" / "multimodal_service.py").read_text()
     fragments = [
         "You are an accurate visual OCR document transcription model (GLM-OCR). ",
         "Transcribe all text from the image accurately into JSON format with keys: ",
@@ -219,43 +296,18 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
     ]
     if any(fragment not in adapter for fragment in fragments):
         raise ValueError("PR10_PROMPT_DRIFT")
-    system, user = prompt_for(spec)
-    prompt_sha = sha((system + "\n" + user).encode())
-    spec_sha = sha(json.dumps(spec, sort_keys=True).encode())
-    experiment_fingerprint = fingerprint({
-        "identity_version": IDENTITY_VERSION,
-        "manifest_sha256": sha(manifest_bytes),
-        "dataset": dataset,
-        "stage": stage,
-        "selection_policy": screen["rule"],
-        "case_ids_sha256": sha("\n".join(identifiers).encode()),
-        "candidate": candidate,
-        "parent": spec.get("parent"),
-        "model": MODEL,
-        "model_digest": digest_before,
-        "num_ctx": spec.get("num_ctx"),
-        "prompt_sha256": prompt_sha,
-        "spec_sha256": spec_sha,
-    })
-    verdict = assess_reuse(existing, identifiers, experiment_fingerprint)
-    if verdict == "legacy_unverified":
-        raise LegacyCheckpoint(f"legacy_unverified {candidate} {stage} {dataset}")
-    if verdict in {"fingerprint_mismatch", "invalid", "extra", "duplicate_expected"}:
-        raise CheckpointRejected(f"{verdict} {candidate} {stage} {dataset}")
-    if verdict == "reusable":
-        cases = [existing[ident] for ident in identifiers]
-        recomputed = micro_summary(cases)
-        summary = {
-            "candidate": candidate, "stage": stage, "dataset": dataset, "model": MODEL,
-            "model_digest": digest_before, "prompt_sha256": prompt_sha,
-            "spec_sha256": spec_sha, "experiment_fingerprint": experiment_fingerprint,
-            "identity_version": IDENTITY_VERSION, "num_ctx": spec.get("num_ctx"),
-            "parent": spec.get("parent"), "family": spec.get("family"),
-            "hypothesis": spec.get("hypothesis"), "screen_rule": screen["rule"],
-            **recomputed,
-        }
-        _write(summary_path, summary)
-        return summary
+    identity = build_identity(spec, stage, dataset, digest_before, identifiers, manifest_bytes)
+    if existing:
+        classified = classify_saved_run(out, identity, identifiers)
+        code = classified["classification"]
+        if code == "legacy_unverified":
+            raise LegacyCheckpoint("legacy_unverified")
+        if code in {"verified", "summary_missing"}:
+            cases = [existing[ident] for ident in identifiers]
+            _write(summary_path, _summary_payload(spec, stage, dataset, identity, cases))
+            return json.loads(summary_path.read_text())
+        if code != "incomplete":
+            raise CheckpointRejected(code)
     selection = json.loads(AMR_INTAKE.read_text()) if dataset == "amr" else None
     labels = _rx_labels() if dataset == "rx" else None
     expected = None
@@ -274,12 +326,19 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
         payload = {
             "id": ident, "dataset": dataset, "candidate": candidate, "stage": stage,
             "status": status, "model": MODEL, "model_digest": digest_before,
-            "prompt_sha256": prompt_sha, "spec_sha256": spec_sha,
+            "prompt_sha256": identity["prompt_sha256"], "spec_sha256": identity["spec_sha256"],
             "reference_sha256": reference_sha, "latency_ms": latency,
             "passes": passes, "prediction": prediction,
             "completed_utc": datetime.now(timezone.utc).isoformat(),
             "identity_version": IDENTITY_VERSION,
-            "experiment_fingerprint": experiment_fingerprint,
+            "experiment_fingerprint": identity["experiment_fingerprint"],
+            "inference_fingerprint": identity["inference_fingerprint"],
+            "scoring_fingerprint": identity["scoring_fingerprint"],
+            "inference_sha256": identity["inference_sha256"],
+            "transform_sha256": identity["transform_sha256"],
+            "scoring_sha256": identity["scoring_sha256"],
+            "identity_sha256": identity["identity_sha256"],
+            "num_ctx": spec.get("num_ctx"),
         }
         if status == "scored" and isinstance(prediction, str) and prediction.strip():
             aligned = align_critical(reference, prediction)
@@ -298,19 +357,10 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
         })
     digest_after = get_installed_model_digest(MODEL)
     if digest_after != digest_before:
-        raise ValueError("PR10_MODEL_DIGEST_CHANGED")
+        raise CheckpointRejected("model_digest_mismatch")
     cases = [json.loads((out / f"{ident}.json").read_text()) for ident in identifiers]
-    recomputed = micro_summary(cases)
-    summary = {
-        "candidate": candidate, "stage": stage, "dataset": dataset, "model": MODEL,
-        "model_digest": digest_before, "prompt_sha256": prompt_sha,
-        "spec_sha256": spec_sha, "experiment_fingerprint": experiment_fingerprint,
-        "identity_version": IDENTITY_VERSION, "num_ctx": spec.get("num_ctx"),
-        "parent": spec.get("parent"), "family": spec.get("family"),
-        "hypothesis": spec.get("hypothesis"), "screen_rule": screen["rule"],
-        **recomputed,
-    }
-    if micro_summary(cases) != recomputed:
+    summary = _summary_payload(spec, stage, dataset, identity, cases)
+    if micro_summary(cases) != {key: summary[key] for key in micro_summary(cases)}:
         raise ValueError("PR10_SUMMARY_MISMATCH")
     _write(summary_path, summary)
     ledger = PRIVATE / "experiments.jsonl"

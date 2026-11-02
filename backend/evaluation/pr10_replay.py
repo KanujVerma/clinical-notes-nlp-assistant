@@ -5,6 +5,9 @@ import json
 from difflib import SequenceMatcher
 from pathlib import Path
 
+from evaluation.pr10_identity import (
+    IDENTITY_VERSION, CheckpointRejected, LegacyCheckpoint, mismatch_code,
+)
 from evaluation.public_amr_benchmark import CRITICAL, score, sha
 
 
@@ -19,8 +22,15 @@ def decide_screen(incumbent: dict, candidate: dict) -> dict:
     gain is a reliability candidate, not an accuracy win. Equal quality
     rejects the candidate and keeps the incumbent.
     """
-    if incumbent.get("rx_cer") is None or candidate.get("rx_cer") is None:
-        return {"status": "rejected", "reason": "Rx CER is undefined"}
+    def paired_rx(view: dict) -> int:
+        if "rx_paired_n" in view:
+            return view["rx_paired_n"]
+        return 0 if view.get("rx_cer") is None else 1
+
+    if paired_rx(incumbent) == 0 or paired_rx(candidate) == 0 or (
+        incumbent.get("rx_cer") is None or candidate.get("rx_cer") is None
+    ):
+        return {"status": "inconclusive", "reason": "no shared scored Rx cases"}
     if incumbent.get("paired_cer") is None or candidate.get("paired_cer") is None:
         return {"status": "inconclusive", "reason": "no shared scored AMR cases"}
     reasons = []
@@ -44,11 +54,16 @@ def decide_screen(incumbent: dict, candidate: dict) -> dict:
         reasons.append("false positives rose")
     if candidate["rx_cer"] > incumbent["rx_cer"] + 0.01:
         reasons.append("Rx CER worsened")
+    inc_rx_occ = incumbent.get("rx_occurrence_fp")
+    cand_rx_occ = candidate.get("rx_occurrence_fp")
+    if inc_rx_occ is not None and cand_rx_occ is not None and cand_rx_occ > inc_rx_occ:
+        reasons.append("Rx occurrence false positives rose")
     if candidate["paired_p95"] > max(incumbent["paired_p95"] * 2, incumbent["paired_p95"] + 15000):
         reasons.append("paired latency more than doubled")
     if reasons:
         return {"status": "rejected", "reason": "; ".join(reasons)}
-    if candidate["paired_cer"] + 1e-12 < incumbent["paired_cer"] or (
+    rx_improved = candidate["rx_cer"] + 1e-12 < incumbent["rx_cer"]
+    if candidate["paired_cer"] + 1e-12 < incumbent["paired_cer"] or rx_improved or (
         candidate["fp"] < incumbent["fp"] and candidate["paired_cer"] <= incumbent["paired_cer"] + 1e-12
     ):
         return {
@@ -187,3 +202,214 @@ def load_run(path: Path) -> list[dict]:
             raise ValueError("PR10_DUPLICATE_CASE")
         seen.add(case["id"])
     return cases
+
+
+def _normalize_whitespace(text: str) -> str:
+    return "\n".join(" ".join(line.split()) for line in (text or "").splitlines())
+
+
+def has_recognition_change(incumbent: list[dict], candidate: list[dict]) -> bool:
+    """True when a shared success changes a token, not only spaces or line breaks."""
+    inc = {case["id"]: case for case in incumbent}
+    for case in candidate:
+        other = inc.get(case.get("id"))
+        if other is None or case.get("status") != "scored" or other.get("status") != "scored":
+            continue
+        if _normalize_whitespace(case.get("prediction") or "") != _normalize_whitespace(other.get("prediction") or ""):
+            return True
+    return False
+
+
+def predictions_differ_only_by_whitespace(incumbent: list[dict], candidate: list[dict]) -> bool:
+    """True when shared successes differ only by space or line-break collapsing."""
+    inc = {case["id"]: case for case in incumbent}
+    cand = {case["id"]: case for case in candidate}
+    shared = [
+        case_id for case_id in inc
+        if case_id in cand
+        and inc[case_id].get("status") == "scored"
+        and cand[case_id].get("status") == "scored"
+    ]
+    if not shared:
+        return False
+    changed = False
+    for case_id in shared:
+        left = inc[case_id].get("prediction") or ""
+        right = cand[case_id].get("prediction") or ""
+        if left != right:
+            changed = True
+        if _normalize_whitespace(left) != _normalize_whitespace(right):
+            return False
+    return changed
+
+
+def paired_population(incumbent: list[dict], candidate: list[dict]) -> dict:
+    """Paired and all-scored micro scores. Does not treat a different success set as paired."""
+    inc_ids = [case.get("id") for case in incumbent]
+    cand_ids = [case.get("id") for case in candidate]
+    if any(case_id in (None, "") for case_id in inc_ids + cand_ids):
+        return {"status": "duplicate_case"}
+    if len(inc_ids) != len(set(inc_ids)) or len(cand_ids) != len(set(cand_ids)):
+        return {"status": "duplicate_case"}
+    if set(inc_ids) != set(cand_ids):
+        return {"status": "attempted_cohorts_differ"}
+    shared = {
+        case["id"] for case in incumbent if case.get("status") == "scored"
+    } & {
+        case["id"] for case in candidate if case.get("status") == "scored"
+    }
+
+    def pack(cases: list[dict], selected: set) -> dict:
+        chosen = [case for case in cases if case.get("id") in selected and case.get("status") == "scored"]
+        summary = micro_summary(chosen if selected is not None else cases)
+        return summary
+
+    inc_paired = pack(incumbent, shared)
+    cand_paired = pack(candidate, shared)
+    inc_all = micro_summary(incumbent)
+    cand_all = micro_summary(candidate)
+    return {
+        "status": "ok",
+        "shared_ids": sorted(shared),
+        "incumbent_paired_cer": inc_paired["cer_micro"],
+        "candidate_paired_cer": cand_paired["cer_micro"],
+        "incumbent_paired_wer": inc_paired["wer_micro"],
+        "candidate_paired_wer": cand_paired["wer_micro"],
+        "incumbent_all_scored_cer": inc_all["cer_micro"],
+        "candidate_all_scored_cer": cand_all["cer_micro"],
+        "incumbent_scored": inc_all["scored"],
+        "candidate_scored": cand_all["scored"],
+        "incumbent_failed": inc_all["failed"],
+        "candidate_failed": cand_all["failed"],
+        "attempted": inc_all["attempted"],
+        "incumbent_occurrence_fp": inc_paired["occurrence_false_positives"],
+        "candidate_occurrence_fp": cand_paired["occurrence_false_positives"],
+        "incumbent_critical_fp": inc_paired["critical_false_positives"],
+        "candidate_critical_fp": cand_paired["critical_false_positives"],
+        "paired_reference_chars": inc_paired["reference_chars"],
+    }
+
+
+SUMMARY_METRIC_KEYS = (
+    "attempted", "scored", "failed", "cer_micro", "wer_micro",
+    "critical_recall", "critical_false_positives",
+)
+
+
+def _read_cases(folder: Path) -> tuple[dict[str, dict], dict | None]:
+    cases: dict[str, dict] = {}
+    summary = None
+    if not folder.exists():
+        return cases, None
+    for path in sorted(folder.glob("*.json")):
+        payload = json.loads(path.read_text())
+        if path.name == "summary.json":
+            summary = payload
+            continue
+        if path.stem in cases or payload.get("id") in cases:
+            raise CheckpointRejected("duplicate_case")
+        cases[path.stem] = payload
+    return cases, summary
+
+
+def classify_saved_run(
+    folder: Path,
+    expected: dict,
+    identifiers: list[str],
+    sources: dict[str, bytes] | None = None,
+) -> dict:
+    """Read one saved run and classify it. Never writes."""
+    if len(identifiers) != len(set(identifiers)):
+        return {"classification": "duplicate_case", "cases": []}
+    cases_by_stem, summary = _read_cases(folder)
+    if any(case.get("id") != stem for stem, case in cases_by_stem.items()):
+        return {"classification": "duplicate_case", "cases": []}
+    if any(case.get("identity_version") != IDENTITY_VERSION for case in cases_by_stem.values()):
+        return {"classification": "legacy_unverified", "cases": list(cases_by_stem.values())}
+    extra = set(cases_by_stem) - set(identifiers)
+    if extra:
+        return {"classification": "extra_case", "cases": list(cases_by_stem.values())}
+    missing = [item for item in identifiers if item not in cases_by_stem]
+    present = [cases_by_stem[item] for item in identifiers if item in cases_by_stem]
+    for case in present:
+        code = mismatch_code(case, expected)
+        if code:
+            return {"classification": code, "cases": present}
+        if sources and case["id"] in sources:
+            if sha(sources[case["id"]]) != case.get("reference_sha256"):
+                return {"classification": "reference_hash_mismatch", "cases": present}
+        elif case.get("status") == "scored" and not _sha256_hex(case.get("reference_sha256")):
+            return {"classification": "reference_hash_missing", "cases": present}
+    if missing:
+        return {"classification": "incomplete", "cases": present}
+    ordered = [cases_by_stem[item] for item in identifiers]
+    recomputed = micro_summary(ordered)
+    if summary is None:
+        return {"classification": "summary_missing", "cases": ordered, "recomputed": recomputed}
+    if any(summary.get(key) != recomputed.get(key) for key in SUMMARY_METRIC_KEYS):
+        return {"classification": "summary_mismatch", "cases": ordered, "recomputed": recomputed}
+    if summary.get("experiment_fingerprint") != expected["experiment_fingerprint"]:
+        return {"classification": "fingerprint_mismatch", "cases": ordered, "recomputed": recomputed}
+    if summary.get("identity_version") != IDENTITY_VERSION:
+        return {"classification": "legacy_unverified", "cases": ordered}
+    return {"classification": "verified", "cases": ordered, "recomputed": recomputed, "summary": summary}
+
+
+def load_verified_run(
+    folder: Path,
+    expected: dict,
+    identifiers: list[str],
+    sources: dict[str, bytes] | None = None,
+) -> list[dict]:
+    """Return cases only when the saved run matches the expected identity."""
+    before = _snapshot(folder)
+    result = classify_saved_run(folder, expected, identifiers, sources)
+    if _snapshot(folder) != before:
+        raise CheckpointRejected("artifact_mutated")
+    code = result["classification"]
+    if code == "legacy_unverified":
+        raise LegacyCheckpoint("legacy_unverified")
+    if code != "verified":
+        raise CheckpointRejected(code)
+    return result["cases"]
+
+
+def _sha256_hex(value) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdef" for char in value)
+
+
+def _snapshot(folder: Path) -> list[tuple[str, bytes]]:
+    if not folder.exists():
+        return []
+    return [(path.name, path.read_bytes()) for path in sorted(folder.glob("*.json"))]
+
+
+def audit_saved_runs(root: Path) -> dict:
+    """Count saved runs by identity class. Does not read prediction text aloud or write."""
+    legacy = 0
+    verified = 0
+    other = 0
+    runs = 0
+    if not root.exists():
+        return {"runs": 0, "legacy_unverified": 0, "verified": 0, "other": 0}
+    for summary_path in sorted(root.glob("*/*/*/summary.json")):
+        runs += 1
+        folder = summary_path.parent
+        versions = set()
+        for path in folder.glob("*.json"):
+            if path.name == "summary.json":
+                continue
+            payload = json.loads(path.read_text())
+            versions.add(payload.get("identity_version"))
+        if versions <= {None} or versions == set():
+            legacy += 1
+        elif versions == {IDENTITY_VERSION}:
+            verified += 1
+        else:
+            other += 1
+    return {
+        "runs": runs,
+        "legacy_unverified": legacy,
+        "verified": verified,
+        "other": other,
+    }

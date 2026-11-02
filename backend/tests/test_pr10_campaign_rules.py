@@ -6,12 +6,18 @@ import json
 
 from PIL import Image
 
-from evaluation.pr10_campaign import _metrics
-from evaluation.pr10_autoresearch import completed_status
-from evaluation.pr10_campaign import acquire_lock
+from evaluation import pr10_autoresearch, pr10_campaign
+from evaluation.pr10_campaign import _compare, _metrics, acquire_lock, campaign
+from evaluation.pr10_autoresearch import MODEL, build_identity, completed_status, predict_spec, run_spec
 from evaluation.pr10_candidate import changed_fields, historical_specs, mutation_queue, render_regions
-from evaluation.pr10_identity import IDENTITY_VERSION, assess_reuse, fingerprint
-from evaluation.pr10_replay import align_critical, cohorts_match, decide_screen, load_run, rescore_case
+from evaluation.pr10_identity import (
+    BOUND_FILES, IDENTITY_VERSION, CheckpointRejected, LegacyCheckpoint, assess_reuse,
+    fingerprint, implementation_hashes, inference_fingerprint, scoring_fingerprint,
+)
+from evaluation.pr10_replay import (
+    align_critical, audit_saved_runs, classify_saved_run, cohorts_match, decide_screen,
+    load_run, load_verified_run, micro_summary, paired_population, rescore_case,
+)
 from evaluation.public_amr_benchmark import infer_image, score, sha
 
 TRACKED = (
@@ -67,8 +73,8 @@ def test_paired_error_or_coverage_loss_is_rejected():
 
 
 def test_undefined_rx_cer_cannot_win():
-    assert decide_screen(_view(), _view(rx_cer=None))["status"] == "rejected"
-    assert decide_screen(_view(rx_cer=None), _view())["reason"] == "Rx CER is undefined"
+    assert decide_screen(_view(), _view(rx_cer=None))["status"] == "inconclusive"
+    assert "no shared scored Rx" in decide_screen(_view(rx_cer=None), _view())["reason"]
     failed = {"id": "rx1", "status": "failed"}
     metrics = _metrics([_scored("amr1")], [failed], {"amr1"})
     assert metrics["rx_cer"] is None
@@ -202,8 +208,18 @@ def _identity(**overrides):
         "num_ctx": 8192,
         "prompt_sha256": "d" * 64,
         "spec_sha256": "e" * 64,
+        "temperature": 0,
+        "num_predict": 2048,
+        "timeout_s": 90,
+        "keep_alive": 0,
+        "inference_sha256": "1" * 64,
+        "transform_sha256": "2" * 64,
+        "scoring_sha256": "3" * 64,
+        "identity_sha256": "4" * 64,
     }
     parts.update(overrides)
+    parts["inference_fingerprint"] = inference_fingerprint(parts)
+    parts["scoring_fingerprint"] = scoring_fingerprint(parts)
     return parts
 
 
@@ -226,7 +242,7 @@ def test_legacy_checkpoints_are_not_reused_or_rewritten():
     empty = dict(partial["AMR_035"], prediction="")
     assert assess_reuse({"AMR_035": empty}, ["AMR_035"], current) == "invalid"
     assert assess_reuse(partial, ["AMR_035"], current) == "reusable"
-    assert assess_reuse({"AMR_099": partial["AMR_035"]}, ["AMR_035"], current) == "extra"
+    assert assess_reuse({"AMR_099": partial["AMR_035"]}, ["AMR_035"], current) == "extra_case"
 
 
 def test_second_campaign_lock_fails_without_starting_work(tmp_path):
@@ -249,6 +265,375 @@ def test_duplicate_case_ids_are_rejected(tmp_path):
         raise AssertionError("duplicate case was accepted")
     except ValueError as error:
         assert str(error) == "PR10_DUPLICATE_CASE"
+
+
+def _population_case(case_id, distance, chars, status="scored", prediction="5 mg"):
+    if status != "scored":
+        return {"id": case_id, "status": status, "latency_ms": 5, "prediction": ""}
+    return {
+        "id": case_id,
+        "status": "scored",
+        "latency_ms": 5,
+        "prediction": prediction,
+        "critical_false_positives": 0,
+        "metrics": {
+            "character_distance": distance,
+            "word_distance": 0,
+            "ref_chars": chars,
+            "ref_words": 1,
+            "critical_tokens": [],
+        },
+    }
+
+
+def _promotion(inc_rx, cand_rx):
+    amr = [_population_case("A", 1, 4, prediction="dose")]
+    stats = paired_population(inc_rx, cand_rx)
+    assert stats["status"] == "ok"
+    shared = set(stats["shared_ids"])
+    decision = decide_screen(
+        _metrics(amr, inc_rx, {"A"}, shared),
+        _metrics(amr, cand_rx, {"A"}, shared),
+    )
+    decision.update({key: value for key, value in stats.items() if key != "status"})
+    return decision
+
+
+def test_component_hashes_bind_adapter_transform_and_scorer():
+    base = implementation_hashes()
+    again = implementation_hashes()
+    assert base == again
+    assert not any(path.endswith(".md") for path in BOUND_FILES)
+    adapter = (
+        b'"temperature": 0\n"num_predict": 2048\n"keep_alive": 0\n'
+        b"timeout: float = 90.0\n# adapter\n"
+    )
+    changed_adapter = implementation_hashes({
+        "backend/services/multimodal_service.py": adapter + b"changed\n",
+    })
+    assert changed_adapter["inference_sha256"] != base["inference_sha256"]
+    assert changed_adapter["scoring_sha256"] == base["scoring_sha256"]
+    changed_transform = implementation_hashes({
+        "backend/evaluation/pr10_candidate.py": b"transform-v2",
+    })
+    assert changed_transform["transform_sha256"] != base["transform_sha256"]
+    assert changed_transform["scoring_sha256"] == base["scoring_sha256"]
+    changed_scorer = implementation_hashes({
+        "backend/evaluation/pr10_replay.py": b"scorer-v2",
+    })
+    assert changed_scorer["scoring_sha256"] != base["scoring_sha256"]
+    assert changed_scorer["inference_sha256"] == base["inference_sha256"]
+    prompt_changed = _identity(prompt_sha256="f" * 64)
+    assert inference_fingerprint(prompt_changed) != inference_fingerprint(_identity())
+    assert scoring_fingerprint(prompt_changed) == scoring_fingerprint(_identity())
+    digest_changed = fingerprint(_identity(model_digest="9" * 64))
+    assert assess_reuse(
+        {"AMR_035": {
+            "identity_version": IDENTITY_VERSION,
+            "experiment_fingerprint": digest_changed,
+            "status": "scored",
+            "prediction": "5 mg",
+        }},
+        ["AMR_035"],
+        fingerprint(_identity()),
+    ) == "fingerprint_mismatch"
+    assert fingerprint(_identity(num_ctx=8192)) != fingerprint(_identity(num_ctx=16384))
+    assert fingerprint(_identity()) == fingerprint(_identity())
+
+
+def test_saved_run_validation_rejects_incomplete_or_forged_identity(tmp_path):
+    spec = historical_specs()["jpeg_ctx8192"]
+    identifiers = ["A", "B"]
+    identity = build_identity(spec, "screen", "amr", "c" * 64, identifiers)
+    cases = [
+        _stamp(_population_case(case_id, 1, 4), identity)
+        for case_id in identifiers
+    ]
+    folder = tmp_path / "run"
+    _write_verified(folder, identity, cases)
+    assert [case["id"] for case in load_verified_run(folder, identity, identifiers)] == identifiers
+    before = (folder / "A.json").read_bytes()
+    legacy = tmp_path / "legacy"
+    legacy.mkdir()
+    (legacy / "A.json").write_text(json.dumps({"id": "A", "status": "scored", "prediction": "5 mg"}))
+    (legacy / "summary.json").write_text(json.dumps(micro_summary([
+        _population_case("A", 1, 4),
+    ])))
+    legacy_before = (legacy / "A.json").read_bytes()
+    try:
+        load_verified_run(legacy, identity, ["A"])
+        raise AssertionError("legacy checkpoint was accepted")
+    except LegacyCheckpoint as error:
+        assert str(error) == "legacy_unverified"
+    assert (legacy / "A.json").read_bytes() == legacy_before
+    assert b"identity_version" not in (legacy / "A.json").read_bytes()
+    assert (folder / "A.json").read_bytes() == before
+    assert classify_saved_run(folder, identity, ["A"])["classification"] == "extra_case"
+    assert classify_saved_run(folder, identity, ["A", "B", "A"])["classification"] == "duplicate_case"
+    missing = tmp_path / "missing"
+    _write_verified(missing, identity, cases[:1])
+    assert classify_saved_run(missing, identity, identifiers)["classification"] == "incomplete"
+    forged = tmp_path / "forged"
+    _write_verified(forged, identity, cases)
+    summary = json.loads((forged / "summary.json").read_text())
+    summary["experiment_fingerprint"] = "0" * 64
+    (forged / "summary.json").write_text(json.dumps(summary))
+    assert classify_saved_run(forged, identity, identifiers)["classification"] == "fingerprint_mismatch"
+    digest = tmp_path / "digest"
+    stamped = [_stamp(_population_case(case_id, 1, 4), identity) for case_id in identifiers]
+    for case in stamped:
+        case["model_digest"] = "d" * 64
+    _write_verified(digest, identity, stamped)
+    assert classify_saved_run(digest, identity, identifiers)["classification"] == "model_digest_mismatch"
+    prompt = tmp_path / "prompt"
+    stamped = [_stamp(_population_case(case_id, 1, 4), identity) for case_id in identifiers]
+    for case in stamped:
+        case["prompt_sha256"] = "e" * 64
+    _write_verified(prompt, identity, stamped)
+    assert classify_saved_run(prompt, identity, identifiers)["classification"] == "prompt_mismatch"
+    code = tmp_path / "code"
+    stamped = [_stamp(_population_case(case_id, 1, 4), identity) for case_id in identifiers]
+    for case in stamped:
+        case["inference_sha256"] = "f" * 64
+        case["inference_fingerprint"] = "f" * 64
+    _write_verified(code, identity, stamped)
+    assert classify_saved_run(code, identity, identifiers)["classification"] == "implementation_mismatch"
+
+
+def test_inference_passes_the_frozen_model_on_every_call(monkeypatch):
+    monkeypatch.setenv("OLLAMA_OCR_MODEL", "other-ocr:latest")
+    seen = []
+
+    def fake(image_bytes, page_number=1, model=None, num_ctx=None, system_prompt=None, user_prompt=None):
+        seen.append(model)
+        return {"status": "completed", "transcribed_text": "5 mg", "model": model}
+
+    monkeypatch.setattr(pr10_autoresearch, "glm_ocr_infer", fake)
+    spec = dict(historical_specs()["jpeg_ctx8192"])
+    spec["second_pass"] = True
+    text, _latency, status, passes = predict_spec(spec, [_png()])
+    assert text.strip()
+    assert status == "scored"
+    assert passes == 2
+    assert seen == [MODEL, MODEL]
+
+
+def test_wrong_model_result_blocks_the_run(monkeypatch):
+    def fake(image_bytes, page_number=1, model=None, num_ctx=None, system_prompt=None, user_prompt=None):
+        return {"status": "completed", "transcribed_text": "5 mg", "model": "other-ocr:latest"}
+
+    monkeypatch.setattr(pr10_autoresearch, "glm_ocr_infer", fake)
+    try:
+        predict_spec(historical_specs()["jpeg_ctx8192"], [_png()])
+        raise AssertionError("foreign model was accepted")
+    except CheckpointRejected as error:
+        assert str(error) == "model_mismatch"
+
+
+def test_digest_change_blocks_before_a_summary(monkeypatch, tmp_path):
+    monkeypatch.setattr(pr10_autoresearch, "PRIVATE", tmp_path)
+    monkeypatch.setattr(pr10_autoresearch, "work_items", lambda manifest, stage, dataset: ["A"])
+    intake = tmp_path / "selection.json"
+    intake.write_text("{}")
+    monkeypatch.setattr(pr10_autoresearch, "AMR_INTAKE", intake)
+    monkeypatch.setattr(
+        pr10_autoresearch, "_amr_case", lambda selection, ident: ([_png()], "5 mg\n", "ab" * 32),
+    )
+    digests = iter(["a" * 64, "b" * 64])
+    monkeypatch.setattr(
+        pr10_autoresearch, "get_installed_model_digest", lambda model: next(digests),
+    )
+    seen = []
+
+    def fake(image_bytes, page_number=1, model=None, num_ctx=None, system_prompt=None, user_prompt=None):
+        seen.append(model)
+        return {"status": "completed", "transcribed_text": "5 mg", "model": model}
+
+    monkeypatch.setattr(pr10_autoresearch, "glm_ocr_infer", fake)
+    try:
+        run_spec(historical_specs()["jpeg_ctx8192"], "screen", "amr", None)
+        raise AssertionError("changed digest was accepted")
+    except CheckpointRejected as error:
+        assert str(error) == "model_digest_mismatch"
+    assert seen == [MODEL]
+    assert not (tmp_path / "screen" / "jpeg_ctx8192" / "amr" / "summary.json").exists()
+
+
+def test_paired_rx_gate_ignores_recovered_crops():
+    incumbent = [
+        _population_case("R1", 1, 10, prediction="10 mg"),
+        _population_case("R2", 0, 100, status="failed"),
+    ]
+    candidate = [
+        _population_case("R1", 3, 10, prediction="30 mg"),
+        _population_case("R2", 1, 100, prediction="ok"),
+    ]
+    decision = _promotion(incumbent, candidate)
+    assert decision["candidate_all_scored_cer"] < decision["incumbent_all_scored_cer"]
+    assert decision["candidate_paired_cer"] > decision["incumbent_paired_cer"]
+    assert decision["status"] == "rejected"
+    assert "Rx CER worsened" in decision["reason"]
+    identical = [
+        _population_case("R1", 1, 10),
+        _population_case("R2", 1, 40),
+    ]
+    assert _promotion(identical, identical)["status"] == "rejected"
+    disjoint = [
+        _population_case("R1", 1, 10, status="failed"),
+        _population_case("R2", 0, 40, prediction="ok"),
+    ]
+    stats = paired_population(incumbent, disjoint)
+    assert stats["shared_ids"] == []
+    assert decide_screen(
+        _metrics([_population_case("A", 1, 4)], incumbent, {"A"}, set()),
+        _metrics([_population_case("A", 1, 4)], disjoint, {"A"}, set()),
+    )["status"] == "inconclusive"
+    lost = [
+        _population_case("R1", 1, 10),
+        _population_case("R2", 0, 40, status="failed"),
+    ]
+    assert "Rx coverage fell" in _promotion(identical, lost)["reason"]
+    recovered = [
+        _population_case("R1", 1, 10, prediction="10 mg"),
+        _population_case("R2", 0, 40, prediction="same"),
+    ]
+    base = [
+        _population_case("R1", 1, 10, prediction="10 mg"),
+        _population_case("R2", 0, 40, status="failed"),
+    ]
+    assert _promotion(base, recovered)["status"] == "reliability_candidate"
+    better = [
+        _population_case("R1", 0, 10, prediction="better"),
+        _population_case("R2", 0, 40, prediction="better"),
+    ]
+    assert _promotion(identical, better)["status"] == "accuracy_candidate"
+    assert paired_population(identical, identical[:1])["status"] == "attempted_cohorts_differ"
+    assert paired_population(
+        [_population_case("R1", 1, 10), _population_case("R1", 1, 10)],
+        identical,
+    )["status"] == "duplicate_case"
+
+
+def test_compare_rejects_whitespace_only_cer_drop(monkeypatch, tmp_path):
+    monkeypatch.setattr(pr10_campaign, "PRIVATE", tmp_path)
+    monkeypatch.setattr(pr10_campaign, "_installed_digest", lambda: "c" * 64)
+    monkeypatch.setattr(
+        pr10_campaign, "work_items",
+        lambda manifest, stage, dataset: ["A"] if dataset == "amr" else ["R1"],
+    )
+    digest = "c" * 64
+    for spec, distance, text in (
+        (historical_specs()["jpeg_baseline"], 2, "5  mg"),
+        (historical_specs()["jpeg_ctx8192"], 1, "5 mg"),
+    ):
+        for dataset, cases in (
+            ("amr", [_population_case("A", distance, 10, prediction=text)]),
+            ("rx", [_population_case("R1", 1, 10, prediction="10 mg")]),
+        ):
+            identity = build_identity(spec, "screen", dataset, digest, [case["id"] for case in cases])
+            folder = tmp_path / "screen" / spec["name"] / dataset
+            _write_verified(folder, identity, [_stamp(case, identity) for case in cases])
+    decision = _compare("screen", "jpeg_baseline", "jpeg_ctx8192")
+    assert decision["status"] == "rejected"
+    assert decision["reason"] == "formatting change is not a recognition gain"
+
+
+def test_compare_refuses_legacy_evidence(monkeypatch, tmp_path):
+    monkeypatch.setattr(pr10_campaign, "PRIVATE", tmp_path)
+    monkeypatch.setattr(pr10_campaign, "_installed_digest", lambda: "c" * 64)
+    folder = tmp_path / "screen" / "jpeg_baseline" / "amr"
+    folder.mkdir(parents=True)
+    case = _population_case("AMR_035", 1, 4)
+    (folder / "AMR_035.json").write_text(json.dumps(case))
+    summary = micro_summary([case])
+    (folder / "summary.json").write_text(json.dumps(summary))
+    original = (folder / "AMR_035.json").read_bytes()
+    try:
+        _compare("screen", "jpeg_baseline", "jpeg_ctx8192")
+        raise AssertionError("legacy evidence was compared")
+    except LegacyCheckpoint as error:
+        assert str(error) == "legacy_unverified"
+    assert (folder / "AMR_035.json").read_bytes() == original
+
+
+def test_budget_stop_does_not_resume_or_rewrite(monkeypatch, tmp_path):
+    monkeypatch.setattr(pr10_campaign, "PRIVATE", tmp_path)
+    calls = []
+    monkeypatch.setattr(pr10_campaign, "run_spec", lambda *args, **kwargs: calls.append(args))
+    rows = [
+        {"candidate": f"candidate-{index}", "stage": "screen", "status": "discard", "family": "A"}
+        for index in range(30)
+    ]
+    (tmp_path / "decisions.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
+    state = {"status": "stopped", "reason": "experiment_budget", "experiments": 30}
+    (tmp_path / "run_state.json").write_text(json.dumps(state))
+    legacy = tmp_path / "screen" / "jpeg_ctx8192" / "amr"
+    legacy.mkdir(parents=True)
+    (legacy / "case.json").write_text(json.dumps({"id": "A", "prediction": "do not touch"}))
+    before = (legacy / "case.json").read_bytes()
+    state_before = (tmp_path / "run_state.json").read_bytes()
+    assert campaign() == 0
+    assert calls == []
+    assert (legacy / "case.json").read_bytes() == before
+    assert (tmp_path / "run_state.json").read_bytes() == state_before
+
+
+def test_whitespace_only_change_is_not_an_accuracy_win():
+    incumbent = [_population_case("R1", 2, 10, prediction="5  mg")]
+    candidate = [_population_case("R1", 1, 10, prediction="5 mg")]
+    decision = _promotion(incumbent, candidate)
+    assert decision["candidate_paired_cer"] < decision["incumbent_paired_cer"]
+    assert decision["status"] == "accuracy_candidate"
+    from evaluation.pr10_replay import has_recognition_change
+    assert not has_recognition_change(incumbent, candidate)
+
+
+def test_historical_audit_counts_legacy_without_writing(tmp_path):
+    run = tmp_path / "screen" / "old" / "amr"
+    run.mkdir(parents=True)
+    (run / "A.json").write_text(json.dumps({"id": "A", "status": "failed"}))
+    (run / "summary.json").write_text("{}")
+    before = (run / "A.json").read_bytes()
+    assert audit_saved_runs(tmp_path) == {
+        "runs": 1, "legacy_unverified": 1, "verified": 0, "other": 0,
+    }
+    assert (run / "A.json").read_bytes() == before
+
+
+def _png() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (32, 32), "white").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _stamp(case: dict, identity: dict) -> dict:
+    stamped = dict(case)
+    stamped.update({
+        "identity_version": IDENTITY_VERSION,
+        "model": identity["model"],
+        "model_digest": identity["model_digest"],
+        "prompt_sha256": identity["prompt_sha256"],
+        "candidate": identity["candidate"],
+        "experiment_fingerprint": identity["experiment_fingerprint"],
+        "inference_fingerprint": identity["inference_fingerprint"],
+        "scoring_fingerprint": identity["scoring_fingerprint"],
+        "inference_sha256": identity["inference_sha256"],
+        "transform_sha256": identity["transform_sha256"],
+        "scoring_sha256": identity["scoring_sha256"],
+        "identity_sha256": identity["identity_sha256"],
+        "reference_sha256": "ab" * 32,
+    })
+    return stamped
+
+
+def _write_verified(folder, identity: dict, cases: list[dict]) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    for case in cases:
+        (folder / f"{case['id']}.json").write_text(json.dumps(case))
+    summary = micro_summary(cases)
+    summary["experiment_fingerprint"] = identity["experiment_fingerprint"]
+    summary["identity_version"] = IDENTITY_VERSION
+    (folder / "summary.json").write_text(json.dumps(summary))
 
 
 def test_untouched_jpeg_matches_the_frozen_encoder():

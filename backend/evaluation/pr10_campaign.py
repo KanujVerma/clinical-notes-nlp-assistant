@@ -7,16 +7,16 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-from evaluation.pr10_autoresearch import PRIVATE, run_spec
-from evaluation.pr10_candidate import historical_specs, mutation_queue
+from evaluation.pr10_autoresearch import (
+    MANIFEST, MODEL, PRIVATE, build_identity, run_spec, work_items,
+)
+from evaluation.pr10_candidate import historical_specs, mutation_queue, resolve_spec
 from evaluation.pr10_identity import CheckpointRejected, LegacyCheckpoint
-from evaluation.pr10_replay import cohorts_match, decide_screen, micro_summary
+from evaluation.pr10_replay import (
+    cohorts_match, decide_screen, has_recognition_change, load_verified_run,
+    micro_summary, paired_population,
+)
 
-DECISIONS = PRIVATE / "decisions.jsonl"
-BEST = PRIVATE / "best.json"
-STATE = PRIVATE / "run_state.json"
-PENDING = PRIVATE / "pending_confirm.json"
-RECEIPT = PRIVATE / "batch_receipt.json"
 BUDGET_EXPERIMENTS = 30
 BUDGET_CONFIGS = 40
 BUDGET_MS = 6 * 60 * 60 * 1000
@@ -25,6 +25,26 @@ TRACKED = (
     "longest", "num_ctx", "prompt", "dedupe_lines", "collapse_spaces",
     "second_pass", "segment", "jpeg_quality",
 )
+
+
+def _decisions_path() -> Path:
+    return PRIVATE / "decisions.jsonl"
+
+
+def _best_path() -> Path:
+    return PRIVATE / "best.json"
+
+
+def _state_path() -> Path:
+    return PRIVATE / "run_state.json"
+
+
+def _pending_path() -> Path:
+    return PRIVATE / "pending_confirm.json"
+
+
+def _receipt_path() -> Path:
+    return PRIVATE / "batch_receipt.json"
 
 
 def _now() -> str:
@@ -75,23 +95,25 @@ def elapsed_ms() -> int:
     return total
 
 
+def _installed_digest() -> str:
+    from services.inference_pipeline import get_installed_model_digest
+    return get_installed_model_digest(MODEL)
+
+
+def _expected(stage: str, name: str, dataset: str, identifiers: list[str]) -> dict:
+    try:
+        spec = resolve_spec(name)
+    except KeyError as missing:
+        raise CheckpointRejected("unknown_spec") from missing
+    return build_identity(spec, stage, dataset, _installed_digest(), identifiers)
+
+
 def _cases(stage: str, name: str, dataset: str) -> list[dict]:
+    """Load one run only after its identity, cohort, and receipt match."""
+    manifest = json.loads(MANIFEST.read_bytes())
+    identifiers = work_items(manifest, stage, dataset)
     folder = PRIVATE / stage / name / dataset
-    summary_path = folder / "summary.json"
-    if not summary_path.exists():
-        raise ValueError(f"PR10_MISSING_SUMMARY {stage} {name} {dataset}")
-    cases = []
-    for path in sorted(folder.glob("*.json")):
-        if path.name == "summary.json":
-            continue
-        cases.append(json.loads(path.read_text()))
-    summary = json.loads(summary_path.read_text())
-    recomputed = micro_summary(cases)
-    compared = ("attempted", "scored", "failed", "cer_micro", "wer_micro",
-                "critical_recall", "critical_false_positives")
-    if any(summary.get(key) != recomputed.get(key) for key in compared):
-        raise ValueError(f"PR10_RECEIPT_MISMATCH {stage} {name} {dataset}")
-    return cases
+    return load_verified_run(folder, _expected(stage, name, dataset, identifiers), identifiers)
 
 
 def verify_finished_batch() -> dict:
@@ -129,20 +151,21 @@ def verify_finished_batch() -> dict:
         and all(receipt["log_done_markers"].values())
     )
     receipt["verified"] = ok
-    _write(RECEIPT, receipt)
     if not ok:
-        raise ValueError("PR10_BATCH_NOT_VERIFIED")
+        raise CheckpointRejected("batch_unverified")
+    if not _receipt_path().exists():
+        _write(_receipt_path(), receipt)
     return receipt
 
 
 def _seed_decisions() -> None:
-    if DECISIONS.exists():
+    if _decisions_path().exists():
         return
     for name, reason in (
         ("png_lossless", "Same 2/8 coverage as the default-context baseline and no meaningful CER change."),
         ("contrast_autocontrast", "Same 2/8 coverage and a higher CER than the default-context baseline."),
     ):
-        _append(DECISIONS, {
+        _append(_decisions_path(), {
             "utc": _now(), "candidate": name, "stage": "screen", "status": "discard",
             "family": "A", "reason": reason,
         })
@@ -150,21 +173,25 @@ def _seed_decisions() -> None:
 
 def _decisions() -> list[dict]:
     _seed_decisions()
-    return _read_jsonl(DECISIONS)
+    return _read_jsonl(_decisions_path())
 
 
 def _best_spec() -> dict:
-    if BEST.exists():
-        return json.loads(BEST.read_text())["spec"]
+    if _best_path().exists():
+        return json.loads(_best_path().read_text())["spec"]
     return historical_specs()["jpeg_baseline"]
 
 
 def _save_best(spec: dict, reason: str) -> None:
-    _write(BEST, {"candidate": spec["name"], "spec": spec, "reason": reason, "utc": _now()})
+    _write(_best_path(), {"candidate": spec["name"], "spec": spec, "reason": reason, "utc": _now()})
 
 
 def _ready(stage: str, name: str, dataset: str) -> bool:
-    return (PRIVATE / stage / name / dataset / "summary.json").exists()
+    """A summary file is not evidence. The saved cases must verify."""
+    if not (PRIVATE / stage / name / dataset / "summary.json").exists():
+        return False
+    _cases(stage, name, dataset)
+    return True
 
 
 def _view(stage: str, name: str) -> dict:
@@ -173,10 +200,23 @@ def _view(stage: str, name: str) -> dict:
     return amr, rx
 
 
-def _metrics(amr_cases: list[dict], rx_cases: list[dict], paired_ids: set[str]) -> dict:
+def _metrics(
+    amr_cases: list[dict],
+    rx_cases: list[dict],
+    paired_ids: set[str],
+    paired_rx_ids: set[str] | None = None,
+) -> dict:
     amr = micro_summary(amr_cases)
-    rx = micro_summary(rx_cases)
-    paired = micro_summary([case for case in amr_cases if case["id"] in paired_ids and case["status"] == "scored"])
+    if paired_rx_ids is None:
+        paired_rx_ids = {case["id"] for case in rx_cases if case.get("status") == "scored"}
+    rx_paired = micro_summary([
+        case for case in rx_cases
+        if case.get("id") in paired_rx_ids and case.get("status") == "scored"
+    ])
+    rx_all = micro_summary(rx_cases)
+    paired = micro_summary([
+        case for case in amr_cases if case["id"] in paired_ids and case["status"] == "scored"
+    ])
     return {
         "scored": amr["scored"],
         "fp": amr["critical_false_positives"],
@@ -184,8 +224,12 @@ def _metrics(amr_cases: list[dict], rx_cases: list[dict], paired_ids: set[str]) 
         "paired_hits": paired["critical_hit"],
         "paired_fp": paired["critical_false_positives"],
         "paired_p95": paired["p95_latency_ms"] or 0,
-        "rx_cer": rx["cer_micro"],
-        "rx_scored": rx["scored"],
+        "rx_cer": rx_paired["cer_micro"],
+        "rx_wer": rx_paired["wer_micro"],
+        "rx_cer_all_scored": rx_all["cer_micro"],
+        "rx_scored": rx_all["scored"],
+        "rx_paired_n": len(paired_rx_ids),
+        "rx_occurrence_fp": rx_paired["occurrence_false_positives"],
         "occurrence_fp": paired["occurrence_false_positives"],
     }
 
@@ -206,16 +250,45 @@ def _compare(stage: str, incumbent: str, candidate: str) -> dict:
             "stage": stage,
             "utc": _now(),
         }
+    rx = paired_population(inc_rx, cand_rx)
+    if rx["status"] != "ok":
+        return {
+            "status": "inconclusive",
+            "reason": rx["status"].replace("_", " "),
+            "candidate": candidate,
+            "incumbent": incumbent,
+            "stage": stage,
+            "utc": _now(),
+        }
     paired_ids = {
         case["id"] for case in inc_amr if case["status"] == "scored"
     } & {
         case["id"] for case in cand_amr if case["status"] == "scored"
     }
+    paired_rx_ids = set(rx["shared_ids"])
     decision = decide_screen(
-        _metrics(inc_amr, inc_rx, paired_ids),
-        _metrics(cand_amr, cand_rx, paired_ids),
+        _metrics(inc_amr, inc_rx, paired_ids, paired_rx_ids),
+        _metrics(cand_amr, cand_rx, paired_ids, paired_rx_ids),
     )
-    decision.update({"candidate": candidate, "incumbent": incumbent, "stage": stage, "utc": _now()})
+    token_change = has_recognition_change(inc_amr, cand_amr) or has_recognition_change(inc_rx, cand_rx)
+    if decision["status"] == "accuracy_candidate" and not token_change:
+        decision = {
+            "status": "rejected",
+            "reason": "formatting change is not a recognition gain",
+        }
+    decision.update({
+        "candidate": candidate,
+        "incumbent": incumbent,
+        "stage": stage,
+        "utc": _now(),
+        "rx_paired_cer_incumbent": rx["incumbent_paired_cer"],
+        "rx_paired_cer_candidate": rx["candidate_paired_cer"],
+        "rx_all_scored_cer_incumbent": rx["incumbent_all_scored_cer"],
+        "rx_all_scored_cer_candidate": rx["candidate_all_scored_cer"],
+        "rx_paired_n": len(paired_rx_ids),
+        "rx_paired_wer_incumbent": rx["incumbent_paired_wer"],
+        "rx_paired_wer_candidate": rx["candidate_paired_wer"],
+    })
     return decision
 
 
@@ -270,7 +343,7 @@ def _record(spec: dict, decision: dict) -> None:
     decision["family"] = spec.get("family")
     decision["hypothesis"] = spec.get("hypothesis")
     decision["spec_name"] = spec.get("name")
-    _append(DECISIONS, decision)
+    _append(_decisions_path(), decision)
     print(f"PR10_DECISION {decision['candidate']} {decision['stage']} {decision['status']} {decision['reason']}", flush=True)
 
 
@@ -282,39 +355,47 @@ def campaign() -> int:
             raise
         print("PR10_STOP already_running", flush=True)
         return 0
+    reason = _stopping(_decisions())
+    if reason:
+        _stop_without_clobber(reason, len(_decisions()))
+        return 0
     try:
         verify_finished_batch()
     except Exception:
         traceback.print_exc()
-        _write(STATE, {"status": "integrity", "utc": _now()})
+        _write(_state_path(), {"status": "integrity", "utc": _now()})
         print("PR10_STOP integrity", flush=True)
         return 0
     try:
         return _run()
     except (LegacyCheckpoint, CheckpointRejected) as blocked:
-        _write(STATE, {"status": "stopped", "reason": str(blocked), "utc": _now(),
+        _write(_state_path(), {"status": "stopped", "reason": str(blocked), "utc": _now(),
                        "elapsed_ms": elapsed_ms()})
         print(f"PR10_STOP {blocked}", flush=True)
         return 0
     except Exception:
         traceback.print_exc()
-        _write(STATE, {"status": "crashed", "utc": _now(), "elapsed_ms": elapsed_ms()})
+        _write(_state_path(), {"status": "crashed", "utc": _now(), "elapsed_ms": elapsed_ms()})
         print("PR10_CRASH restart", flush=True)
         return 1
 
 
 def _run() -> int:
     _seed_decisions()
+    decisions = _decisions()
+    reason = _stopping(decisions)
+    if reason:
+        _stop_without_clobber(reason, len(decisions))
+        return 0
+    verify_finished_batch()
     while True:
         decisions = _decisions()
         reason = _stopping(decisions)
         if reason:
-            _write(STATE, {"status": "stopped", "reason": reason, "utc": _now(),
-                           "elapsed_ms": elapsed_ms(), "experiments": len(decisions)})
-            print(f"PR10_STOP {reason}", flush=True)
+            _stop_without_clobber(reason, len(decisions))
             return 0
         best = _best_spec()
-        pending = json.loads(PENDING.read_text()) if PENDING.exists() else None
+        pending = json.loads(_pending_path().read_text()) if _pending_path().exists() else None
         if pending is None and not any(
             row["candidate"] == "jpeg_ctx8192" and row["stage"] == "screen" for row in decisions
         ):
@@ -322,7 +403,7 @@ def _run() -> int:
                 decision = _compare("screen", "jpeg_baseline", "jpeg_ctx8192")
                 _record(historical_specs()["jpeg_ctx8192"], decision)
                 if decision["status"] in {"keep", "accuracy_candidate"}:
-                    _write(PENDING, historical_specs()["jpeg_ctx8192"])
+                    _write(_pending_path(), historical_specs()["jpeg_ctx8192"])
                 continue
         if pending:
             missing = _missing_confirm(best["name"], pending["name"])
@@ -336,11 +417,11 @@ def _run() -> int:
             _record(pending, decision)
             if decision["status"] in {"keep", "accuracy_candidate"}:
                 _save_best(pending, decision["reason"])
-            PENDING.unlink(missing_ok=True)
+            _pending_path().unlink(missing_ok=True)
             continue
         child = _next_child(best, decisions)
         if child is None:
-            _write(STATE, {"status": "stopped", "reason": "queue_exhausted", "utc": _now(),
+            _write(_state_path(), {"status": "stopped", "reason": "queue_exhausted", "utc": _now(),
                            "elapsed_ms": elapsed_ms()})
             print("PR10_STOP queue_exhausted", flush=True)
             return 0
@@ -355,8 +436,17 @@ def _run() -> int:
         decision = _compare("screen", best["name"], child["name"])
         _record(child, decision)
         if decision["status"] in {"keep", "accuracy_candidate"}:
-            _write(PENDING, child)
+            _write(_pending_path(), child)
     return 0
+
+
+def _stop_without_clobber(reason: str, experiments: int) -> None:
+    """Record a new stop. Leave an already recorded stop and its artifacts alone."""
+    current = json.loads(_state_path().read_text()) if _state_path().exists() else None
+    if not current or current.get("status") != "stopped" or current.get("reason") != reason:
+        _write(_state_path(), {"status": "stopped", "reason": reason, "utc": _now(),
+                       "elapsed_ms": elapsed_ms(), "experiments": experiments})
+    print(f"PR10_STOP {reason}", flush=True)
 
 
 def _missing_confirm(incumbent: str, candidate: str) -> tuple[str, str] | None:
