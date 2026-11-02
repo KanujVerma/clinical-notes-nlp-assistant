@@ -399,7 +399,9 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
         raise ValueError("PR10_PROMPT_DRIFT")
     identity = build_identity(spec, stage, dataset, digest_before, identifiers, manifest_bytes)
     if existing:
-        classified = classify_saved_run(out, identity, identifiers)
+        classified = classify_saved_run(
+            out, identity, identifiers, reference_bytes_for(dataset, identifiers),
+        )
         code = classified["classification"]
         if code == "legacy_unverified":
             raise LegacyCheckpoint("legacy_unverified")

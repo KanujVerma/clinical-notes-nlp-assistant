@@ -190,7 +190,18 @@ def rescore_case(case: dict, reference_bytes: bytes, reference_sha256: str) -> d
     reference = reference_text(reference_bytes)
     metrics = score(reference, prediction)
     false_positives = critical_false_positives(reference, prediction)
-    if metrics != case.get("metrics") or false_positives != case.get("critical_false_positives"):
+    aligned = align_critical(reference, prediction)
+    occurrence = {
+        "occurrence_hits": aligned["occurrence_hits"],
+        "occurrence_total": aligned["occurrence_total"],
+        "occurrence_false_positives": aligned["occurrence_false_positives"],
+    }
+    stored = {key: case.get(key) for key in occurrence}
+    if (
+        metrics != case.get("metrics")
+        or false_positives != case.get("critical_false_positives")
+        or stored != occurrence
+    ):
         raise ValueError("PR10_REPLAY_METRICS_MISMATCH")
     verified = dict(case)
     verified["replay_verified"] = True
@@ -347,8 +358,19 @@ def classify_saved_run(
         if sources is not None:
             if case["id"] not in sources:
                 return {"classification": "reference_missing", "cases": present}
-            if sha(sources[case["id"]]) != case.get("reference_sha256"):
-                return {"classification": "reference_hash_mismatch", "cases": present}
+            try:
+                rescore_case(case, sources[case["id"]], case.get("reference_sha256") or "")
+            except ValueError as error:
+                code = str(error)
+                if code == "PR10_REFERENCE_HASH_MISMATCH":
+                    failure = "reference_hash_mismatch"
+                elif code == "PR10_REFERENCE_MISSING":
+                    failure = "reference_missing"
+                elif code == "PR10_EMPTY_PREDICTION":
+                    failure = "empty_prediction"
+                else:
+                    failure = "replay_mismatch"
+                return {"classification": failure, "cases": present}
         elif case.get("status") == "scored" and not _sha256_hex(case.get("reference_sha256")):
             return {"classification": "reference_hash_missing", "cases": present}
     if missing:

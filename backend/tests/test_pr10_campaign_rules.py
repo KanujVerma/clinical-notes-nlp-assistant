@@ -21,7 +21,7 @@ from evaluation.pr10_identity import (
 from evaluation.pr10_replay import (
     align_critical, audit_saved_runs, classify_saved_run, cohorts_match,
     critical_false_positives, decide_screen, load_run, load_verified_run,
-    micro_summary, paired_population, rescore_case,
+    micro_summary, paired_population, reference_text, rescore_case,
 )
 from evaluation.public_amr_benchmark import infer_image, score, sha
 
@@ -125,12 +125,16 @@ def test_noop_mutation_is_not_a_new_experiment():
 
 
 def _scored_case(reference: str, prediction: str, digest: str) -> dict:
+    aligned = align_critical(reference, prediction)
     return {
         "status": "scored",
         "prediction": prediction,
         "reference_sha256": digest,
         "metrics": score(reference, prediction),
-        "critical_false_positives": 0,
+        "critical_false_positives": critical_false_positives(reference, prediction),
+        "occurrence_hits": aligned["occurrence_hits"],
+        "occurrence_total": aligned["occurrence_total"],
+        "occurrence_false_positives": aligned["occurrence_false_positives"],
     }
 
 
@@ -169,6 +173,13 @@ def test_rescore_requires_the_original_reference_bytes():
     try:
         rescore_case(tweaked, body, digest)
         raise AssertionError("changed metric was accepted")
+    except ValueError as error:
+        assert str(error) == "PR10_REPLAY_METRICS_MISMATCH"
+    lied = dict(case)
+    lied["occurrence_hits"] = case["occurrence_hits"] + 1
+    try:
+        rescore_case(lied, body, digest)
+        raise AssertionError("changed occurrence count was accepted")
     except ValueError as error:
         assert str(error) == "PR10_REPLAY_METRICS_MISMATCH"
 
@@ -574,15 +585,15 @@ def test_paired_rx_gate_ignores_recovered_crops():
     )["status"] == "duplicate_case"
 
 
-def _patch_references(monkeypatch) -> None:
-    digest = sha(b"5 mg\n")
+def _patch_references(monkeypatch, reference: bytes = b"5 mg\n") -> None:
+    digest = sha(reference)
     monkeypatch.setattr(
         pr10_autoresearch, "reference_hashes_for",
         lambda dataset, identifiers: {item: digest for item in identifiers},
     )
     monkeypatch.setattr(
         pr10_campaign, "reference_bytes_for",
-        lambda dataset, identifiers: {item: b"5 mg\n" for item in identifiers},
+        lambda dataset, identifiers: {item: reference for item in identifiers},
     )
 
 
@@ -623,7 +634,8 @@ def test_line_wrap_only_change_is_not_a_recognition_gain(monkeypatch, tmp_path):
 
     monkeypatch.setattr(pr10_campaign, "PRIVATE", tmp_path)
     monkeypatch.setattr(pr10_campaign, "_installed_digest", lambda: "c" * 64)
-    _patch_references(monkeypatch)
+    reference = b"take one tablet daily\n"
+    _patch_references(monkeypatch, reference)
     monkeypatch.setattr(
         pr10_campaign, "work_items",
         lambda manifest, stage, dataset: ["A"] if dataset == "amr" else ["R1"],
@@ -639,7 +651,7 @@ def test_line_wrap_only_change_is_not_a_recognition_gain(monkeypatch, tmp_path):
         ):
             identity = build_identity(spec, "screen", dataset, digest, [case["id"] for case in cases])
             folder = tmp_path / "screen" / spec["name"] / dataset
-            _write_verified(folder, identity, [_stamp(case, identity) for case in cases])
+            _write_verified(folder, identity, [_stamp(case, identity, reference) for case in cases])
     decision = _compare("screen", "jpeg_baseline", "jpeg_ctx8192")
     assert decision["status"] == "rejected"
     assert decision["reason"] == "formatting change is not a recognition gain"
@@ -741,6 +753,33 @@ def test_changed_reference_bytes_are_not_reused(tmp_path):
         folder, identity, identifiers, {"A": b"50 mg\n"},
     )["classification"] == "reference_hash_mismatch"
     assert (folder / "A.json").read_bytes() == before
+
+
+def test_changed_prediction_is_not_verified_evidence(tmp_path):
+    reference = b"5mg"
+    spec = historical_specs()["jpeg_ctx8192"]
+    identity = build_identity(
+        spec, "screen", "amr", "c" * 64, ["A"],
+        reference_hashes={"A": sha(reference)},
+    )
+    stamped = _stamp(_population_case("A", 0, 3, prediction="5mg"), identity, reference)
+    folder = tmp_path / "run"
+    _write_verified(folder, identity, [stamped])
+    assert classify_saved_run(folder, identity, ["A"], {"A": reference})["classification"] == "verified"
+    forged = json.loads((folder / "A.json").read_text())
+    forged["prediction"] = "50mg"
+    (folder / "A.json").write_text(json.dumps(forged))
+    cached = (folder / "A.json").read_bytes()
+    assert classify_saved_run(folder, identity, ["A"], {"A": reference})["classification"] == "replay_mismatch"
+    assert (folder / "A.json").read_bytes() == cached
+    consistent = json.loads(cached)
+    consistent["metrics"] = score("5mg", "50mg")
+    consistent["critical_false_positives"] = critical_false_positives("5mg", "50mg")
+    consistent["occurrence_hits"] = 1
+    (folder / "A.json").write_text(json.dumps(consistent))
+    lied = (folder / "A.json").read_bytes()
+    assert classify_saved_run(folder, identity, ["A"], {"A": reference})["classification"] == "replay_mismatch"
+    assert (folder / "A.json").read_bytes() == lied
 
 
 def test_dropped_repeated_dose_is_not_an_accuracy_win():
@@ -893,7 +932,7 @@ def _png() -> bytes:
     return buffer.getvalue()
 
 
-def _stamp(case: dict, identity: dict) -> dict:
+def _stamp(case: dict, identity: dict, reference: bytes = b"5 mg\n") -> dict:
     stamped = dict(case)
     stamped.update({
         "identity_version": IDENTITY_VERSION,
@@ -908,8 +947,17 @@ def _stamp(case: dict, identity: dict) -> dict:
         "transform_sha256": identity["transform_sha256"],
         "scoring_sha256": identity["scoring_sha256"],
         "identity_sha256": identity["identity_sha256"],
-        "reference_sha256": sha(b"5 mg\n"),
+        "reference_sha256": sha(reference),
     })
+    prediction = stamped.get("prediction")
+    if stamped.get("status") == "scored" and isinstance(prediction, str) and prediction.strip():
+        text = reference_text(reference)
+        aligned = align_critical(text, prediction)
+        stamped["metrics"] = score(text, prediction)
+        stamped["critical_false_positives"] = critical_false_positives(text, prediction)
+        stamped["occurrence_hits"] = aligned["occurrence_hits"]
+        stamped["occurrence_total"] = aligned["occurrence_total"]
+        stamped["occurrence_false_positives"] = aligned["occurrence_false_positives"]
     return stamped
 
 
