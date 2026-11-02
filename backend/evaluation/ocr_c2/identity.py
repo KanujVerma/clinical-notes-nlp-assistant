@@ -1,6 +1,7 @@
 """Campaign-2 fingerprints. Inference and scoring identities are separate."""
 from __future__ import annotations
 
+import ast
 import json
 
 from evaluation.ocr_c2.protocol import IDENTITY_VERSION, MANIFEST_PATH, PARTITION_PATH, ROOT, load_protocol
@@ -10,29 +11,67 @@ INFERENCE_FILES = (
     "backend/evaluation/ocr_c2/native.py",
     "backend/evaluation/ocr_c2/segment.py",
     "backend/evaluation/ocr_c2/runner.py",
-    "backend/evaluation/public_amr_benchmark.py",
+)
+INFERENCE_SYMBOLS = (
+    ("backend/evaluation/public_amr_benchmark.py", ("MAX_INPUT_BYTES", "check", "infer_image")),
 )
 SCORING_FILES = (
     "backend/evaluation/ocr_c2/metrics.py",
-    "backend/evaluation/pr10_replay.py",
-    "backend/evaluation/public_amr_benchmark.py",
-    "backend/services/multimodal_service.py",
+)
+SCORING_SYMBOLS = (
+    ("backend/evaluation/pr10_replay.py", ("critical_occurrences", "align_critical", "reference_text")),
+    ("backend/evaluation/public_amr_benchmark.py", ("CRITICAL", "score")),
+    ("backend/evaluation/local_vision_eval.py", ("exact_critical_tokens", "_score_text")),
+    ("backend/services/multimodal_service.py", ("_levenshtein_distance", "calculate_cer_wer")),
 )
 
 
-def _bundle(files: tuple[str, ...]) -> str:
-    parts = []
-    for relative in files:
-        parts.append(relative + "\n" + sha((ROOT / relative).read_bytes()))
+def _read(relative: str) -> str:
+    return (ROOT / relative).read_text()
+
+
+def _assigned_name(node: ast.AST) -> str | None:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return node.name
+    if isinstance(node, ast.Assign):
+        names = [target.id for target in node.targets if isinstance(target, ast.Name)]
+        return names[0] if len(names) == 1 else None
+    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+        return node.target.id
+    return None
+
+
+def symbol_source(text: str, names: tuple[str, ...]) -> str:
+    """Source of named implementations, in the requested order."""
+    tree = ast.parse(text)
+    found: dict[str, str] = {}
+    for node in tree.body:
+        name = _assigned_name(node)
+        if name in names and name not in found:
+            found[name] = ast.get_source_segment(text, node) or ""
+    missing = [name for name in names if name not in found]
+    if missing:
+        raise ValueError("OCR_C2_FINGERPRINT_SYMBOLS:" + ",".join(missing))
+    return "\n".join(found[name] for name in names)
+
+
+def _parts(files: tuple[str, ...], symbols: tuple[tuple[str, tuple[str, ...]], ...]) -> list[str]:
+    parts = [relative + "\n" + sha(_read(relative).encode()) for relative in files]
+    for relative, names in symbols:
+        parts.append(relative + ":" + ",".join(names) + "\n" + symbol_source(_read(relative), names))
+    return parts
+
+
+def _bundle(parts: list[str]) -> str:
     return sha("\n".join(parts).encode())
 
 
 def inference_hash() -> str:
-    return _bundle(INFERENCE_FILES)
+    return _bundle(_parts(INFERENCE_FILES, INFERENCE_SYMBOLS))
 
 
 def scoring_hash() -> str:
-    return _bundle(SCORING_FILES)
+    return _bundle(_parts(SCORING_FILES, SCORING_SYMBOLS))
 
 
 def request_identity(

@@ -32,6 +32,7 @@ def run_page(
     geometry = spec.get("geometry") or "page"
     oriented = orient_page(image)
     layout = segment_page(oriented, geometry if geometry in {"page", "bands", "lines"} else "page")
+    page_has_ink = any(item.get("has_ink", True) for item in layout["regions"])
     budgets = load_protocol()["budgets"]
     page_remaining = budgets["per_page_seconds"]
     regions = []
@@ -66,7 +67,8 @@ def run_page(
             "transcription": interpreted["transcription"],
         })
         transcripts.append(interpreted["transcription"] or "")
-        if region.get("has_ink", True) and not interpreted["scored"]:
+        blank_margin = not region.get("has_ink", True) and page_has_ink
+        if not interpreted["scored"] and not blank_margin:
             incomplete = True
         if page_remaining <= 0 and region["order"] != layout["regions"][-1]["order"]:
             incomplete = True

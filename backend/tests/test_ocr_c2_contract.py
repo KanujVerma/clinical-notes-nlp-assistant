@@ -11,7 +11,8 @@ from evaluation.ocr_c2.controller import TransitionRejected, acquire_lock, step,
 from evaluation.ocr_c2.downloads import DownloadRefused, authorize
 from evaluation.ocr_c2.holdout import HoldoutSealed, cohort_for, refuse_tuning_ids, sealed_ids
 from evaluation.ocr_c2.identity import (
-    INFERENCE_FILES, SCORING_FILES, inference_hash, request_identity, scoring_hash,
+    INFERENCE_FILES, INFERENCE_SYMBOLS, SCORING_FILES, SCORING_SYMBOLS,
+    inference_hash, request_identity, scoring_hash,
 )
 from evaluation.ocr_c2.integrate import enabled, recognize
 from evaluation.ocr_c2.metrics import (
@@ -326,7 +327,7 @@ def test_fingerprints_change_with_the_candidate_not_the_partition_bytes_alone():
     first = request_identity("N1", "amr", ["AMR_001"], "abc")
     second = request_identity("N2", "amr", ["AMR_001"], "abc")
     assert first["experiment_fingerprint"] != second["experiment_fingerprint"]
-    assert first["identity_version"] == "ocr_c2_identity_v2"
+    assert first["identity_version"] == "ocr_c2_identity_v3"
     assert first["inference_sha256"] != first["scoring_sha256"]
 
 
@@ -404,12 +405,76 @@ def test_n5_inherits_its_parent_geometry_and_cap(tmp_path):
 
 
 def test_scoring_hash_is_not_the_inference_hash():
-    assert "backend/evaluation/public_amr_benchmark.py" in INFERENCE_FILES
-    assert "backend/evaluation/pr10_replay.py" in SCORING_FILES
-    assert "backend/services/multimodal_service.py" in SCORING_FILES
+    inference_names = {name for _path, names in INFERENCE_SYMBOLS for name in names}
+    scoring_names = {name for _path, names in SCORING_SYMBOLS for name in names}
+    assert "infer_image" in inference_names
+    assert "score" in scoring_names
+    assert "infer_image" not in scoring_names
+    assert "score" not in inference_names
+    assert "backend/evaluation/ocr_c2/segment.py" in INFERENCE_FILES
     assert "backend/evaluation/ocr_c2/segment.py" not in SCORING_FILES
     assert "backend/services/multimodal_service.py" not in INFERENCE_FILES
     assert inference_hash() != scoring_hash()
     ident = request_identity("N1", "amr", ["A"], "abc")
     assert ident["inference_sha256"] == inference_hash()
     assert ident["scoring_sha256"] == scoring_hash()
+
+
+def test_scorer_edit_does_not_change_the_inference_fingerprint(monkeypatch):
+    from evaluation.ocr_c2 import identity
+
+    before_inference = identity.inference_hash()
+    before_scoring = identity.scoring_hash()
+    original = identity._read
+
+    def revised(relative: str) -> str:
+        text = original(relative)
+        if relative == "backend/evaluation/public_amr_benchmark.py":
+            return text.replace(
+                "def score(reference: str, hypothesis: str) -> dict:",
+                "def score(reference: str, hypothesis: str) -> dict:\n    \"scorer-only revision\"",
+                1,
+            )
+        return text
+
+    monkeypatch.setattr(identity, "_read", revised)
+    assert identity.inference_hash() == before_inference
+    assert identity.scoring_hash() != before_scoring
+
+
+def _stopped(text: str) -> dict:
+    return {
+        "model": "glm-ocr:q8_0", "response": text, "done": True, "done_reason": "stop",
+        "elapsed_seconds": 1, "model_digest": "aa",
+    }
+
+
+def test_empty_blank_page_stays_incomplete(tmp_path):
+    image = _page(40, 80, [])
+
+    def transport(prepared, candidate, allowed):
+        return _stopped("  ")
+
+    result = run_page(image, "N1", transport, Ledger(tmp_path / "blank.jsonl", cap_seconds=100), "blank", "aa")
+    assert result["layout"]["regions"][0]["has_ink"] is False
+    assert result["prediction"].strip() == ""
+    assert result["status"] == "incomplete"
+    assert result["completed"] is False
+
+
+def test_blank_margin_does_not_fail_a_scored_ink_region(tmp_path):
+    image = _page(40, 300, _rows(150, 170, 40))
+    layout = segment_page(image, "bands")
+    assert layout["regions"][0]["has_ink"] is False
+    assert any(region["has_ink"] for region in layout["regions"])
+    calls = {"n": 0}
+
+    def transport(prepared, candidate, allowed):
+        calls["n"] += 1
+        text = "" if calls["n"] == 1 else "5 mg"
+        return _stopped(text)
+
+    result = run_page(image, "N3", transport, Ledger(tmp_path / "margin.jsonl", cap_seconds=100), "margin", "aa")
+    assert result["status"] == "scored"
+    assert result["completed"] is True
+    assert "5 mg" in result["prediction"]
