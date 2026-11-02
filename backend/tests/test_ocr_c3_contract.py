@@ -13,7 +13,7 @@ from evaluation.ocr_c3.assemble import assemble, reading_order_uncertain
 from evaluation.ocr_c3.budget import BudgetExhausted, Ledger
 from evaluation.ocr_c3.cohorts import development_ids
 from evaluation.ocr_c3.controller import acquire_lock, require_reviewed, step, write_checkpoint
-from evaluation.ocr_c3.control_reuse import accept_saved_control
+from evaluation.ocr_c3.control_reuse import BaselineRejected, accept_saved_control, select_baseline
 from evaluation.ocr_c3.execute import confirmation_fits, run_screen
 from evaluation.ocr_c3.gates import compare_dataset, confirmation_outcome, screen_outcome
 from evaluation.ocr_c3.geometry import geometry_status, pixel_rectangle
@@ -287,29 +287,13 @@ def test_replay_rejects_a_changed_transcript():
 
 
 def test_stale_control_and_unreviewed_screen_are_refused(tmp_path):
-    from evaluation.ocr_c2.identity import request_identity as control_identity
     try:
         accept_saved_control(
-            {"identity": {}, "status": "incomplete"}, b"5 mg\n", "hash", "digest", "amr", ["AMR_035"],
+            {"status": "incomplete"}, [], b"5 mg\n", [], "digest", "amr", ["AMR_035"],
         )
-        raise AssertionError("stale control accepted")
-    except ValueError as error:
-        assert str(error) == "OCR_C3_CONTROL_STALE"
-    legacy = control_identity("Blegacy", "amr", ["AMR_035"], "digest")
-    try:
-        accept_saved_control(
-            {
-                "identity": legacy,
-                "status": "incomplete",
-                "prepared_image_sha256": "hash",
-                "model_digest": "digest",
-                "reference_sha256": sha(b"5 mg\n"),
-            },
-            b"5 mg\n", "hash", "digest", "amr", ["AMR_035"],
-        )
-        raise AssertionError("legacy control accepted as B8192")
-    except ValueError as error:
-        assert str(error) == "OCR_C3_CONTROL_STALE"
+        raise AssertionError("control without pages accepted")
+    except BaselineRejected as error:
+        assert str(error) == "baseline_evidence_incomplete"
     called = {"value": False}
 
     def load():
@@ -444,3 +428,140 @@ def test_integration_stays_off_and_runtime_identity_is_exact(monkeypatch):
     identity = request_identity("amr", ["AMR_035"], 3)
     assert identity["uses_language_correction"] is False
     assert json.loads(json.dumps(identity))["vision_revision"] == 3
+
+
+def _jpeg(color: tuple[int, int, int]) -> bytes:
+    buffer = BytesIO()
+    Image.new("RGB", (32, 24), color).save(buffer, format="JPEG", quality=90)
+    return buffer.getvalue()
+
+
+def _campaign2_control(tmp_path: Path, sources: list[bytes], transcripts: list[str], reference: bytes, digest: str, case_ids: list[str], name: str):
+    """Build a case with campaign 2's runner, page writer, and scorer."""
+    from evaluation.ocr_c2.budget import Ledger
+    from evaluation.ocr_c2.identity import request_identity as control_identity
+    from evaluation.ocr_c2.runner import run_page
+    from evaluation.ocr_c2.screen_driver import page_artifact, score_document
+
+    identity = control_identity("B8192", "amr", case_ids, digest)
+    reference_sha = sha(reference)
+    pages = []
+    for index, (source, transcript) in enumerate(zip(sources, transcripts)):
+        image = Image.open(BytesIO(source))
+        image.load()
+
+        def transport(prepared, candidate, allowed, transcript=transcript, digest=digest):
+            del prepared, candidate, allowed
+            return {
+                "model": "glm-ocr:q8_0",
+                "response": transcript,
+                "done": True,
+                "done_reason": "stop",
+                "elapsed_seconds": 0.01,
+                "model_digest": digest,
+            }
+
+        ledger = Ledger(tmp_path / f"{name}-{index}.jsonl", cap_seconds=100)
+        result = run_page(image, "B8192", transport, ledger, f"{name}-{index}", digest)
+        result["page_seconds"] = 0.01
+        pages.append(page_artifact(result, sha(source), reference_sha, identity))
+    return score_document(pages, reference_sha, reference, identity), pages
+
+
+def test_historical_b8192_reuse_reads_the_campaign2_schema(tmp_path, monkeypatch):
+    import evaluation.ocr_c3.control_reuse as control_reuse
+
+    digest = "a" * 64
+    other_digest = "b" * 64
+    reference = b"5 mg\n"
+    source = _jpeg((20, 40, 60))
+    second = _jpeg((9, 8, 7))
+    case, pages = _campaign2_control(tmp_path, [source], ["5 mg"], reference, digest, ["DOC_A"], "valid")
+    assert "model_digest" not in case
+    assert case["identity"]["model_digest"] == digest
+    assert "prepared_image_sha256" not in case
+    assert pages[0]["source_sha256"] == sha(source)
+    assert pages[0]["source_sha256"] != pages[0]["regions"][0]["crop_sha256"]
+    assert pages[0]["regions"][0]["crop_sha256"] == sha(infer_image(source))
+    accept_saved_control(case, pages, reference, [source], digest, "amr", ["DOC_A"])
+    reused = select_baseline(
+        {"DOC_A": (case, pages)}, {"DOC_A": reference}, {"DOC_A": [source]},
+        digest, "amr", ["DOC_A"],
+    )
+    assert reused == {"decision": "reuse"}
+
+    blank, blank_pages = _campaign2_control(tmp_path, [source], [""], reference, digest, ["DOC_A"], "blank")
+    assert blank["status"] == "incomplete"
+    accept_saved_control(blank, blank_pages, reference, [source], digest, "amr", ["DOC_A"])
+    assert blank["status"] == "incomplete"
+    assert blank["metrics"] is None
+
+    def refuse(reason: str, saved=case, saved_pages=pages, sources=None, digest_value=digest, ids=None):
+        try:
+            accept_saved_control(
+                saved, saved_pages, reference, [source] if sources is None else sources,
+                digest_value, "amr", ["DOC_A"] if ids is None else ids,
+            )
+            raise AssertionError(reason)
+        except BaselineRejected as error:
+            assert str(error) == reason
+
+    from evaluation.ocr_c2.identity import request_identity as control_identity
+    legacy = control_identity("Blegacy", "amr", ["DOC_A"], digest)
+    legacy_case = dict(case, identity=legacy)
+    refuse("baseline_model_drift", legacy_case)
+    refuse("baseline_model_drift", json.loads(json.dumps(case)) | {"identity": dict(case["identity"], num_ctx=1024)})
+    refuse("baseline_model_drift", json.loads(json.dumps(case)) | {"identity": dict(case["identity"], prompt="Text Recognition:")})
+    refuse("baseline_model_drift", json.loads(json.dumps(case)) | {"identity": dict(case["identity"], num_predict=4096)})
+    drifted = _campaign2_control(tmp_path, [source], ["5 mg"], reference, other_digest, ["DOC_A"], "drift")
+    refuse("baseline_model_drift", drifted[0], drifted[1], digest_value=digest)
+    for field in ("protocol_sha256", "partition_sha256", "scoring_sha256", "inference_sha256", "control_sha256"):
+        mutated = json.loads(json.dumps(case))
+        mutated["identity"][field] = "0" * 64
+        refuse("baseline_code_drift", mutated)
+    wrong_source = json.loads(json.dumps(pages))
+    wrong_source[0]["source_sha256"] = "0" * 64
+    refuse("baseline_source_mismatch", case, wrong_source)
+    wrong_crop = json.loads(json.dumps(pages))
+    wrong_crop[0]["regions"][0]["crop_sha256"] = sha(b"different-jpeg")
+    refuse("baseline_prepared_bytes_mismatch", case, wrong_crop)
+    wrong_reference = dict(case, reference_sha256="0" * 64)
+    refuse("baseline_reference_mismatch", wrong_reference)
+    wrong_metrics = json.loads(json.dumps(case))
+    wrong_metrics["metrics"] = dict(case["metrics"], cer=1)
+    refuse("baseline_reference_mismatch", wrong_metrics)
+    refuse("baseline_evidence_incomplete", {"status": "scored"})
+    refuse("baseline_evidence_incomplete", case, [])
+    paired, paired_pages = _campaign2_control(
+        tmp_path, [source, second], ["5 mg", "10 mg"], reference, digest, ["DOC_A"], "pair",
+    )
+    refuse("baseline_evidence_incomplete", paired, paired_pages[:1], [source, second])
+    refuse("baseline_evidence_incomplete", paired, paired_pages + paired_pages[:1], [source, second])
+    refuse("baseline_source_mismatch", paired, list(reversed(paired_pages)), [source, second])
+
+    cohort = ["DOC_A", "DOC_B"]
+    kept, kept_pages = _campaign2_control(tmp_path, [source], ["5 mg"], reference, digest, cohort, "kept")
+    rejected, rejected_pages = _campaign2_control(
+        tmp_path, [second], ["10 mg"], reference, other_digest, cohort, "rejected",
+    )
+    snapshot = json.dumps({"kept": kept, "rejected": rejected})
+    fresh = select_baseline(
+        {"DOC_A": (kept, kept_pages), "DOC_B": (rejected, rejected_pages)},
+        {"DOC_A": reference, "DOC_B": reference},
+        {"DOC_A": [source], "DOC_B": [second]},
+        digest, "amr", cohort,
+    )
+    assert fresh == {"decision": "fresh", "reason": "baseline_model_drift", "case_id": "DOC_B"}
+    assert json.dumps({"kept": kept, "rejected": rejected}) == snapshot
+    missing = select_baseline(
+        {"DOC_A": (case, pages)}, {"DOC_A": reference}, {"DOC_A": [source]},
+        digest, "amr", cohort,
+    )
+    assert missing == {"decision": "fresh", "reason": "baseline_evidence_incomplete"}
+    duplicate = select_baseline(
+        {"DOC_A": (case, pages)}, {"DOC_A": reference}, {"DOC_A": [source]},
+        digest, "amr", ["DOC_A", "DOC_A"],
+    )
+    assert duplicate == {"decision": "fresh", "reason": "baseline_evidence_incomplete"}
+    monkeypatch.setattr(control_reuse, "infer_image", lambda raw: b"not-the-historical-jpeg")
+    refuse("baseline_prepared_bytes_mismatch")

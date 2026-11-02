@@ -139,6 +139,28 @@ def accept_saved_case(saved: dict, identity: dict, reference_sha: str, reference
         raise ValueError("OCR_C2_STALE_EVIDENCE")
 
 
+def page_artifact(result: dict, source_sha: str, reference_sha: str, identity: dict) -> dict:
+    """Page file written by the campaign-2 screen. Crop hashes are prepared JPEGs."""
+    return {
+        "status": result["status"],
+        "completed": result["completed"],
+        "prediction": result["prediction"],
+        "regions": [
+            {
+                "order": region["order"],
+                "status": region["status"],
+                "crop_sha256": region.get("crop_sha256"),
+            }
+            for region in result["regions"]
+        ],
+        "page_seconds": result["page_seconds"],
+        "source_sha256": source_sha,
+        "reference_sha256": reference_sha,
+        "experiment_fingerprint": identity["experiment_fingerprint"],
+        "scoring_sha256": identity["scoring_sha256"],
+    }
+
+
 def accept_saved_page(saved: dict, identity: dict, source_sha: str, reference_sha: str) -> None:
     regions = saved.get("regions")
     if saved.get("status") not in {"scored", "incomplete"}:
@@ -257,24 +279,7 @@ def run_candidate(root: Path, candidate: str, digest: str, ledger: Ledger, recor
                     ledger.recover_crashes()
                     record(f"transport_error {candidate} {dataset} {ident} p{index} charged={ledger.charged():.1f}")
                     return "budget_blocked" if ledger.exploration_blocked() else "integrity_blocked"
-                write_json(stored, {
-                    "status": result["status"],
-                    "completed": result["completed"],
-                    "prediction": result["prediction"],
-                    "regions": [
-                        {
-                            "order": region["order"],
-                            "status": region["status"],
-                            "crop_sha256": region.get("crop_sha256"),
-                        }
-                        for region in result["regions"]
-                    ],
-                    "page_seconds": result["page_seconds"],
-                    "source_sha256": source_sha,
-                    "reference_sha256": reference_sha,
-                    "experiment_fingerprint": identity["experiment_fingerprint"],
-                    "scoring_sha256": identity["scoring_sha256"],
-                })
+                write_json(stored, page_artifact(result, source_sha, reference_sha, identity))
                 page_results.append(json.loads(stored.read_text()))
                 if result["status"] == "budget_blocked":
                     record(f"budget {candidate} {dataset} {ident} charged={ledger.charged():.1f}")
