@@ -33,6 +33,7 @@ from evaluation.ocr_c2.runner import run_page
 from evaluation.pr10_autoresearch import AMR_INTAKE, _amr_case, _rx_case, _rx_labels
 from evaluation.pr10_replay import reference_text
 from evaluation.public_amr_benchmark import sha
+import services.multimodal_service as multimodal_service
 from services.inference_pipeline import get_installed_model_digest
 from services.multimodal_service import glm_ocr_infer
 
@@ -74,9 +75,11 @@ def load_case(dataset: str, ident: str):
 
 def native_transport(digest: str, parent: str | None):
     def transport(prepared: bytes, candidate: str, allowed: float) -> dict:
+        multimodal_service._ensure_local_ollama_endpoint()
+        endpoint = multimodal_service.OLLAMA_BASE_URL.rstrip("/") + "/api/generate"
         payload = build_native_payload(prepared, candidate, parent=parent)
         request = urllib.request.Request(
-            "http://127.0.0.1:11434/api/generate",
+            endpoint,
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )

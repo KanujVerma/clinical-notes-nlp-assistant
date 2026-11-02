@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import io
+import json
 import time
 from pathlib import Path
 
@@ -31,7 +32,7 @@ from evaluation.ocr_c2.protocol import CAMPAIGN_ID, load_protocol
 from evaluation.ocr_c2.replay import replay_case
 from evaluation.ocr_c2.runner import run_page
 from evaluation.ocr_c2.screen_driver import (
-    accept_saved_case, accept_saved_page, control_response, next_request_prefix, score_document,
+    accept_saved_case, accept_saved_page, control_response, native_transport, next_request_prefix, score_document,
 )
 from evaluation.ocr_c2.segment import orient_page, segment_page
 from evaluation.public_amr_benchmark import score, sha
@@ -452,6 +453,43 @@ def test_saved_screen_evidence_must_match_before_reuse():
         assert str(error) == "OCR_C2_STALE_EVIDENCE"
     page["regions"][0]["crop_sha256"] = "crop"
     accept_saved_page(page, identity, "source", "reference")
+
+
+def test_native_transport_uses_the_configured_loopback(monkeypatch):
+    import evaluation.ocr_c2.screen_driver as driver
+    from services import multimodal_service
+    seen = {}
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"response":"5 mg","done":true,"done_reason":"stop","total_duration":1000000000}'
+
+    def urlopen(request, timeout):
+        seen["url"] = request.full_url
+        seen["payload"] = json.loads(request.data.decode("utf-8"))
+        seen["timeout"] = timeout
+        return _Response()
+
+    monkeypatch.setattr(multimodal_service, "OLLAMA_BASE_URL", "http://127.0.0.1:11435")
+    monkeypatch.setattr(driver.urllib.request, "urlopen", urlopen)
+    body = native_transport("digest", None)(b"img", "N1", 10)
+    assert seen["url"] == "http://127.0.0.1:11435/api/generate"
+    assert seen["timeout"] == 10
+    assert seen["payload"]["prompt"] == NATIVE_PROMPT
+    assert "format" not in seen["payload"]
+    assert body["model_digest"] == "digest"
+    monkeypatch.setattr(multimodal_service, "OLLAMA_BASE_URL", "https://example.com")
+    try:
+        native_transport("digest", None)(b"img", "N1", 10)
+        raise AssertionError("remote endpoint accepted")
+    except ValueError as error:
+        assert "loopback" in str(error)
 
 
 def test_sanitized_driver_keeps_private_paths_out():
