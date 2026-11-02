@@ -564,6 +564,40 @@ def test_compare_rejects_whitespace_only_cer_drop(monkeypatch, tmp_path):
     assert decision["reason"] == "formatting change is not a recognition gain"
 
 
+def test_line_wrap_only_change_is_not_a_recognition_gain(monkeypatch, tmp_path):
+    from evaluation.pr10_replay import has_recognition_change, predictions_differ_only_by_whitespace
+
+    wrapped = [_population_case("A", 2, 24, prediction="take one\ntablet daily")]
+    unwrapped = [_population_case("A", 1, 24, prediction="take one tablet daily")]
+    changed = [_population_case("A", 1, 24, prediction="take two tablet daily")]
+    assert not has_recognition_change(wrapped, unwrapped)
+    assert predictions_differ_only_by_whitespace(wrapped, unwrapped)
+    assert has_recognition_change(wrapped, changed)
+
+    monkeypatch.setattr(pr10_campaign, "PRIVATE", tmp_path)
+    monkeypatch.setattr(pr10_campaign, "_installed_digest", lambda: "c" * 64)
+    _patch_references(monkeypatch)
+    monkeypatch.setattr(
+        pr10_campaign, "work_items",
+        lambda manifest, stage, dataset: ["A"] if dataset == "amr" else ["R1"],
+    )
+    digest = "c" * 64
+    for spec, distance, text in (
+        (historical_specs()["jpeg_baseline"], 2, "take one\ntablet daily"),
+        (historical_specs()["jpeg_ctx8192"], 1, "take one tablet daily"),
+    ):
+        for dataset, cases in (
+            ("amr", [_population_case("A", distance, 24, prediction=text)]),
+            ("rx", [_population_case("R1", 1, 10, prediction="10 mg")]),
+        ):
+            identity = build_identity(spec, "screen", dataset, digest, [case["id"] for case in cases])
+            folder = tmp_path / "screen" / spec["name"] / dataset
+            _write_verified(folder, identity, [_stamp(case, identity) for case in cases])
+    decision = _compare("screen", "jpeg_baseline", "jpeg_ctx8192")
+    assert decision["status"] == "rejected"
+    assert decision["reason"] == "formatting change is not a recognition gain"
+
+
 def test_compare_refuses_legacy_evidence(monkeypatch, tmp_path):
     monkeypatch.setattr(pr10_campaign, "PRIVATE", tmp_path)
     monkeypatch.setattr(pr10_campaign, "_installed_digest", lambda: "c" * 64)

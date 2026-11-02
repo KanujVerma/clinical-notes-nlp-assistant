@@ -210,7 +210,7 @@ def load_run(path: Path) -> list[dict]:
 
 
 def _normalize_whitespace(text: str) -> str:
-    return "\n".join(" ".join(line.split()) for line in (text or "").splitlines())
+    return " ".join((text or "").split())
 
 
 def has_recognition_change(incumbent: list[dict], candidate: list[dict]) -> bool:
