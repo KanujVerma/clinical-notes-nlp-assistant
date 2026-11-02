@@ -28,6 +28,7 @@ def run_page(
     request_prefix: str,
     expected_digest: str | None = None,
     parent: str | None = None,
+    phase: str | None = None,
 ) -> dict:
     spec = resolved_spec(candidate, parent)
     geometry = spec.get("geometry") or "page"
@@ -41,7 +42,10 @@ def run_page(
     incomplete = False
     for region in layout["regions"]:
         prepared = _crop_bytes(oriented, region)
-        deadline = min(budgets["per_call_seconds"], page_remaining, ledger.remaining())
+        limits = [budgets["per_call_seconds"], page_remaining, ledger.remaining()]
+        if phase == "exploration":
+            limits.append(ledger.exploration_remaining())
+        deadline = min(limits)
         request_id = f"{request_prefix}-{region['order']}"
         try:
             allowed = ledger.begin(request_id, deadline)

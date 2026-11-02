@@ -73,8 +73,11 @@ class Ledger:
             raise ValueError("OCR_C2_UNKNOWN_REQUEST")
         return found[0]
 
+    def exploration_remaining(self) -> float:
+        return load_protocol()["budgets"]["exploration_seconds"] - self.charged()
+
     def exploration_blocked(self) -> bool:
-        return self.charged() >= load_protocol()["budgets"]["exploration_seconds"]
+        return self.exploration_remaining() <= 0
 
     def holdout_budget_ok(self, estimated_seconds: float) -> bool:
         margin = estimated_seconds * 1.25

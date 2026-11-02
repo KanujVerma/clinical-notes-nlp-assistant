@@ -163,7 +163,8 @@ def run_one_page(image_bytes: bytes, candidate: str, transport, ledger: Ledger, 
     image.load()
     try:
         result = run_page(
-            image, candidate, transport, ledger, request_prefix, digest, parent=parent,
+            image, candidate, transport, ledger, request_prefix, digest,
+            parent=parent, phase="exploration",
         )
     except Exception:
         ledger.recover_crashes()

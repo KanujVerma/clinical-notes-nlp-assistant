@@ -117,6 +117,25 @@ def test_digest_drift_and_generation_limit_are_not_scored():
         assert "model_digest_mismatch" in str(error)
 
 
+def test_exploration_allowance_is_checked_before_every_region(tmp_path):
+    ledger = Ledger(tmp_path / "ledger.jsonl")
+    ledger._append({"request_id": "seed", "event": "finish", "charged_seconds": 7190})
+    calls = []
+
+    def transport(prepared, candidate, allowed):
+        calls.append(allowed)
+        return {
+            "model": "glm-ocr:q8_0", "response": "5 mg", "done": True, "done_reason": "stop",
+            "elapsed_seconds": 30, "model_digest": "aa",
+        }
+
+    image = _page(40, 100, _rows(0, 20, 40) + _rows(40, 60, 40) + _rows(80, 100, 40))
+    result = run_page(image, "N3", transport, ledger, "explore", "aa", phase="exploration")
+    assert calls == [10]
+    assert result["status"] == "budget_blocked"
+    assert ledger.exploration_blocked() is True
+
+
 def test_blank_region_makes_the_page_incomplete(tmp_path):
     image = _page(40, 100, _rows(0, 20, 40) + _rows(40, 60, 40) + _rows(80, 100, 40))
     calls = {"n": 0}
