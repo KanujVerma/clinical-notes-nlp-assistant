@@ -17,7 +17,9 @@ from evaluation.ocr_c3.control_reuse import accept_saved_control
 from evaluation.ocr_c3.execute import confirmation_fits, run_screen
 from evaluation.ocr_c3.gates import compare_dataset, confirmation_outcome, screen_outcome
 from evaluation.ocr_c3.geometry import geometry_status, pixel_rectangle
-from evaluation.ocr_c3.identity import inference_hash, request_identity, runtime_matches, scoring_hash
+from evaluation.ocr_c3.identity import (
+    SCORING_FILES, SCORING_SYMBOLS, inference_hash, request_identity, runtime_matches, scoring_hash,
+)
 from evaluation.ocr_c3.integrate import enabled, recognize
 from evaluation.ocr_c3.protocol import CAMPAIGN_ID, CANDIDATE, ROOT, load_protocol
 from evaluation.ocr_c3.replay import document_complete, replay_case
@@ -96,6 +98,9 @@ def test_protocol_pins_one_vision_configuration():
     assert "en-US" in source
     assert "http://" not in source
     assert inference_hash()
+    scored_names = [name for _relative, names in SCORING_SYMBOLS for name in names]
+    assert "_word_distance" in scored_names
+    assert "backend/evaluation/ocr_c2/metrics.py" in SCORING_FILES
     assert scoring_hash()
 
 
@@ -250,10 +255,17 @@ def test_replay_rejects_a_changed_transcript():
         "occurrence_false_positives": aligned["occurrence_false_positives"],
         "pages": [page],
     }
-    assert replay_case(case, reference, [prepared])["classification"] == "verified"
+    expected = request_identity("amr", ["AMR_035"], 3)
+    case["identity"] = expected
+    assert replay_case(case, reference, [prepared], expected)["classification"] == "verified"
+    try:
+        replay_case(dict(case, identity={}), reference, [prepared], expected)
+        raise AssertionError("case without a Vision identity verified")
+    except ValueError as error:
+        assert str(error) == "OCR_C3_REPLAY"
     forged = dict(case, prediction="50 mg")
     try:
-        replay_case(forged, reference, [prepared])
+        replay_case(forged, reference, [prepared], expected)
         raise AssertionError("forged transcript verified")
     except ValueError as error:
         assert str(error) == "OCR_C3_REPLAY"
@@ -261,7 +273,7 @@ def test_replay_rejects_a_changed_transcript():
     incomplete = dict(case, pages=[page, empty])
     incomplete["prediction"] = transcript + "\n"
     try:
-        replay_case(incomplete, reference, [prepared, prepared])
+        replay_case(incomplete, reference, [prepared, prepared], expected)
         raise AssertionError("empty page verified as scored")
     except ValueError as error:
         assert str(error) == "OCR_C3_REPLAY"

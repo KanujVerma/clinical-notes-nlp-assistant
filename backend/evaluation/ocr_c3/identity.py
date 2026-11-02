@@ -17,9 +17,12 @@ INFERENCE_FILES = (
 INFERENCE_SYMBOLS = (
     ("backend/evaluation/public_amr_benchmark.py", ("MAX_INPUT_BYTES", "check", "infer_image")),
 )
+SCORING_FILES = (
+    "backend/evaluation/ocr_c2/metrics.py",
+)
 SCORING_SYMBOLS = (
     ("backend/evaluation/ocr_c2/metrics.py", (
-        "normalize_recognition", "normalized_errors", "strict_case", "occurrence_case",
+        "normalize_recognition", "normalized_errors", "_word_distance", "strict_case", "occurrence_case",
         "micro_rate", "nearest_rank_p95", "meets_relative_reduction", "whitespace_only",
         "preserves_successes", "safety_ok", "bootstrap_relative",
     )),
@@ -46,7 +49,7 @@ def inference_hash() -> str:
 
 
 def scoring_hash() -> str:
-    parts = []
+    parts = [relative + "\n" + sha(_read(relative).encode()) for relative in SCORING_FILES]
     for relative, names in SCORING_SYMBOLS:
         parts.append(relative + ":" + ",".join(names) + "\n" + symbol_source(_read(relative), names))
     return _bundle(parts)
