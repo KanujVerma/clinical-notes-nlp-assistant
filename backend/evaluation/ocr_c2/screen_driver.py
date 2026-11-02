@@ -116,7 +116,7 @@ def control_response(result: dict, digest: str) -> dict:
 def control_transport(digest: str):
     def transport(prepared: bytes, candidate: str, allowed: float) -> dict:
         del allowed
-        result = control_call(candidate, prepared, page_number=1, infer=glm_ocr_infer)
+        result = control_call(candidate, prepared, page_number=1, infer=glm_ocr_infer, timeout=allowed)
         return control_response(result, digest)
     return transport
 

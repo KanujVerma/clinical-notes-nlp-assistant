@@ -1,7 +1,7 @@
 """Recompute a saved prediction before a comparison trusts it."""
 from __future__ import annotations
 
-from evaluation.ocr_c2.metrics import normalize_recognition, occurrence_case, strict_case
+from evaluation.ocr_c2.metrics import normalize_recognition, normalized_errors, occurrence_case, strict_case
 from evaluation.pr10_replay import reference_text
 from evaluation.public_amr_benchmark import sha
 
@@ -23,5 +23,7 @@ def replay_case(case: dict, reference_bytes: bytes) -> dict:
         if case.get(key) != aligned[key]:
             raise ValueError("replay_mismatch")
     if case.get("normalized_prediction") != normalize_recognition(prediction):
+        raise ValueError("replay_mismatch")
+    if case.get("normalized") != normalized_errors(reference, prediction):
         raise ValueError("replay_mismatch")
     return {"classification": "verified", "case": case}

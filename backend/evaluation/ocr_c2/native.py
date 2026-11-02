@@ -9,12 +9,13 @@ NATIVE_PROMPT = "Text Recognition:"
 CONTROL_MODEL = "glm-ocr:q8_0"
 
 
-def control_call(kind: str, image_bytes: bytes, page_number: int, infer) -> dict:
+def control_call(kind: str, image_bytes: bytes, page_number: int, infer, timeout: float | None = None) -> dict:
     """Call the frozen JSON adapter without changing its prompt defaults."""
+    extra = {} if timeout is None else {"timeout": timeout}
     if kind == "B8192":
-        return infer(image_bytes, page_number=page_number, model=CONTROL_MODEL, num_ctx=8192)
+        return infer(image_bytes, page_number=page_number, model=CONTROL_MODEL, num_ctx=8192, **extra)
     if kind == "Blegacy":
-        return infer(image_bytes, page_number=page_number, model=CONTROL_MODEL, num_ctx=None)
+        return infer(image_bytes, page_number=page_number, model=CONTROL_MODEL, num_ctx=None, **extra)
     raise ValueError("OCR_C2_CONTROL")
 
 

@@ -21,7 +21,7 @@ from evaluation.ocr_c2.identity import (
 from evaluation.ocr_c2.integrate import enabled, recognize
 from evaluation.ocr_c2.metrics import (
     bootstrap_relative, meets_relative_reduction, micro_rate, nearest_rank_p95,
-    normalize_recognition, occurrence_case, preserves_successes, safety_ok, select_finalist,
+    normalize_recognition, normalized_errors, occurrence_case, preserves_successes, safety_ok, select_finalist,
     whitespace_only,
 )
 from evaluation.ocr_c2.native import (
@@ -265,8 +265,16 @@ def test_replay_rejects_a_changed_prediction():
         "occurrence_total": aligned["occurrence_total"],
         "occurrence_false_positives": aligned["occurrence_false_positives"],
         "normalized_prediction": normalize_recognition(prediction),
+        "normalized": normalized_errors(reference_text(reference), prediction),
     }
     assert replay_case(case, reference)["classification"] == "verified"
+    stale = dict(case)
+    stale["normalized"] = dict(case["normalized"], char_distance=case["normalized"]["char_distance"] + 1)
+    try:
+        replay_case(stale, reference)
+        raise AssertionError("stale normalized metrics verified")
+    except ValueError as error:
+        assert str(error) == "replay_mismatch"
     forged = dict(case)
     forged["prediction"] = "50 mg"
     try:
@@ -358,6 +366,18 @@ def test_optional_phase_stays_closed_when_a_prerequisite_fails():
     assert assess_optional(dict(blocked, budget_exhausted=True)) == "budget_blocked"
     assert step("optional_model", "download_blocked") == "stopped"
     assert step("optional_model", "review_blocked") == "stopped"
+
+
+def test_control_call_keeps_the_remaining_deadline():
+    seen = {}
+
+    def infer(image_bytes, page_number=1, model=None, num_ctx=None, timeout=None):
+        seen["timeout"] = timeout
+        seen["num_ctx"] = num_ctx
+        return {"status": "failed", "transcribed_text": ""}
+
+    control_call("B8192", b"img", 1, infer, timeout=10)
+    assert seen == {"timeout": 10, "num_ctx": 8192}
 
 
 def test_control_termination_is_not_rewritten_as_a_stop(tmp_path):

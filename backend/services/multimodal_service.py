@@ -88,6 +88,7 @@ def glm_ocr_infer(
     num_ctx: Optional[int] = None,
     system_prompt: Optional[str] = None,
     user_prompt: Optional[str] = None,
+    timeout: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
     GLM-OCR multimodal adapter: transcribes document layout and text
@@ -125,6 +126,7 @@ def glm_ocr_infer(
             images_b64=[b64_img],
             system=system_prompt,
             num_ctx=num_ctx,
+            timeout=90.0 if timeout is None else timeout,
         )
         raw_output = res.get("response", "{}")
         parsed = _parse_model_json(raw_output)
