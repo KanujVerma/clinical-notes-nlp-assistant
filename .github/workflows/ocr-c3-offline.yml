@@ -1,0 +1,59 @@
+name: OCR campaign 3 offline contract (no Vision, no Ollama)
+
+on:
+  pull_request:
+    branches:
+      - main
+      - feat/genuine-handwriting-validation
+      - feat/handwriting-ocr-accuracy
+      - feat/handwriting-ocr-campaign2
+    paths:
+      - "backend/evaluation/ocr_c3/**"
+      - "backend/evaluation/ocr_c3_swift/**"
+      - "backend/tests/test_ocr_c3_contract.py"
+      - "backend/tests/test_ocr_c2_contract.py"
+      - "backend/tests/test_ocr_c2_segment_v3.py"
+      - "backend/tests/test_pr10_*.py"
+      - "docs/validation/ocr_c3_protocol_manifest.json"
+      - "docs/validation/pr10_partition_manifest.json"
+      - ".github/workflows/ocr-c3-offline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ocr-c3-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_MODE: local
+      ENABLE_LOCAL_AI: "false"
+      ENABLE_EXTERNAL_EXPLAINER: "false"
+      OCR_C2_ENABLED: "0"
+      OCR_C3_ENABLED: "0"
+      OLLAMA_HOST: http://127.0.0.1:11434
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install pinned Python dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Refuse private handwriting files
+        run: |
+          if git ls-files | grep -E '(^|/)(handwriting-private|real-handwriting|private-handwriting)/'; then
+            echo "PRIVATE_HANDWRITING_SOURCE_FILES_TRACKED" >&2
+            exit 1
+          fi
+      - name: Run campaign contracts without Vision or Ollama
+        run: |
+          PYTHONPATH=backend python -m pytest -q \
+            backend/tests/test_pr10_partition.py \
+            backend/tests/test_pr10_campaign_rules.py \
+            backend/tests/test_ocr_c2_contract.py \
+            backend/tests/test_ocr_c2_segment_v3.py \
+            backend/tests/test_ocr_c3_contract.py

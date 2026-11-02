@@ -1,0 +1,82 @@
+{
+  "schema": "ocr_c3_protocol_v1",
+  "campaign_id": "ocr-c3-apple-vision-v1",
+  "candidate": {
+    "id": "V1_apple_vision_accurate_raw",
+    "framework": "Vision",
+    "request": "VNRecognizeTextRequest",
+    "recognition_level": "accurate",
+    "uses_language_correction": false,
+    "automatically_detects_language": false,
+    "recognition_languages": ["en-US"],
+    "custom_words": [],
+    "minimum_text_height": 0,
+    "candidates_retained": 3,
+    "candidates_scored": 1,
+    "geometry": "whole_page",
+    "custom_line_segmentation": false
+  },
+  "reading_order": "vision_reading_order_v1",
+  "reading_order_rule": "top y, then left x, then original observation index; invalid geometry sorts last and is retained",
+  "column_flag": "vertical overlap at least 0.4 of the shorter box and a horizontal gap of at least 0.15 of image width sets reading_order_uncertain; the page is still scored",
+  "coordinate_transform": {
+    "x_pixel": "x_normalized * width",
+    "y_pixel": "(1 - y_normalized - height_normalized) * height",
+    "width_pixel": "width_normalized * width",
+    "height_pixel": "height_normalized * height",
+    "outside_tolerance_px": 0.5
+  },
+  "base_commit": "0b6b8f66f5ce3d1fb3c34879ab1fd15672ae4993",
+  "partition_manifest": "docs/validation/pr10_partition_manifest.json",
+  "control": {
+    "id": "B8192",
+    "tag": "glm-ocr:q8_0",
+    "num_ctx": 8192,
+    "reuse": "only when source, prepared image, digest, prompt, decoding, and inference identity match"
+  },
+  "image_preparation": {
+    "source": "evaluation.public_amr_benchmark.infer_image",
+    "longest_side": 3000,
+    "max_pixels": 14000000,
+    "jpeg_quality": 85,
+    "subsampling": 0,
+    "second_exif_rotation": false
+  },
+  "runtime": {
+    "os_product": "macOS",
+    "os_version": "27.0.1",
+    "os_build": "26A434",
+    "arch": "arm64",
+    "swift": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
+    "sdk": "27.0",
+    "vision_revision": 3,
+    "supported_revisions": [1, 2, 3],
+    "language_supported": true,
+    "model_weight_digest_available": false,
+    "model_weight_limitation": "Vision does not expose an OCR weight hash. The OS build and request revision are the runtime identity."
+  },
+  "budgets": {
+    "total_seconds": 7200,
+    "per_page_seconds": 120,
+    "product_p95_seconds": 60,
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 20261102,
+    "confirmation_margin": 1.25,
+    "infrastructure_retries": 1
+  },
+  "selection": {
+    "relative_cer_factor": 0.9,
+    "screen_amr_documents": 8,
+    "screen_rx_crops": 64,
+    "confirm_amr_documents": 20,
+    "confirm_rx_crops": 256,
+    "p95_rank": "ceil(0.95*n)"
+  },
+  "cohorts": {
+    "screen": "one_lowest_id_per_development_writer_group_and_first_64_hash_ranked_train",
+    "confirm": "development_only",
+    "sealed": ["amr_untouched_holdout", "rx_untouched_official_test", "rx_internal_validation"]
+  },
+  "feature_flag": "OCR_C3_ENABLED",
+  "feature_default": false
+}
