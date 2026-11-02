@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[3]
 MANIFEST_PATH = ROOT / "docs" / "validation" / "ocr_c2_protocol_manifest.json"
 PARTITION_PATH = ROOT / "docs" / "validation" / "pr10_partition_manifest.json"
 CAMPAIGN_ID = "ocr-campaign2-native-regions-v1"
-IDENTITY_VERSION = "ocr_c2_identity_v3"
+IDENTITY_VERSION = "ocr_c2_identity_v4"
 CANONICAL_PRIVATE = Path(
     "/Users/kanuj/Documents/projects/clinical-notes-nlp-assistant"
     "/artifacts/handwriting-private/ocr-campaign2-native-regions-v1"

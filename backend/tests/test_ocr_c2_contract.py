@@ -12,7 +12,7 @@ from evaluation.ocr_c2.downloads import DownloadRefused, authorize
 from evaluation.ocr_c2.holdout import HoldoutSealed, cohort_for, refuse_tuning_ids, sealed_ids
 from evaluation.ocr_c2.identity import (
     INFERENCE_FILES, INFERENCE_SYMBOLS, SCORING_FILES, SCORING_SYMBOLS,
-    inference_hash, request_identity, scoring_hash,
+    control_hash, inference_hash, request_identity, scoring_hash,
 )
 from evaluation.ocr_c2.integrate import enabled, recognize
 from evaluation.ocr_c2.metrics import (
@@ -327,7 +327,8 @@ def test_fingerprints_change_with_the_candidate_not_the_partition_bytes_alone():
     first = request_identity("N1", "amr", ["AMR_001"], "abc")
     second = request_identity("N2", "amr", ["AMR_001"], "abc")
     assert first["experiment_fingerprint"] != second["experiment_fingerprint"]
-    assert first["identity_version"] == "ocr_c2_identity_v3"
+    assert first["identity_version"] == "ocr_c2_identity_v4"
+    assert "control_sha256" not in first
     assert first["inference_sha256"] != first["scoring_sha256"]
 
 
@@ -425,6 +426,7 @@ def test_scorer_edit_does_not_change_the_inference_fingerprint(monkeypatch):
 
     before_inference = identity.inference_hash()
     before_scoring = identity.scoring_hash()
+    before_control = identity.control_hash()
     original = identity._read
 
     def revised(relative: str) -> str:
@@ -440,6 +442,34 @@ def test_scorer_edit_does_not_change_the_inference_fingerprint(monkeypatch):
     monkeypatch.setattr(identity, "_read", revised)
     assert identity.inference_hash() == before_inference
     assert identity.scoring_hash() != before_scoring
+    assert identity.control_hash() == before_control
+
+
+def test_control_prompt_edit_changes_only_the_control_fingerprint(monkeypatch):
+    from evaluation.ocr_c2 import identity
+
+    before_native = request_identity("N1", "amr", ["A"], "abc")
+    before_control = request_identity("B8192", "amr", ["A"], "abc")
+    assert before_control["control_sha256"] == control_hash()
+    original = identity._read
+
+    def revised(relative: str) -> str:
+        text = original(relative)
+        if relative == "backend/services/multimodal_service.py":
+            return text.replace(
+                '"num_predict": 2048',
+                '"num_predict": 2049',
+                1,
+            )
+        return text
+
+    monkeypatch.setattr(identity, "_read", revised)
+    native = request_identity("N1", "amr", ["A"], "abc")
+    control = request_identity("B8192", "amr", ["A"], "abc")
+    assert native["experiment_fingerprint"] == before_native["experiment_fingerprint"]
+    assert native["inference_sha256"] == before_native["inference_sha256"]
+    assert control["control_sha256"] != before_control["control_sha256"]
+    assert control["experiment_fingerprint"] != before_control["experiment_fingerprint"]
 
 
 def _stopped(text: str) -> dict:
@@ -478,3 +508,22 @@ def test_blank_margin_does_not_fail_a_scored_ink_region(tmp_path):
     assert result["status"] == "scored"
     assert result["completed"] is True
     assert "5 mg" in result["prediction"]
+
+
+def test_generation_limit_on_a_blank_margin_keeps_the_page_incomplete(tmp_path):
+    image = _page(40, 300, _rows(150, 170, 40))
+    calls = {"n": 0}
+
+    def transport(prepared, candidate, allowed):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {
+                "model": "glm-ocr:q8_0", "response": "50 mg", "done": True, "done_reason": "length",
+                "elapsed_seconds": 1, "model_digest": "aa",
+            }
+        return _stopped("5 mg")
+
+    result = run_page(image, "N3", transport, Ledger(tmp_path / "limit.jsonl", cap_seconds=100), "limit", "aa")
+    assert result["regions"][0]["status"] == "generation_limit"
+    assert result["status"] == "incomplete"
+    assert result["completed"] is False

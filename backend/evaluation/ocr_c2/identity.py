@@ -24,6 +24,13 @@ SCORING_SYMBOLS = (
     ("backend/evaluation/local_vision_eval.py", ("exact_critical_tokens", "_score_text")),
     ("backend/services/multimodal_service.py", ("_levenshtein_distance", "calculate_cer_wer")),
 )
+CONTROL_SYMBOLS = (
+    ("backend/services/multimodal_service.py", (
+        "OLLAMA_BASE_URL", "DEFAULT_OCR_MODEL", "DEFAULT_VL_MODEL",
+        "_ensure_local_ollama_endpoint", "_parse_model_json",
+        "query_ollama_multimodal", "glm_ocr_infer",
+    )),
+)
 
 
 def _read(relative: str) -> str:
@@ -74,6 +81,10 @@ def scoring_hash() -> str:
     return _bundle(_parts(SCORING_FILES, SCORING_SYMBOLS))
 
 
+def control_hash() -> str:
+    return _bundle(_parts((), CONTROL_SYMBOLS))
+
+
 def request_identity(
     candidate: str, dataset: str, case_ids: list[str], model_digest: str, parent: str | None = None,
 ) -> dict:
@@ -99,5 +110,7 @@ def request_identity(
         "inference_sha256": inference_hash(),
         "scoring_sha256": scoring_hash(),
     }
+    if spec["role"] == "control":
+        body["control_sha256"] = control_hash()
     body["experiment_fingerprint"] = sha(json.dumps(body, sort_keys=True).encode())
     return body
