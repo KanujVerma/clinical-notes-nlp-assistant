@@ -1,0 +1,44 @@
+{
+  "measured_head": "7ea3a70ea54b9322b86181a9231e6440e44e74b7",
+  "segmenter": "ocr_c2_segments_v2",
+  "cohort": "screen",
+  "saved_page_files_include_crop_sha256": false,
+  "saved_page_files_include_fallback_flags": false,
+  "saved_region_counts": {
+    "N1": {"amr": {"pages": 8, "one_region": 8}, "rx": {"pages": 64, "one_region": 64}},
+    "N3": {"amr": {"pages": 8, "one_region": 8}, "rx": {"pages": 64, "one_region": 64}},
+    "N4": {"amr": {"pages": 8, "one_region": 7, "two_regions": 1}, "rx": {"pages": 64, "one_region": 64}}
+  },
+  "recomputed_with_frozen_segmenter": {
+    "amr_bands": {
+      "pages": 8,
+      "column_uncertain_page": 5,
+      "band_fallback_one_region": 3,
+      "split_pages": 0,
+      "full_page_layouts": 8,
+      "median_region_height_fraction": 1.0
+    },
+    "amr_lines": {
+      "pages": 8,
+      "column_uncertain_page": 5,
+      "single_region_under_line_rule": 2,
+      "split_line_pages": 1,
+      "full_page_layouts": 7,
+      "median_ink_span_px": 2250,
+      "ink_span_p90_px": 3124,
+      "median_region_height_fraction": 1.0
+    },
+    "rx_lines": {
+      "pages": 64,
+      "column_uncertain_page": 64,
+      "split_pages": 0,
+      "full_page_layouts": 64,
+      "median_ink_span_px": 320,
+      "median_region_height_fraction": 1.0
+    }
+  },
+  "n1_n3_same_region_count": true,
+  "n3_produced_a_different_region": false,
+  "n4_single_line_geometry_established": false,
+  "decision": "geometry_blocked"
+}

@@ -4,11 +4,14 @@ from __future__ import annotations
 import ast
 import io
 import time
+from pathlib import Path
 
 from PIL import Image
 
 from evaluation.ocr_c2.budget import BudgetExhausted, Ledger
-from evaluation.ocr_c2.controller import TransitionRejected, acquire_lock, step, write_checkpoint
+from evaluation.ocr_c2.controller import (
+    TransitionRejected, acquire_lock, assess_optional, step, write_checkpoint,
+)
 from evaluation.ocr_c2.downloads import DownloadRefused, authorize
 from evaluation.ocr_c2.holdout import HoldoutSealed, cohort_for, refuse_tuning_ids, sealed_ids
 from evaluation.ocr_c2.identity import (
@@ -27,6 +30,7 @@ from evaluation.ocr_c2.native import (
 from evaluation.ocr_c2.protocol import CAMPAIGN_ID, load_protocol
 from evaluation.ocr_c2.replay import replay_case
 from evaluation.ocr_c2.runner import run_page
+from evaluation.ocr_c2.screen_driver import next_request_prefix
 from evaluation.ocr_c2.segment import orient_page, segment_page
 from evaluation.public_amr_benchmark import score, sha
 
@@ -294,6 +298,53 @@ def test_controller_rejects_a_skipped_review():
     except TransitionRejected:
         pass
     assert step("selecting", "no_candidate") == "stopped"
+
+
+def test_failed_native_screen_reaches_optional_eligibility():
+    assert step("screening", "nonqualifying") == "optional_model"
+    assert step("screening", "budget_blocked") == "stopped"
+    assert step("screening", "integrity_blocked") == "stopped"
+    eligible = {
+        "native_routes_failed": True,
+        "page_count": 8,
+        "full_page_layouts": 2,
+        "split_line_pages": 6,
+        "download_compatible": True,
+        "budget_sufficient": True,
+        "review_and_ci_complete": True,
+    }
+    assert assess_optional(eligible) == "prerequisites_met"
+    assert step("optional_model", "prerequisites_met") == "optional_model"
+
+
+def test_optional_phase_stays_closed_when_a_prerequisite_fails():
+    observed = {
+        "native_routes_failed": True,
+        "page_count": 8,
+        "full_page_layouts": 7,
+        "split_line_pages": 1,
+        "download_compatible": True,
+        "budget_sufficient": True,
+        "review_and_ci_complete": True,
+    }
+    assert assess_optional(observed) == "geometry_blocked"
+    assert step("optional_model", "geometry_blocked") == "stopped"
+    blocked = dict(observed, page_count=8, full_page_layouts=2, split_line_pages=6)
+    assert assess_optional(dict(blocked, download_compatible=False)) == "download_blocked"
+    assert assess_optional(dict(blocked, budget_sufficient=False)) == "budget_blocked"
+    assert assess_optional(dict(blocked, review_and_ci_complete=False)) == "review_blocked"
+    assert assess_optional(dict(blocked, integrity_blocked=True)) == "integrity_blocked"
+    assert assess_optional(dict(blocked, budget_exhausted=True)) == "budget_blocked"
+    assert step("optional_model", "download_blocked") == "stopped"
+    assert step("optional_model", "review_blocked") == "stopped"
+
+
+def test_sanitized_driver_keeps_private_paths_out():
+    source = Path(__file__).parents[1].joinpath("evaluation/ocr_c2/screen_driver.py").read_text()
+    assert "/Users/" not in source
+    assert "handwriting-private" not in source
+    assert next_request_prefix("N1-amr-doc-p0", set()) == "N1-amr-doc-p0"
+    assert next_request_prefix("N1-amr-doc-p0", {"N1-amr-doc-p0-0"}) == "N1-amr-doc-p0-r2"
 
 
 def test_checkpoint_requires_its_fields(tmp_path):

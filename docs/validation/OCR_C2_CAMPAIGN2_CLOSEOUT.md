@@ -49,3 +49,19 @@ Candidate slots used: 3 (`N1`, `N3`, `N4`). Controls do not consume a slot.
 ## Process state
 
 Stopped. Checkpoint `stop_reason` is `no_safety_qualified_native`. Confirmation, internal validation, holdout, and a finalist replay were not opened because the screen produced no safety-qualified native configuration.
+
+## Clarification, 2026-11-02
+
+The disposition above remains the native-screen result. It is not a finding that every approved route was exhausted.
+
+Native screening is complete and negative. `N1`, `N3`, and `N4` did not meet the 10% paired normalized-CER reduction, and each added critical false positives. The optional recognizer was not evaluated. At the measured head `7ea3a70` its implementation was missing. That absence was an implementation gap, not a scientific exclusion. The campaign stayed implementation-blocked until the authorized geometry check below.
+
+The historical private driver is preserved and was not rewritten. Its sha256 is `486e15ea2bb9824cf821215e79ea42991384ae246a0a270e1a9ab608a61d3167`. A later parameterized executor is `backend/evaluation/ocr_c2/screen_driver.py`. That file is not the source that produced the saved predictions. Replay of the 354 scored cases still does not prove the historical driver's provenance.
+
+Saved page files record region counts and call outcomes. They do not record crop hashes, boxes, or fallback flags. Those flags were recomputed locally with the frozen segmenter on the same development images. Aggregates are in `docs/validation/ocr_c2_screen_geometry.json`.
+
+`N1` and `N3` each made one recognition call on every development page and crop. Recomputed band geometry is one full-page region on all 8 development pages: 5 pages were column-uncertain, and 3 fell back because no usable band cut existed. `N3` did not produce different image regions from `N1`. The identical aggregate CER follows from identical whole-page inputs.
+
+`N4` made one call on 7 development pages and two calls on 1 page. Five pages were column-uncertain whole pages. Two more remained a single region under the line rule. One page was split. The median region covers the full page, and the median ink span is 2,250 px. All 64 development Rx crops stayed one region because the column check was uncertain. Usable single-line geometry is not established. The optional phase stops for `geometry_blocked`. No recognizer weights were downloaded.
+
+The controller now sends a nonqualifying screen to optional-model eligibility. Integrity failures and exhausted budgets during screening still stop immediately. The eligibility check does not start TrOCR when geometry, download compatibility, budget, or review is missing. Confirmation, internal validation, and holdout stay closed. `B8192` evidence is the screen already charged against digest `6e5935a916fc8d6878a67c60c2b99648f54e10b4a4af4cbbfb2c308953000e5f` at head `7ea3a70`; it was not rerun. The live ledger still charges 1,225.7 seconds. The earlier checkpoint is preserved beside the private campaign directory as `checkpoint-native-screen.json`. The current checkpoint stop reason is `geometry_blocked`, with `previous_stop_reason` `no_safety_qualified_native`.

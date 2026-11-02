@@ -25,7 +25,7 @@ _NEXT = {
     ("review_ready", "review_passed"): "screening",
     ("review_ready", "review_blocked"): "stopped",
     ("screening", "screen_done"): "confirming",
-    ("screening", "nonqualifying"): "stopped",
+    ("screening", "nonqualifying"): "optional_model",
     ("screening", "budget_blocked"): "stopped",
     ("screening", "integrity_blocked"): "stopped",
     ("confirming", "confirm_done"): "selecting",
@@ -33,8 +33,14 @@ _NEXT = {
     ("confirming", "needs_optional"): "optional_model",
     ("confirming", "nonqualifying"): "stopped",
     ("confirming", "budget_blocked"): "stopped",
+    ("optional_model", "prerequisites_met"): "optional_model",
     ("optional_model", "optional_done"): "selecting",
     ("optional_model", "optional_skipped"): "selecting",
+    ("optional_model", "geometry_blocked"): "stopped",
+    ("optional_model", "download_blocked"): "stopped",
+    ("optional_model", "budget_blocked"): "stopped",
+    ("optional_model", "review_blocked"): "stopped",
+    ("optional_model", "integrity_blocked"): "stopped",
     ("selecting", "selected"): "internal_validation",
     ("selecting", "no_candidate"): "stopped",
     ("selecting", "latency_blocker"): "stopped",
@@ -53,6 +59,33 @@ _NEXT = {
 
 class TransitionRejected(ValueError):
     pass
+
+
+def assess_optional(findings: dict) -> str:
+    """Return the event after native routes fail.
+
+    ``prerequisites_met`` stays in ``optional_model``. It does not download
+    weights or run a recognizer. A majority of the development pages must be
+    split into more than one line region before that event is allowed.
+    """
+    if findings.get("integrity_blocked"):
+        return "integrity_blocked"
+    if findings.get("budget_exhausted"):
+        return "budget_blocked"
+    if not findings.get("native_routes_failed"):
+        return "optional_skipped"
+    pages = int(findings.get("page_count") or 0)
+    full_page = int(findings.get("full_page_layouts") or 0)
+    split = int(findings.get("split_line_pages") or 0)
+    if pages == 0 or full_page * 2 >= pages or split * 2 < pages:
+        return "geometry_blocked"
+    if not findings.get("download_compatible"):
+        return "download_blocked"
+    if not findings.get("budget_sufficient"):
+        return "budget_blocked"
+    if not findings.get("review_and_ci_complete"):
+        return "review_blocked"
+    return "prerequisites_met"
 
 
 def step(state: str, event: str) -> str:
