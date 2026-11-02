@@ -510,6 +510,21 @@ def test_blank_margin_does_not_fail_a_scored_ink_region(tmp_path):
     assert "5 mg" in result["prediction"]
 
 
+def test_non_object_transport_is_recorded_as_malformed(tmp_path):
+    image = _page(40, 40, _rows(10, 20, 40))
+    for index, payload in enumerate((None, [])):
+        def transport(prepared, candidate, allowed, payload=payload):
+            return payload
+
+        ledger = Ledger(tmp_path / f"bad-{index}.jsonl", cap_seconds=100)
+        result = run_page(image, "N1", transport, ledger, f"bad-{index}", "aa")
+        assert result["status"] == "incomplete"
+        assert result["completed"] is False
+        assert result["regions"][0]["status"] == "malformed_transport"
+        assert [row["event"] for row in ledger.rows()] == ["begin", "finish"]
+        assert ledger.charged() == 0
+
+
 def test_generation_limit_on_a_blank_margin_keeps_the_page_incomplete(tmp_path):
     image = _page(40, 300, _rows(150, 170, 40))
     calls = {"n": 0}

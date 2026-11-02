@@ -53,8 +53,14 @@ def run_page(
                 "prediction": "\n".join(transcripts),
             }
         response = transport(prepared, candidate, allowed)
-        ledger.finish(request_id, float(response.get("elapsed_seconds") or 0))
-        page_remaining -= float(response.get("elapsed_seconds") or 0)
+        if isinstance(response, dict):
+            elapsed = float(response.get("elapsed_seconds") or 0)
+            raw_response = response.get("response")
+        else:
+            elapsed = 0.0
+            raw_response = None
+        ledger.finish(request_id, elapsed)
+        page_remaining -= elapsed
         interpreted = interpret_native_response(
             response, load_protocol()["model"]["tag"], expected_digest,
         )
@@ -63,7 +69,7 @@ def run_page(
             "source": region,
             "crop_sha256": sha(prepared),
             "status": interpreted["status"],
-            "raw_response": response.get("response"),
+            "raw_response": raw_response,
             "transcription": interpreted["transcription"],
         })
         transcripts.append(interpreted["transcription"] or "")
