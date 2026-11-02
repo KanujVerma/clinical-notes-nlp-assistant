@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import io
 
 from PIL import Image
 
@@ -9,7 +10,9 @@ from evaluation.ocr_c2.budget import BudgetExhausted, Ledger
 from evaluation.ocr_c2.controller import TransitionRejected, acquire_lock, step, write_checkpoint
 from evaluation.ocr_c2.downloads import DownloadRefused, authorize
 from evaluation.ocr_c2.holdout import HoldoutSealed, cohort_for, refuse_tuning_ids, sealed_ids
-from evaluation.ocr_c2.identity import request_identity
+from evaluation.ocr_c2.identity import (
+    INFERENCE_FILES, SCORING_FILES, inference_hash, request_identity, scoring_hash,
+)
 from evaluation.ocr_c2.integrate import enabled, recognize
 from evaluation.ocr_c2.metrics import (
     bootstrap_relative, meets_relative_reduction, micro_rate, nearest_rank_p95,
@@ -22,7 +25,7 @@ from evaluation.ocr_c2.native import (
 from evaluation.ocr_c2.protocol import CAMPAIGN_ID, load_protocol
 from evaluation.ocr_c2.replay import replay_case
 from evaluation.ocr_c2.runner import run_page
-from evaluation.ocr_c2.segment import segment_page
+from evaluation.ocr_c2.segment import orient_page, segment_page
 from evaluation.public_amr_benchmark import score, sha
 
 
@@ -323,7 +326,8 @@ def test_fingerprints_change_with_the_candidate_not_the_partition_bytes_alone():
     first = request_identity("N1", "amr", ["AMR_001"], "abc")
     second = request_identity("N2", "amr", ["AMR_001"], "abc")
     assert first["experiment_fingerprint"] != second["experiment_fingerprint"]
-    assert first["identity_version"] == "ocr_c2_identity_v1"
+    assert first["identity_version"] == "ocr_c2_identity_v2"
+    assert first["inference_sha256"] != first["scoring_sha256"]
 
 
 def test_bootstrap_is_undefined_when_the_denominator_is_zero():
@@ -336,7 +340,76 @@ def test_bootstrap_is_undefined_when_the_denominator_is_zero():
 
 
 def test_keep_alive_variant_is_labeled_separately():
-    resident = build_native_payload(b"image", "N5", keep_alive="5m")
+    resident = build_native_payload(b"image", "N5", parent="N1")
     assert resident["keep_alive"] == "5m"
     assert resident["prompt"] == NATIVE_PROMPT
     assert "format" not in resident
+
+
+def test_crops_follow_exif_orientation():
+    raw = Image.new("RGB", (12, 36), "white")
+    exif = Image.Exif()
+    exif[274] = 6
+    buffer = io.BytesIO()
+    raw.save(buffer, format="JPEG", exif=exif)
+    buffer.seek(0)
+    stored = Image.open(buffer)
+    stored.load()
+    oriented = orient_page(stored)
+    assert oriented.size != stored.size
+    layout = segment_page(stored, "page")
+    assert (layout["width"], layout["height"]) == oriented.size
+    assert stored.size[0] < layout["width"] or stored.size[1] < layout["height"]
+
+
+def test_outer_whitespace_stays_with_the_text_band():
+    ink = _rows(100, 120, 40) + _rows(200, 220, 40) + _rows(300, 320, 40)
+    page = _page(40, 400, ink)
+    layout = segment_page(page, "lines")
+    ink_rows = set(range(100, 120)) | set(range(200, 220)) | set(range(300, 320))
+    assert layout["regions"][0]["y0"] == 0
+    assert layout["regions"][-1]["y1"] == 400
+    assert all(region["has_ink"] for region in layout["regions"])
+    assert all(any(row in ink_rows for row in range(region["y0"], region["y1"])) for region in layout["regions"])
+    assert len(layout["regions"]) == 3
+
+
+def test_n5_inherits_its_parent_geometry_and_cap(tmp_path):
+    longer = build_native_payload(b"image", "N5", parent="N2")
+    assert longer["options"]["num_predict"] == 4096
+    assert longer["options"]["num_ctx"] == 8192
+    assert longer["keep_alive"] == "5m"
+    try:
+        build_native_payload(b"image", "N5")
+        raise AssertionError("N5 ran without a parent")
+    except ValueError as error:
+        assert str(error) == "OCR_C2_N5_PARENT"
+    image = _page(40, 100, _rows(0, 20, 40) + _rows(40, 60, 40) + _rows(80, 100, 40))
+
+    def transport(prepared, candidate, allowed):
+        return {
+            "model": "glm-ocr:q8_0", "response": "5 mg", "done": True, "done_reason": "stop",
+            "elapsed_seconds": 1, "model_digest": "aa",
+        }
+
+    lines = run_page(image, "N5", transport, Ledger(tmp_path / "lines.jsonl", cap_seconds=100), "lines", "aa", parent="N4")
+    whole = run_page(image, "N5", transport, Ledger(tmp_path / "page.jsonl", cap_seconds=100), "page", "aa", parent="N1")
+    assert len(lines["regions"]) > 1
+    assert len(whole["regions"]) == 1
+    by_lines = request_identity("N5", "amr", ["A"], "abc", parent="N4")
+    by_cap = request_identity("N5", "amr", ["A"], "abc", parent="N2")
+    assert by_lines["geometry"] == "lines"
+    assert by_cap["num_predict"] == 4096
+    assert by_lines["experiment_fingerprint"] != by_cap["experiment_fingerprint"]
+
+
+def test_scoring_hash_is_not_the_inference_hash():
+    assert "backend/evaluation/public_amr_benchmark.py" in INFERENCE_FILES
+    assert "backend/evaluation/pr10_replay.py" in SCORING_FILES
+    assert "backend/services/multimodal_service.py" in SCORING_FILES
+    assert "backend/evaluation/ocr_c2/segment.py" not in SCORING_FILES
+    assert "backend/services/multimodal_service.py" not in INFERENCE_FILES
+    assert inference_hash() != scoring_hash()
+    ident = request_identity("N1", "amr", ["A"], "abc")
+    assert ident["inference_sha256"] == inference_hash()
+    assert ident["scoring_sha256"] == scoring_hash()

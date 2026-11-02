@@ -1,7 +1,7 @@
 {
   "schema": "ocr_c2_protocol_v1",
   "campaign_id": "ocr-campaign2-native-regions-v1",
-  "identity_version": "ocr_c2_identity_v1",
+  "identity_version": "ocr_c2_identity_v2",
   "base_commit": "bdbf5f8360344c6ae1fdad716de142f85b169042",
   "implementation_checkpoint_not_rerun": "29fd7548da4610aee69925467368b0d68b270a5d",
   "partition_manifest": "docs/validation/pr10_partition_manifest.json",
@@ -55,7 +55,7 @@
     "infrastructure_retries": 2
   },
   "segmentation": {
-    "version": "ocr_c2_segments_v1",
+    "version": "ocr_c2_segments_v2",
     "low_ink_row_fraction": 0.001,
     "minimum_gap_rows": 8,
     "n3_target_tolerance_fraction": 0.1,

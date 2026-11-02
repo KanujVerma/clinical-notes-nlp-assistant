@@ -29,7 +29,7 @@ Native calls are a separate adapter. They do not go through the JSON grammar in 
 - `N2`: `N1` with `num_predict=4096`. Run only if `N1` truncated on a development input because generation hit the cap. Do not raise `num_ctx`.
 - `N3`: deterministic horizontal bands, cap 2048 per region.
 - `N4`: deterministic line strips, cap 2048 per strip. Fall back to the `N3` partition when line segmentation is unavailable.
-- `N5`: the best safety-qualified native parent with `keep_alive=5m` during that page's regions, then unload before the next page. Skip if there is no parent. If outputs differ from the parent, it is a different configuration and must pass the accuracy gates.
+- `N5`: the best safety-qualified native parent (`N1`–`N4`) with that parent's geometry and generation cap, and `keep_alive=5m` during that page's regions, then unload before the next page. Skip if there is no parent. If outputs differ from the parent, it is a different configuration and must pass the accuracy gates.
 - `N6`: `microsoft/trocr-base-handwritten` at revision `eaacaf452b06415df8f10bb6fad3a4c11e609406`, only after native routes fail the development gates and `N4` geometry is usable. One `.safetensors` weight file plus the listed processor files. Do not download `pytorch_model.bin`. No `trust_remote_code`. Not downloaded at protocol time.
 
 Two candidate slots remain for a prediction-affecting correctness fix. A changed prompt, decoder, threshold, fallback, or model setting needs a new fingerprint and a slot. Replay of the same configuration does not take another slot. Every model call consumes time.
@@ -38,13 +38,13 @@ No contrast, gamma, sharpen, spacing sweep, output rewrite, or ensemble.
 
 ## Segmentation
 
-Version `ocr_c2_segments_v1`. Constants are in the manifest.
+Version `ocr_c2_segments_v2`. Constants are in the manifest. The page is oriented once, and both the cuts and the crops use that image.
 
 Apply EXIF orientation once. Build an Otsu mask only to find whitespace. The recognizer receives RGB crops passed through `infer_image`, not the mask. A low-ink row has at most 0.1% foreground pixels. A usable gap is at least 8 consecutive low-ink rows.
 
 `N3` looks for one usable gap within 10% of page height of the one-third and two-third positions. The gap center nearest the target wins. Ties go upward. At most three bands. No usable cut yields one page and `segmentation_fallback`.
 
-`N4` cuts at usable-gap centers, merges pieces shorter than 16 pixels into the nearest neighbor, and keeps every source row in exactly one region. More than 24 regions, or a layout the rules do not handle, falls back to the `N3` partition and marks line segmentation unavailable.
+`N4` cuts only at usable gaps that sit between ink bands. Leading and trailing whitespace stay attached to the neighboring text region, so a blank margin is not its own recognition call. Pieces shorter than 16 pixels merge into the nearest neighbor, and every source row stays in exactly one region. More than 24 regions, or a layout the rules do not handle, falls back to the `N3` partition and marks line segmentation unavailable.
 
 A gutter at least 3% of page width inside the central 20–80%, with low ink on at least 80% of nonblank rows, marks `reading_order_uncertain`. That page is one whole-page region. No text is dropped because it is small. Regions join with one newline. An empty or failed region on a nonblank crop makes the page incomplete. A failed page makes the AMR document incomplete. Rx crops stay one region and are not pooled with AMR.
 
@@ -72,7 +72,7 @@ Selection order, before internal validation:
 
 Global model-operation cap: 21,600 seconds, including controls, smoke, retries, warmup, confirmation, validation, and final evaluation. Exploration stops at 7,200 seconds. Cumulative time must be at most 10,800 seconds before holdout. The rest is reserved for the frozen three-arm evaluation. Remaining time is checked before every model call. Per-call cap is 90 seconds. Per-page cap is 120 seconds. A crash charges the attempt's deadline. An unfinished cohort does not get a summary. One machine-level lock lives under the original checkout's private campaign directory.
 
-Identity version `ocr_c2_identity_v1` binds the protocol manifest, partition, ids, source and reference hashes, crop geometry, model id, request options, and code hashes. Scoring identity is separate. Consumers recompute metrics from saved predictions and reference bytes. Holdout analysis, if reached, uses 10,000 writer-group bootstrap replicates for AMR and paired-crop replicates for Rx, seed `20261101`. An interval that includes no improvement is inconclusive.
+Identity version `ocr_c2_identity_v2` binds the protocol manifest, partition, ids, source and reference hashes, crop geometry, model id, and request options. Inference identity hashes the native adapter, segmentation, runner, and `infer_image`. Scoring identity hashes the normalized metrics, `score`, occurrence alignment, and the Levenshtein implementation. A scorer change is not a new model run. Consumers recompute metrics from saved predictions and reference bytes. Holdout analysis, if reached, uses 10,000 writer-group bootstrap replicates for AMR and paired-crop replicates for Rx, seed `20261101`. An interval that includes no improvement is inconclusive.
 
 ## Integration and states
 

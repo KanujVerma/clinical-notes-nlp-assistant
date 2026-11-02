@@ -136,10 +136,30 @@ def _merge_short(spans: list[tuple[int, int]], minimum: int) -> list[tuple[int, 
     return spans
 
 
-def _lines(height: int, gaps: list[tuple[int, int]], rules: dict) -> tuple[list[tuple[int, int]], bool]:
-    if not gaps:
-        return [(0, height)], True
-    cuts = sorted(int(_center(gap)) for gap in gaps)
+def _ink_bands(ink_rows: list[bool]) -> list[tuple[int, int]]:
+    bands = []
+    start = None
+    for index, ink in enumerate(ink_rows + [False]):
+        if ink and start is None:
+            start = index
+        elif not ink and start is not None:
+            bands.append((start, index))
+            start = None
+    return bands
+
+
+def _lines(height: int, ink_rows: list[bool], rules: dict) -> tuple[list[tuple[int, int]], bool]:
+    """Cut only between ink bands. Outer whitespace stays with the neighboring text."""
+    bands = _ink_bands(ink_rows)
+    if len(bands) <= 1:
+        return [(0, height)], len(bands) == 0
+    cuts = []
+    for left, right in zip(bands, bands[1:]):
+        gap = (left[1], right[0])
+        if gap[1] - gap[0] >= rules["minimum_gap_rows"]:
+            cuts.append(int(_center(gap)))
+    if not cuts:
+        return [(0, height)], False
     bounds = [0, *cuts, height]
     spans = [(bounds[index], bounds[index + 1]) for index in range(len(bounds) - 1) if bounds[index + 1] > bounds[index]]
     spans = _merge_short(spans, rules["minimum_line_pixels"])
@@ -148,13 +168,20 @@ def _lines(height: int, gaps: list[tuple[int, int]], rules: dict) -> tuple[list[
     return spans, False
 
 
-def _pack(spans: list[tuple[int, int]], width: int, height: int, **flags) -> dict:
+def orient_page(image: Image.Image) -> Image.Image:
+    return ImageOps.exif_transpose(image).convert("RGB")
+
+
+def _pack(spans: list[tuple[int, int]], width: int, height: int, ink_rows: list[bool], **flags) -> dict:
     if not spans or spans[0][0] != 0 or spans[-1][1] != height:
         raise ValueError("OCR_C2_PARTITION")
     if any(spans[index][1] != spans[index + 1][0] for index in range(len(spans) - 1)):
         raise ValueError("OCR_C2_PARTITION")
     regions = [
-        {"x0": 0, "y0": start, "x1": width, "y1": end, "order": index}
+        {
+            "x0": 0, "y0": start, "x1": width, "y1": end, "order": index,
+            "has_ink": any(ink_rows[start:end]),
+        }
         for index, (start, end) in enumerate(spans)
     ]
     return {"regions": regions, "width": width, "height": height, **flags}
@@ -163,7 +190,7 @@ def _pack(spans: list[tuple[int, int]], width: int, height: int, **flags) -> dic
 def segment_page(image: Image.Image, geometry: str) -> dict:
     """Return a disjoint full-width partition of the oriented page."""
     rules = _rules()
-    oriented = ImageOps.exif_transpose(image).convert("RGB")
+    oriented = orient_page(image)
     gray = oriented.convert("L")
     width, height = gray.size
     if height == 0 or width == 0:
@@ -172,7 +199,7 @@ def segment_page(image: Image.Image, geometry: str) -> dict:
     uncertain = _column_uncertain(gray, ink, rules)
     if uncertain or geometry == "page":
         return _pack(
-            [(0, height)], width, height,
+            [(0, height)], width, height, ink,
             segmentation_fallback=False,
             line_segmentation_unavailable=geometry == "lines" and uncertain,
             reading_order_uncertain=uncertain,
@@ -182,25 +209,25 @@ def segment_page(image: Image.Image, geometry: str) -> dict:
     if geometry == "bands":
         spans, fallback = _bands(height, gaps, rules)
         return _pack(
-            spans, width, height,
+            spans, width, height, ink,
             segmentation_fallback=fallback,
             line_segmentation_unavailable=False,
             reading_order_uncertain=False,
             geometry="bands",
         )
     if geometry == "lines":
-        spans, unavailable = _lines(height, gaps, rules)
+        spans, unavailable = _lines(height, ink, rules)
         if unavailable:
             spans, fallback = _bands(height, gaps, rules)
             return _pack(
-                spans, width, height,
+                spans, width, height, ink,
                 segmentation_fallback=fallback,
                 line_segmentation_unavailable=True,
                 reading_order_uncertain=False,
                 geometry="bands",
             )
         return _pack(
-            spans, width, height,
+            spans, width, height, ink,
             segmentation_fallback=False,
             line_segmentation_unavailable=False,
             reading_order_uncertain=False,

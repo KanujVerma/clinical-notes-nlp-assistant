@@ -26,8 +26,20 @@ class DigestDrift(ValueError):
     pass
 
 
-def build_native_payload(image_bytes: bytes, candidate: str, keep_alive=None) -> dict:
-    spec = load_protocol()["candidates"][candidate]
+def resolved_spec(candidate: str, parent: str | None = None) -> dict:
+    """N5 keeps its parent's geometry and decoder and changes only keep_alive."""
+    spec = dict(load_protocol()["candidates"][candidate])
+    if candidate != "N5":
+        return spec
+    if parent not in {"N1", "N2", "N3", "N4"}:
+        raise ValueError("OCR_C2_N5_PARENT")
+    base = dict(load_protocol()["candidates"][parent])
+    base.update({"role": "runtime", "keep_alive": "5m", "parent": parent})
+    return base
+
+
+def build_native_payload(image_bytes: bytes, candidate: str, keep_alive=None, parent: str | None = None) -> dict:
+    spec = resolved_spec(candidate, parent)
     model = load_protocol()["model"]
     if spec["role"] not in {"native", "runtime"}:
         raise ValueError("OCR_C2_NOT_NATIVE")

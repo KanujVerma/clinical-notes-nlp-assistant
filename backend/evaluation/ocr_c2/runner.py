@@ -6,9 +6,9 @@ import io
 from PIL import Image
 
 from evaluation.ocr_c2.budget import BudgetExhausted, Ledger
-from evaluation.ocr_c2.native import interpret_native_response
+from evaluation.ocr_c2.native import interpret_native_response, resolved_spec
 from evaluation.ocr_c2.protocol import load_protocol
-from evaluation.ocr_c2.segment import segment_page
+from evaluation.ocr_c2.segment import orient_page, segment_page
 from evaluation.public_amr_benchmark import infer_image, sha
 
 
@@ -26,12 +26,11 @@ def run_page(
     ledger: Ledger,
     request_prefix: str,
     expected_digest: str | None = None,
+    parent: str | None = None,
 ) -> dict:
-    spec = load_protocol()["candidates"][candidate]
+    spec = resolved_spec(candidate, parent)
     geometry = spec.get("geometry") or "page"
-    if geometry == "parent":
-        geometry = "page"
-    oriented = image
+    oriented = orient_page(image)
     layout = segment_page(oriented, geometry if geometry in {"page", "bands", "lines"} else "page")
     budgets = load_protocol()["budgets"]
     page_remaining = budgets["per_page_seconds"]
@@ -39,7 +38,7 @@ def run_page(
     transcripts = []
     incomplete = False
     for region in layout["regions"]:
-        prepared = _crop_bytes(image, region)
+        prepared = _crop_bytes(oriented, region)
         deadline = min(budgets["per_call_seconds"], page_remaining, ledger.remaining())
         request_id = f"{request_prefix}-{region['order']}"
         try:
@@ -67,7 +66,7 @@ def run_page(
             "transcription": interpreted["transcription"],
         })
         transcripts.append(interpreted["transcription"] or "")
-        if not interpreted["scored"]:
+        if region.get("has_ink", True) and not interpreted["scored"]:
             incomplete = True
         if page_remaining <= 0 and region["order"] != layout["regions"][-1]["order"]:
             incomplete = True
