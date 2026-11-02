@@ -157,14 +157,14 @@ def write_json(path: Path, payload: dict) -> None:
     temporary.replace(path)
 
 
-def run_one_page(image_bytes: bytes, candidate: str, transport, ledger: Ledger, request_prefix: str, digest: str, parent: str | None) -> dict:
+def run_one_page(image_bytes: bytes, candidate: str, transport, ledger: Ledger, request_prefix: str, digest: str, parent: str | None, input_type: str = "page") -> dict:
     before = ledger.charged()
     image = Image.open(BytesIO(image_bytes))
     image.load()
     try:
         result = run_page(
             image, candidate, transport, ledger, request_prefix, digest,
-            parent=parent, phase="exploration",
+            parent=parent, phase="exploration", input_type=input_type,
         )
     except Exception:
         ledger.recover_crashes()
@@ -234,6 +234,7 @@ def run_candidate(root: Path, candidate: str, digest: str, ledger: Ledger, recor
                 record(f"skip {candidate} {dataset} {ident}")
                 continue
             transport = control_transport(digest) if role == "control" else native_transport(digest, parent)
+            input_type = "word_crop" if dataset == "rx" else "page"
             page_results = []
             for index, raw in enumerate(pages):
                 stored = root / "screen" / candidate / dataset / f"{ident}-p{index}.json"
@@ -248,7 +249,7 @@ def run_candidate(root: Path, candidate: str, digest: str, ledger: Ledger, recor
                     {row["request_id"] for row in ledger.rows()},
                 )
                 try:
-                    result = run_one_page(raw, candidate, transport, ledger, prefix, digest, parent)
+                    result = run_one_page(raw, candidate, transport, ledger, prefix, digest, parent, input_type)
                 except (urllib.error.URLError, TimeoutError, ConnectionError):
                     ledger.recover_crashes()
                     record(f"transport_error {candidate} {dataset} {ident} p{index} charged={ledger.charged():.1f}")

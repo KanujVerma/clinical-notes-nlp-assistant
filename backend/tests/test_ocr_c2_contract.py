@@ -155,6 +155,28 @@ def test_blank_region_makes_the_page_incomplete(tmp_path):
     assert len(result["regions"]) >= 2
 
 
+def test_rx_word_crop_stays_one_region(tmp_path):
+    image = _page(40, 100, _rows(0, 20, 40) + _rows(40, 60, 40) + _rows(80, 100, 40))
+
+    def transport(prepared, candidate, allowed):
+        return {
+            "model": "glm-ocr:q8_0", "response": "5 mg", "done": True, "done_reason": "stop",
+            "elapsed_seconds": 1, "model_digest": "aa",
+        }
+
+    for candidate in ("N3", "N4"):
+        result = run_page(
+            image, candidate, transport, Ledger(tmp_path / f"{candidate}.jsonl", cap_seconds=100),
+            candidate, "aa", input_type="word_crop",
+        )
+        assert result["completed"] is True
+        assert len(result["regions"]) == 1
+        assert result["layout"]["input_type"] == "word_crop"
+        assert result["layout"]["geometry"] == "page"
+    split = run_page(image, "N4", transport, Ledger(tmp_path / "page.jsonl", cap_seconds=100), "page", "aa")
+    assert len(split["regions"]) > 1
+
+
 def test_segmentation_conserves_rows_and_flags_columns():
     bands = _page(40, 90, _rows(0, 20, 40) + _rows(30, 50, 40) + _rows(60, 80, 40))
     layout = segment_page(bands, "bands")

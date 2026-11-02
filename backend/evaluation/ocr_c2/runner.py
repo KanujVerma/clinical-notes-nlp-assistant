@@ -29,11 +29,17 @@ def run_page(
     expected_digest: str | None = None,
     parent: str | None = None,
     phase: str | None = None,
+    input_type: str = "page",
 ) -> dict:
+    if input_type not in {"page", "word_crop"}:
+        raise ValueError("OCR_C2_INPUT_TYPE")
     spec = resolved_spec(candidate, parent)
     geometry = spec.get("geometry") or "page"
+    if input_type == "word_crop":
+        geometry = "page"
     oriented = orient_page(image)
     layout = segment_page(oriented, geometry if geometry in {"page", "bands", "lines"} else "page")
+    layout["input_type"] = input_type
     page_has_ink = any(item.get("has_ink", True) for item in layout["regions"])
     budgets = load_protocol()["budgets"]
     page_remaining = budgets["per_page_seconds"]
