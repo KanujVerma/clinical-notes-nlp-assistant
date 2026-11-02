@@ -18,6 +18,14 @@ STATES = (
     "replay",
     "report",
     "stopped",
+    "amendment_preflight",
+    "geometry_development",
+    "geometry_ready",
+    "geometry_blocked",
+    "implementation_review",
+    "paired_screen",
+    "optional_recognizer",
+    "development_confirmation",
 )
 
 _NEXT = {
@@ -54,6 +62,22 @@ _NEXT = {
     ("replay", "replay_ok"): "report",
     ("replay", "integrity_blocked"): "stopped",
     ("report", "report_done"): "stopped",
+    ("amendment_preflight", "preflight_ok"): "geometry_development",
+    ("geometry_development", "geometry_failed"): "geometry_blocked",
+    ("geometry_development", "geometry_passed"): "geometry_ready",
+    ("geometry_blocked", "recorded"): "stopped",
+    ("geometry_ready", "implementation_committed"): "implementation_review",
+    ("implementation_review", "review_passed"): "paired_screen",
+    ("implementation_review", "review_blocked"): "stopped",
+    ("paired_screen", "glm_qualifies"): "development_confirmation",
+    ("paired_screen", "glm_nonqualifying"): "optional_recognizer",
+    ("paired_screen", "budget_blocked"): "stopped",
+    ("paired_screen", "integrity_blocked"): "stopped",
+    ("optional_recognizer", "optional_qualifies"): "development_confirmation",
+    ("optional_recognizer", "optional_nonqualifying"): "stopped",
+    ("optional_recognizer", "budget_blocked"): "stopped",
+    ("development_confirmation", "confirmation_done"): "replay",
+    ("development_confirmation", "confirmation_failed"): "stopped",
 }
 
 

@@ -10,6 +10,7 @@ on:
       - "backend/evaluation/ocr_c2/**"
       - "backend/evaluation/pr10_*.py"
       - "backend/tests/test_ocr_c2_contract.py"
+      - "backend/tests/test_ocr_c2_segment_v3.py"
       - "backend/tests/test_pr10_*.py"
       - "docs/validation/ocr_c2_protocol_manifest.json"
       - "docs/validation/pr10_partition_manifest.json"
@@ -50,4 +51,5 @@ jobs:
           PYTHONPATH=backend python -m pytest -q \
             backend/tests/test_pr10_partition.py \
             backend/tests/test_pr10_campaign_rules.py \
-            backend/tests/test_ocr_c2_contract.py
+            backend/tests/test_ocr_c2_contract.py \
+            backend/tests/test_ocr_c2_segment_v3.py
