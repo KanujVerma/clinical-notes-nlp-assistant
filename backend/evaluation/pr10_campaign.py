@@ -315,6 +315,10 @@ def _latest(decisions: list[dict]) -> list[dict]:
     return ordered
 
 
+def _over_compute_budget() -> bool:
+    return elapsed_ms() >= BUDGET_MS
+
+
 def _stopping(decisions: list[dict]) -> str | None:
     finished = _latest(decisions)
     if len(finished) >= BUDGET_EXPERIMENTS:
@@ -416,7 +420,7 @@ def _run() -> int:
                 name, dataset = missing
                 spec = pending if name == pending["name"] else historical_specs().get(name, best)
                 print(f"PR10_NEXT confirm {name} {dataset} {spec.get('hypothesis')}", flush=True)
-                run_spec(spec, "confirm", dataset, None)
+                run_spec(spec, "confirm", dataset, None, stop_before_case=_over_compute_budget)
                 continue
             decision = _compare("confirm", best["name"], pending["name"])
             _record(pending, decision)
@@ -432,11 +436,11 @@ def _run() -> int:
             return 0
         if not _ready("screen", child["name"], "amr"):
             print(f"PR10_NEXT screen {child['name']} amr {child['hypothesis']}", flush=True)
-            run_spec(child, "screen", "amr", None)
+            run_spec(child, "screen", "amr", None, stop_before_case=_over_compute_budget)
             continue
         if not _ready("screen", child["name"], "rx"):
             print(f"PR10_NEXT screen {child['name']} rx {child['hypothesis']}", flush=True)
-            run_spec(child, "screen", "rx", None)
+            run_spec(child, "screen", "rx", None, stop_before_case=_over_compute_budget)
             continue
         decision = _compare("screen", best["name"], child["name"])
         _record(child, decision)

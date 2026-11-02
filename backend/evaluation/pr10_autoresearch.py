@@ -24,6 +24,7 @@ from evaluation.pr10_identity import (  # noqa: E402
 )
 from evaluation.pr10_replay import (  # noqa: E402
     align_critical, classify_saved_run, critical_false_positives, micro_summary,
+    reference_text,
 )
 from evaluation.public_amr_benchmark import score, sha  # noqa: E402
 from services.inference_pipeline import get_installed_model_digest  # noqa: E402
@@ -109,7 +110,7 @@ def _amr_case(selection: dict, ident: str) -> tuple[list[bytes], str, str]:
     truth = (root / record["truth"]).read_bytes()
     if sha(truth) != record["truth_sha256"]:
         raise ValueError("PR10_AMR_GOLD_HASH")
-    return pages, truth.decode("utf-8-sig"), record["truth_sha256"]
+    return pages, reference_text(truth), record["truth_sha256"]
 
 
 def _rx_labels() -> dict[str, str]:
@@ -159,7 +160,8 @@ def _rx_case(name: str, labels: dict[str, str], expected_sha: str) -> tuple[list
     digest = sha(raw)
     if digest != expected_sha:
         raise ValueError("PR10_RX_SOURCE_HASH")
-    return [raw], labels[name], sha(labels[name].encode("utf-8"))
+    encoded = labels[name].encode("utf-8")
+    return [raw], reference_text(encoded), sha(encoded)
 
 
 def _predict(candidate: str, pages: list[bytes]) -> tuple[str | None, int, str]:
@@ -369,7 +371,10 @@ def _summary_payload(spec: dict, stage: str, dataset: str, identity: dict, cases
     }
 
 
-def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
+def run_spec(
+    spec: dict, stage: str, dataset: str, limit: int | None,
+    stop_before_case=None,
+) -> dict:
     candidate = spec["name"]
     manifest_bytes = MANIFEST.read_bytes()
     manifest = json.loads(manifest_bytes)
@@ -421,6 +426,8 @@ def run_spec(spec: dict, stage: str, dataset: str, limit: int | None) -> dict:
         destination = out / f"{ident}.json"
         if destination.exists():
             continue
+        if stop_before_case is not None and stop_before_case():
+            return {"status": "stopped", "reason": "compute_budget", "completed": False}
         if dataset == "amr":
             pages, reference, reference_sha = _amr_case(selection, ident)
         else:

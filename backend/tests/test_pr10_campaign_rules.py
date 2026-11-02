@@ -9,7 +9,7 @@ from PIL import Image
 from evaluation import pr10_autoresearch, pr10_campaign
 from evaluation.pr10_campaign import _compare, _metrics, acquire_lock, campaign
 from evaluation.pr10_autoresearch import (
-    MODEL, build_identity, completed_status, predict_spec, require_frozen_amr_pages, run_spec,
+    MODEL, _amr_case, build_identity, completed_status, predict_spec, require_frozen_amr_pages, run_spec,
 )
 from evaluation.pr10_candidate import (
     changed_fields, historical_specs, mutation_queue, render_regions, resolve_spec,
@@ -182,6 +182,42 @@ def test_rescore_requires_the_original_reference_bytes():
         raise AssertionError("changed occurrence count was accepted")
     except ValueError as error:
         assert str(error) == "PR10_REPLAY_METRICS_MISMATCH"
+
+
+def test_crlf_gold_scores_the_same_way_on_replay():
+    raw = b"5 mg\r\ntake daily"
+    prediction = "5 mg\ntake daily"
+    text = reference_text(raw)
+    assert text == prediction
+    assert score(raw.decode("utf-8-sig"), prediction)["character_distance"] == 1
+    case = _scored_case(text, prediction, sha(raw))
+    assert case["metrics"]["character_distance"] == 0
+    assert rescore_case(case, raw, sha(raw))["replay_verified"] is True
+
+
+def test_amr_case_normalizes_newlines_without_changing_the_hash(monkeypatch, tmp_path):
+    page = tmp_path / "page.png"
+    page.write_bytes(b"page")
+    raw = b"5 mg\r\ntake daily"
+    (tmp_path / "truth.txt").write_bytes(raw)
+    digest = sha(b"page")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({
+        "amr": {"development": [{"id": "AMR_035", "page_sha256": [digest]}]},
+    }))
+    monkeypatch.setattr(pr10_autoresearch, "MANIFEST", manifest)
+    pages, reference, reference_sha = _amr_case({
+        "source_root": str(tmp_path),
+        "all_records": [{
+            "id": "AMR_035",
+            "pages": [{"path": "page.png", "sha256": digest}],
+            "truth": "truth.txt",
+            "truth_sha256": sha(raw),
+        }],
+    }, "AMR_035")
+    assert pages == [b"page"]
+    assert reference == "5 mg\ntake daily"
+    assert reference_sha == sha(raw)
 
 
 def test_empty_transcription_is_not_scored():
@@ -674,6 +710,48 @@ def test_compare_refuses_legacy_evidence(monkeypatch, tmp_path):
     except LegacyCheckpoint as error:
         assert str(error) == "legacy_unverified"
     assert (folder / "AMR_035.json").read_bytes() == original
+
+
+def test_compute_budget_stops_before_the_next_prediction(monkeypatch, tmp_path):
+    monkeypatch.setattr(pr10_autoresearch, "PRIVATE", tmp_path)
+    monkeypatch.setattr(pr10_autoresearch, "work_items", lambda manifest, stage, dataset: ["A", "B"])
+    monkeypatch.setattr(pr10_autoresearch, "get_installed_model_digest", lambda model: "a" * 64)
+    monkeypatch.setattr(
+        pr10_autoresearch, "reference_hashes_for",
+        lambda dataset, identifiers: {item: "ab" * 32 for item in identifiers},
+    )
+    intake = tmp_path / "selection.json"
+    intake.write_text("{}")
+    monkeypatch.setattr(pr10_autoresearch, "AMR_INTAKE", intake)
+    monkeypatch.setattr(
+        pr10_autoresearch, "_amr_case", lambda selection, ident: ([_png()], "5 mg\n", "ab" * 32),
+    )
+    calls = []
+
+    def fake_predict(spec, pages):
+        calls.append(True)
+        return "5 mg", 10, "scored", 1
+
+    monkeypatch.setattr(pr10_autoresearch, "predict_spec", fake_predict)
+    remaining = {"allowed": 1}
+
+    def stop_before_case():
+        if remaining["allowed"]:
+            remaining["allowed"] -= 1
+            return False
+        return True
+
+    result = run_spec(
+        historical_specs()["jpeg_ctx8192"], "screen", "amr", None,
+        stop_before_case=stop_before_case,
+    )
+    folder = tmp_path / "screen" / "jpeg_ctx8192" / "amr"
+    assert result["reason"] == "compute_budget"
+    assert result["completed"] is False
+    assert calls == [True]
+    assert (folder / "A.json").exists()
+    assert not (folder / "B.json").exists()
+    assert not (folder / "summary.json").exists()
 
 
 def test_budget_stop_does_not_resume_or_rewrite(monkeypatch, tmp_path):
