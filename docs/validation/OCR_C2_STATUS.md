@@ -2,18 +2,19 @@
 
 Campaign ID: `ocr-campaign2-native-regions-v1`.
 
-This is a new study. Campaign 1 remains stopped at its 30-experiment budget with no qualifying recognition gain. Its artifacts are not rewritten and its counters are not reset.
+This is a separate study. Campaign 1 remains stopped. Its artifacts were not rewritten.
 
 | Item | State |
 | --- | --- |
-| Base commit | `bdbf5f8360344c6ae1fdad716de142f85b169042` |
-| Controller | Not started. No development inference has been launched. |
-| Compute charged | 0 seconds |
-| Candidate slots used | 0 of 8 |
-| Model downloads | None. TrOCR weights are not on disk for this campaign. |
-| Holdout | Sealed. Not read by this study. |
-| Internal validation | Not opened. |
-| Product profile | Disabled. `OCR_C2_ENABLED` is off unless set to `1`. |
-| Stop reason | Not stopped. Waiting on implementation review before any development model call. |
+| Measured head | `7ea3a70ea54b9322b86181a9231e6440e44e74b7` |
+| Controller | Stopped after screening |
+| Stop reason | `no_safety_qualified_native` |
+| Compute charged | 1,225.7 seconds |
+| Candidate slots used | 3 of 8 (`N1`, `N3`, `N4`) |
+| Model downloads | None |
+| Holdout | Sealed. Not read |
+| Internal validation | Not opened |
+| Product profile | Disabled. `OCR_C2_ENABLED` is off |
+| Outcome | Negative screen. Best paired normalized AMR reduction was 6.5% on `N4`, and every native arm added critical false positives |
 
-Private outputs, when a run exists, belong only under the original checkout at `artifacts/handwriting-private/ocr-campaign2-native-regions-v1/`.
+The closeout is `docs/validation/OCR_C2_CAMPAIGN2_CLOSEOUT.md`. Private outputs stay under the original checkout at `artifacts/handwriting-private/ocr-campaign2-native-regions-v1/`.
