@@ -82,9 +82,14 @@ print('ORIGINAL_EVIDENCE_VERIFIED', expected)
 
 
 def _ensure_browser_servers(python: str) -> list[subprocess.Popen]:
-    if _port_open(5000) and _port_open(5173):
-        print("Using already-running Flask and Vite on ports 5000 and 5173", flush=True)
-        return []
+    busy = [port for port in (5000, 5173) if _port_open(port)]
+    if busy:
+        listed = ", ".join(str(port) for port in busy)
+        raise SystemExit(
+            f"Ports {listed} are already in use. Stop those listeners so browser "
+            "verification starts this checkout's Flask and Vite. Reusing another "
+            "checkout's servers would label their result with this head."
+        )
     logs = ROOT / "artifacts" / "verification"
     logs.mkdir(parents=True, exist_ok=True)
     db = logs / "verify-browser.sqlite"

@@ -87,9 +87,9 @@
       "summary": "Used action stopped rather than stop."
     },
     {
-      "case_id": "dose-unit",
+      "case_id": "h12_budesonide_inhaler",
       "arm": "qwen3_vl",
-      "summary": "90 mg versus annotated 90 mcg. Case id is not named in the results paragraph."
+      "summary": "Proposed 90 mg where the annotation is 90 mcg."
     }
   ]
 }
