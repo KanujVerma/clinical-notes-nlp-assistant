@@ -661,7 +661,14 @@ def segment_v3(image: Image.Image, input_type: str = "page", rules: dict | None 
             component["owner"] = "unresolved"
             _sync_owners(base, components)
             return _finish(base, "cross_line_stroke")
-        component["owner"] = "marginal"
+        if len(hits) == 1:
+            hits[0]["components"].append(component)
+            component["owner"] = f"line:{hits[0]['id']}"
+            _refresh(hits[0])
+            continue
+        component["owner"] = "unresolved"
+        _sync_owners(base, components)
+        return _finish(base, "unassigned_component")
     attach_reason = _attach_small(small, ordered, scale, rules)
     if attach_reason:
         _sync_owners(base, components)
@@ -672,11 +679,6 @@ def segment_v3(image: Image.Image, input_type: str = "page", rules: dict | None 
     regions = []
     for line in ordered:
         others = [item for item in ordered if item["id"] != line["id"]]
-        others.extend(
-            {"components": [component]}
-            for component in tall
-            if component["owner"] == "marginal"
-        )
         box, crop_reason = _crop_box(line, scale, rules, width, height, others)
         if crop_reason:
             _sync_owners(base, components)
@@ -710,12 +712,13 @@ def segment_v3(image: Image.Image, input_type: str = "page", rules: dict | None 
     if len(seen) != len(set(seen)):
         _sync_owners(base, components)
         return _finish(base, "duplicate_ownership")
-    assigned = set(seen)
-    for component in text:
-        if component["id"] not in assigned:
-            component["owner"] = "unresolved"
-            _sync_owners(base, components)
-            return _finish(base, "unassigned_component")
+    for component in components:
+        owner = component.get("owner") or ""
+        if owner.startswith("line:") or owner.startswith("background"):
+            continue
+        component["owner"] = "unresolved"
+        _sync_owners(base, components)
+        return _finish(base, "unassigned_component")
     _sync_owners(base, components)
     if len(regions) < rules["min_certified_lines"]:
         return _finish(base, "fewer_than_two_lines")

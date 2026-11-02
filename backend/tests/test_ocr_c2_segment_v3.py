@@ -47,6 +47,20 @@ def test_summary_records_geometry_without_a_transcript():
     assert "reference" not in summary
 
 
+def test_isolated_tall_component_is_not_certified_coverage():
+    strokes = []
+    for index in range(6):
+        y0 = 10 + index * 28
+        strokes.append((12, y0, 70, y0 + 8))
+    strokes.append((120, 12, 132, 36))
+    layout = segment_v3(_draw(240, 180, strokes), "page")
+    assert layout["eligible"] is False
+    assert layout["fallback_reason"] == "unassigned_component"
+    assert layout["regions"][0]["kind"] == "page"
+    assert layout["regions"][0]["certified_line"] is False
+    assert any(item["owner"] == "unresolved" for item in layout["components"])
+
+
 def test_v3_splits_the_same_short_left_lines():
     layout = segment_v3(_six_lines(), "page")
     assert layout["eligible"] is True
