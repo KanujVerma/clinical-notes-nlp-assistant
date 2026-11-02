@@ -7,3 +7,5 @@ These apply to handwritten OCR experiments.
 **Coverage and paired evaluation.** Reject comparisons that hide inference failures, turn undefined CER into zero, treat different successful populations as paired, or call a coverage-only gain an accuracy win. An empty transcription is a miss, including one blank page in a multi-page document.
 
 **Holdout and safety.** Reject changes that tune on untouched holdouts, fill in medication values from clinical plausibility, invent human review, leak private data, or claim clinical validation. Unique unmatched critical strings are not occurrence-level dose errors.
+
+**Campaign 2.** `ocr-campaign2-native-regions-v1` is a separate study. Do not restart campaign 1, relabel its checkpoints, or weaken `pr10_run_identity_v4`. Campaign 2 has its own protocol, identity, and private directory. Screening and confirmation must not read the sealed holdout. Segmentation amendment `c2-segmentation-amendment-1` adds `ocr_c2_segments_v3` without changing the frozen v2 manifest. A failed geometry gate does not authorize a model download or a new campaign.

@@ -1,0 +1,107 @@
+"""One page of campaign-2 recognition. Transport is injected; nothing here calls Ollama."""
+from __future__ import annotations
+
+import io
+import time
+
+from PIL import Image
+
+from evaluation.ocr_c2.budget import BudgetExhausted, Ledger
+from evaluation.ocr_c2.native import interpret_native_response, resolved_spec
+from evaluation.ocr_c2.protocol import load_protocol
+from evaluation.ocr_c2.segment import orient_page, segment_page
+from evaluation.public_amr_benchmark import infer_image, sha
+
+
+def _crop_bytes(image: Image.Image, region: dict) -> bytes:
+    crop = image.crop((region["x0"], region["y0"], region["x1"], region["y1"]))
+    buffer = io.BytesIO()
+    crop.save(buffer, format="PNG")
+    return infer_image(buffer.getvalue())
+
+
+def run_page(
+    image: Image.Image,
+    candidate: str,
+    transport,
+    ledger: Ledger,
+    request_prefix: str,
+    expected_digest: str | None = None,
+    parent: str | None = None,
+    phase: str | None = None,
+    input_type: str = "page",
+) -> dict:
+    if input_type not in {"page", "word_crop"}:
+        raise ValueError("OCR_C2_INPUT_TYPE")
+    spec = resolved_spec(candidate, parent)
+    geometry = spec.get("geometry") or "page"
+    if input_type == "word_crop":
+        geometry = "page"
+    oriented = orient_page(image)
+    layout = segment_page(oriented, geometry if geometry in {"page", "bands", "lines"} else "page")
+    layout["input_type"] = input_type
+    page_has_ink = any(item.get("has_ink", True) for item in layout["regions"])
+    budgets = load_protocol()["budgets"]
+    page_remaining = budgets["per_page_seconds"]
+    regions = []
+    transcripts = []
+    incomplete = False
+    for region in layout["regions"]:
+        prepared = _crop_bytes(oriented, region)
+        limits = [budgets["per_call_seconds"], page_remaining, ledger.remaining()]
+        if phase == "exploration":
+            limits.append(ledger.exploration_remaining())
+        deadline = min(limits)
+        request_id = f"{request_prefix}-{region['order']}"
+        try:
+            allowed = ledger.begin(request_id, deadline)
+        except BudgetExhausted:
+            return {
+                "status": "budget_blocked",
+                "completed": False,
+                "layout": layout,
+                "regions": regions,
+                "prediction": "\n".join(transcripts),
+            }
+        started = time.perf_counter()
+        response = transport(prepared, candidate, allowed)
+        measured = time.perf_counter() - started
+        if isinstance(response, dict):
+            raw_response = response.get("response")
+            reported = response.get("elapsed_seconds")
+            elapsed = measured if reported is None else max(0.0, float(reported))
+        else:
+            raw_response = None
+            elapsed = measured
+        ledger.finish(request_id, elapsed)
+        page_remaining -= elapsed
+        interpreted = interpret_native_response(
+            response, load_protocol()["model"]["tag"], expected_digest,
+        )
+        regions.append({
+            "order": region["order"],
+            "source": region,
+            "crop_sha256": sha(prepared),
+            "status": interpreted["status"],
+            "raw_response": raw_response,
+            "transcription": interpreted["transcription"],
+        })
+        transcripts.append(interpreted["transcription"] or "")
+        exempt_blank_margin = (
+            not region.get("has_ink", True)
+            and page_has_ink
+            and interpreted["status"] == "empty_transcription"
+        )
+        if not interpreted["scored"] and not exempt_blank_margin:
+            incomplete = True
+        if page_remaining <= 0 and region["order"] != layout["regions"][-1]["order"]:
+            incomplete = True
+            break
+    status = "incomplete" if incomplete else "scored"
+    return {
+        "status": status,
+        "completed": status == "scored",
+        "layout": layout,
+        "regions": regions,
+        "prediction": "\n".join(transcripts),
+    }

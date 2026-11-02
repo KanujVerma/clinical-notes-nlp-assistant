@@ -1,0 +1,124 @@
+{
+  "schema": "ocr_c2_protocol_v1",
+  "campaign_id": "ocr-campaign2-native-regions-v1",
+  "identity_version": "ocr_c2_identity_v5",
+  "base_commit": "bdbf5f8360344c6ae1fdad716de142f85b169042",
+  "implementation_checkpoint_not_rerun": "29fd7548da4610aee69925467368b0d68b270a5d",
+  "partition_manifest": "docs/validation/pr10_partition_manifest.json",
+  "model": {
+    "tag": "glm-ocr:q8_0",
+    "ollama_version": "0.40.12",
+    "observed_id": "6e5935a916fc",
+    "observed_modified": "2026-10-29T14:23:47.391664668-05:00",
+    "template": "{{ .Prompt }}",
+    "renderer": "glm-ocr",
+    "parser": "glm-ocr",
+    "baked_parameter_temperature": 0,
+    "architecture": "glm4",
+    "parameter_count": 891138048,
+    "quantization": "Q8_0",
+    "model_context_length": 131072,
+    "weight_blobs_sha256": [
+      "573c8850da0126266ba1e63a0ad8253a1257ad82f99295820fc84cfa43bead97",
+      "713115ee2f749a4c03627c29ccf71900ed63f219b0c79b562eac15d6d08bcb7b"
+    ],
+    "parent_model_detail": "dhiltgen/glm-ocr:q8_0-llamacpp",
+    "native_prompt": "Text Recognition:",
+    "system_prompt": null,
+    "format": null,
+    "raw": false,
+    "temperature": 0,
+    "num_ctx": 8192,
+    "stream": false
+  },
+  "documentation_revisions": {
+    "recorded_utc": "2026-11-02T06:20:00Z",
+    "zai_org_GLM_OCR_github": "0288f96bb9e78cb439883eaa725eeae90bd177c5",
+    "zai_org_GLM_OCR_huggingface": "2e85a62840ccac27daa451df36c736c4636b8628",
+    "microsoft_trocr_base_handwritten": "eaacaf452b06415df8f10bb6fad3a4c11e609406",
+    "ollama_glm_ocr_library": "https://ollama.com/library/glm-ocr",
+    "ollama_generate_api": "https://docs.ollama.com/api/generate"
+  },
+  "budgets": {
+    "global_model_seconds": 21600,
+    "exploration_seconds": 7200,
+    "pre_holdout_seconds": 10800,
+    "candidate_slots": 8,
+    "preregistered_candidates": 6,
+    "correction_slots": 2,
+    "max_new_model_bytes": 5000000000,
+    "per_call_seconds": 90,
+    "per_page_seconds": 120,
+    "product_p95_seconds": 60,
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 20261101,
+    "infrastructure_retries": 2
+  },
+  "segmentation": {
+    "version": "ocr_c2_segments_v2",
+    "low_ink_row_fraction": 0.001,
+    "minimum_gap_rows": 8,
+    "n3_target_tolerance_fraction": 0.1,
+    "maximum_bands": 3,
+    "minimum_line_pixels": 16,
+    "maximum_line_regions": 24,
+    "gutter_width_fraction": 0.03,
+    "gutter_central_low": 0.2,
+    "gutter_central_high": 0.8,
+    "gutter_low_ink_row_fraction": 0.8,
+    "padding_px": 0
+  },
+  "image_preparation": {
+    "source": "evaluation.public_amr_benchmark.infer_image",
+    "longest_side": 3000,
+    "max_pixels": 14000000,
+    "jpeg_quality": 85,
+    "subsampling": 0
+  },
+  "candidates": {
+    "B8192": {"role": "control", "num_ctx": 8192, "num_predict": 2048, "keep_alive": 0, "prompt": "frozen_json"},
+    "Blegacy": {"role": "control", "num_ctx": null, "num_predict": 2048, "keep_alive": 0, "prompt": "frozen_json"},
+    "N1": {"role": "native", "geometry": "page", "num_ctx": 8192, "num_predict": 2048, "keep_alive": 0},
+    "N2": {"role": "native", "geometry": "page", "num_ctx": 8192, "num_predict": 4096, "keep_alive": 0, "requires": "n1_generation_limit"},
+    "N3": {"role": "native", "geometry": "bands", "num_ctx": 8192, "num_predict": 2048, "keep_alive": 0},
+    "N4": {"role": "native", "geometry": "lines", "num_ctx": 8192, "num_predict": 2048, "keep_alive": 0},
+    "N5": {"role": "runtime", "geometry": "parent", "keep_alive": "5m"},
+    "N6": {"role": "trocr", "optional": true, "max_new_tokens": 256, "num_beams": 1, "do_sample": false, "dtype": "float32"}
+  },
+  "trocr_authorized_files": {
+    "revision": "eaacaf452b06415df8f10bb6fad3a4c11e609406",
+    "download_status": "not_downloaded",
+    "forbid": ["pytorch_model.bin"],
+    "files": {
+      "model.safetensors": 1333384464,
+      "config.json": 4165,
+      "generation_config.json": 190,
+      "preprocessor_config.json": 224,
+      "tokenizer_config.json": 1118,
+      "special_tokens_map.json": 772,
+      "vocab.json": 898822,
+      "merges.txt": 456318
+    }
+  },
+  "selection": {
+    "relative_cer_factor": 0.9,
+    "near_best_relative": 1.05,
+    "near_best_absolute": 0.005,
+    "material_slow_relative": 0.8,
+    "p95_rank": "ceil(0.95*n)"
+  },
+  "states": [
+    "preflight",
+    "review_ready",
+    "screening",
+    "confirming",
+    "optional_model",
+    "selecting",
+    "internal_validation",
+    "final_freeze",
+    "holdout",
+    "replay",
+    "report",
+    "stopped"
+  ]
+}

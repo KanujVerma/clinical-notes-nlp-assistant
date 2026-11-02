@@ -1,0 +1,378 @@
+{
+  "amendment_id": "c2-segmentation-amendment-1",
+  "segmenter_id": "ocr_c2_segments_v3",
+  "amendment_sha256": "c220baea40f10e315f15181b615496f5cc6723b54524aff4ff60e55dfcf221d9",
+  "protocol_sha256": "b90255108d9b351d1e2a441b0112a7ea58c3e783794b1f3290199681ac41abfd",
+  "outcome": "geometry_still_blocked",
+  "gate": {
+    "minimum_eligible_documents": 6,
+    "eligible_documents": 0,
+    "eligible_ids": [],
+    "passed": false
+  },
+  "documents": [
+    {
+      "id": "AMR_035",
+      "pages": [
+        {
+          "input_sha256": "daa883a6af7677774abe418dfc9da63d8d4a4af2c5e623d42b00a53caee4aadc",
+          "width": 2012,
+          "height": 3124,
+          "orientation": 1,
+          "input_type": "page",
+          "column_detector_applied": true,
+          "eligible": false,
+          "blank": false,
+          "fallback": true,
+          "fallback_reason": "cross_line_stroke",
+          "reading_order_status": "fallback",
+          "component_scale_px": 20.0,
+          "component_count": 1138,
+          "owner_counts": {
+            "background_field": 2,
+            "background_rule": 1,
+            "marginal": 7,
+            "small": 888,
+            "tall": 92,
+            "text": 147,
+            "unresolved": 1
+          },
+          "line_count": 0,
+          "block_count": null,
+          "regions": [
+            {
+              "id": "page",
+              "order": 0,
+              "kind": "page",
+              "block": "page",
+              "x0": 0,
+              "y0": 0,
+              "x1": 2012,
+              "y1": 3124,
+              "certified_line": false,
+              "fallback_reason": "cross_line_stroke"
+            }
+          ],
+          "page_index": 0
+        }
+      ]
+    },
+    {
+      "id": "AMR_039",
+      "pages": [
+        {
+          "input_sha256": "1c842754e2331f68cfd0c7ff741d9a5c482e2aeb1fe9154c8ae35f83f88e905c",
+          "width": 2175,
+          "height": 3000,
+          "orientation": 1,
+          "input_type": "page",
+          "column_detector_applied": true,
+          "eligible": false,
+          "blank": false,
+          "fallback": true,
+          "fallback_reason": "cross_line_stroke",
+          "reading_order_status": "fallback",
+          "component_scale_px": 32.0,
+          "component_count": 307,
+          "owner_counts": {
+            "background_field": 1,
+            "marginal": 3,
+            "small": 199,
+            "tall": 8,
+            "text": 95,
+            "unresolved": 1
+          },
+          "line_count": 0,
+          "block_count": null,
+          "regions": [
+            {
+              "id": "page",
+              "order": 0,
+              "kind": "page",
+              "block": "page",
+              "x0": 0,
+              "y0": 0,
+              "x1": 2175,
+              "y1": 3000,
+              "certified_line": false,
+              "fallback_reason": "cross_line_stroke"
+            }
+          ],
+          "page_index": 0
+        }
+      ]
+    },
+    {
+      "id": "AMR_042",
+      "pages": [
+        {
+          "input_sha256": "1d8fafe2a55defcd402d30a799bc16b8198310f7e7dc358a0666243a0da1199e",
+          "width": 1653,
+          "height": 2339,
+          "orientation": 1,
+          "input_type": "page",
+          "column_detector_applied": true,
+          "eligible": false,
+          "blank": false,
+          "fallback": true,
+          "fallback_reason": "ambiguous_layout",
+          "reading_order_status": "ambiguous",
+          "component_scale_px": 33.0,
+          "component_count": 252,
+          "owner_counts": {
+            "background_field": 1,
+            "small": 48,
+            "text": 203
+          },
+          "line_count": 0,
+          "block_count": null,
+          "regions": [
+            {
+              "id": "page",
+              "order": 0,
+              "kind": "page",
+              "block": "page",
+              "x0": 0,
+              "y0": 0,
+              "x1": 1653,
+              "y1": 2339,
+              "certified_line": false,
+              "fallback_reason": "ambiguous_layout"
+            }
+          ],
+          "page_index": 0
+        }
+      ]
+    },
+    {
+      "id": "AMR_046",
+      "pages": [
+        {
+          "input_sha256": "4bec631190844dee07ada6da6543a09f773b60ec9481051c1af97d48bc965179",
+          "width": 1653,
+          "height": 2339,
+          "orientation": 1,
+          "input_type": "page",
+          "column_detector_applied": true,
+          "eligible": false,
+          "blank": false,
+          "fallback": true,
+          "fallback_reason": "unassigned_component",
+          "reading_order_status": "fallback",
+          "component_scale_px": 23.0,
+          "component_count": 142,
+          "owner_counts": {
+            "background_field": 1,
+            "line": 11,
+            "small": 36,
+            "text": 93,
+            "unresolved": 1
+          },
+          "line_count": 0,
+          "block_count": null,
+          "regions": [
+            {
+              "id": "page",
+              "order": 0,
+              "kind": "page",
+              "block": "page",
+              "x0": 0,
+              "y0": 0,
+              "x1": 1653,
+              "y1": 2339,
+              "certified_line": false,
+              "fallback_reason": "unassigned_component"
+            }
+          ],
+          "page_index": 0
+        }
+      ]
+    },
+    {
+      "id": "AMR_051",
+      "pages": [
+        {
+          "input_sha256": "85c6ee90e33a60c88970906d89bac0dbc73d1b219bd82d0b423c1731b9638900",
+          "width": 963,
+          "height": 1280,
+          "orientation": 1,
+          "input_type": "page",
+          "column_detector_applied": true,
+          "eligible": false,
+          "blank": false,
+          "fallback": true,
+          "fallback_reason": "cross_line_stroke",
+          "reading_order_status": "fallback",
+          "component_scale_px": 14.0,
+          "component_count": 946,
+          "owner_counts": {
+            "background_field": 7,
+            "background_rule": 2,
+            "small": 452,
+            "tall": 5,
+            "text": 479,
+            "unresolved": 1
+          },
+          "line_count": 0,
+          "block_count": null,
+          "regions": [
+            {
+              "id": "page",
+              "order": 0,
+              "kind": "page",
+              "block": "page",
+              "x0": 0,
+              "y0": 0,
+              "x1": 963,
+              "y1": 1280,
+              "certified_line": false,
+              "fallback_reason": "cross_line_stroke"
+            }
+          ],
+          "page_index": 0
+        }
+      ]
+    },
+    {
+      "id": "AMR_053",
+      "pages": [
+        {
+          "input_sha256": "750e239bbb841c13cb9c799b3b3a3feb5fd0ee49deea240a38e69deca1e461be",
+          "width": 4953,
+          "height": 6945,
+          "orientation": 1,
+          "input_type": "page",
+          "column_detector_applied": true,
+          "eligible": false,
+          "blank": false,
+          "fallback": true,
+          "fallback_reason": "cross_line_stroke",
+          "reading_order_status": "fallback",
+          "component_scale_px": 64.0,
+          "component_count": 201,
+          "owner_counts": {
+            "background_field": 1,
+            "background_rule": 2,
+            "marginal": 2,
+            "small": 68,
+            "text": 127,
+            "unresolved": 1
+          },
+          "line_count": 0,
+          "block_count": null,
+          "regions": [
+            {
+              "id": "page",
+              "order": 0,
+              "kind": "page",
+              "block": "page",
+              "x0": 0,
+              "y0": 0,
+              "x1": 4953,
+              "y1": 6945,
+              "certified_line": false,
+              "fallback_reason": "cross_line_stroke"
+            }
+          ],
+          "page_index": 0
+        }
+      ]
+    },
+    {
+      "id": "AMR_057",
+      "pages": [
+        {
+          "input_sha256": "c65b7a4e10988998b32cc19ec41628996880152d3d5b050266aa6efd09815663",
+          "width": 1987,
+          "height": 3000,
+          "orientation": 1,
+          "input_type": "page",
+          "column_detector_applied": true,
+          "eligible": false,
+          "blank": false,
+          "fallback": true,
+          "fallback_reason": "cross_line_stroke",
+          "reading_order_status": "fallback",
+          "component_scale_px": 34.0,
+          "component_count": 1348,
+          "owner_counts": {
+            "background_rule": 1,
+            "small": 455,
+            "tall": 5,
+            "text": 886,
+            "unresolved": 1
+          },
+          "line_count": 0,
+          "block_count": null,
+          "regions": [
+            {
+              "id": "page",
+              "order": 0,
+              "kind": "page",
+              "block": "page",
+              "x0": 0,
+              "y0": 0,
+              "x1": 1987,
+              "y1": 3000,
+              "certified_line": false,
+              "fallback_reason": "cross_line_stroke"
+            }
+          ],
+          "page_index": 0
+        }
+      ]
+    },
+    {
+      "id": "AMR_061",
+      "pages": [
+        {
+          "input_sha256": "19e3de016b054689746f7265882480a0cec3addb3d1173cbad95fdbb0663dabf",
+          "width": 823,
+          "height": 1080,
+          "orientation": 1,
+          "input_type": "page",
+          "column_detector_applied": true,
+          "eligible": false,
+          "blank": false,
+          "fallback": true,
+          "fallback_reason": "unassigned_component",
+          "reading_order_status": "fallback",
+          "component_scale_px": 11.0,
+          "component_count": 219,
+          "owner_counts": {
+            "background": 1,
+            "background_field": 1,
+            "marginal": 3,
+            "small": 155,
+            "text": 58,
+            "unresolved": 1
+          },
+          "line_count": 0,
+          "block_count": null,
+          "regions": [
+            {
+              "id": "page",
+              "order": 0,
+              "kind": "page",
+              "block": "page",
+              "x0": 0,
+              "y0": 0,
+              "x1": 823,
+              "y1": 1080,
+              "certified_line": false,
+              "fallback_reason": "unassigned_component"
+            }
+          ],
+          "page_index": 0
+        }
+      ]
+    }
+  ],
+  "word_crops": {
+    "count": 64,
+    "column_detector_applied": 0,
+    "single_region": 64
+  },
+  "line_claims": "none_certified",
+  "verification": "structural_fallback_only"
+}
