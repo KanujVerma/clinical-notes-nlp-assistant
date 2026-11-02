@@ -184,41 +184,70 @@ def _call_ocr(transformed: bytes, label: int, spec: dict, system: str, user: str
     return result
 
 
-def predict_spec(spec: dict, pages: list[bytes]) -> tuple[str | None, int, str, int]:
-    started = time.perf_counter()
-    system, user_template = prompt_for(spec)
-    frozen = spec["prompt"] == "frozen"
+def _page_missing(text: str) -> bool:
+    return not text.strip()
+
+
+def _transcribe_pages(
+    spec: dict, pages: list[bytes], system: str, user_template: str, frozen: bool,
+    started: float, retry_labels: bool,
+) -> tuple[list[str] | None, int, str]:
     parts = []
     for page_number, original in enumerate(pages, start=1):
         regions = render_regions(spec, original)
         for region_number, transformed in enumerate(regions, start=1):
             if len(transformed) > 10 * 1024 * 1024:
                 elapsed = max(0, int((time.perf_counter() - started) * 1000))
-                return None, elapsed, "transform_too_large", 1
-            label = page_number if len(regions) == 1 else region_number
+                return None, elapsed, "transform_too_large"
+            if retry_labels:
+                label = page_number if region_number == 1 else region_number
+            else:
+                label = page_number if len(regions) == 1 else region_number
             user = user_template.format(page_number=label)
             result = _call_ocr(transformed, label, spec, system, user, frozen)
-            if result.get("status") != "completed" or not isinstance(result.get("transcribed_text"), str):
+            text = result.get("transcribed_text")
+            if result.get("status") != "completed" or not isinstance(text, str):
                 elapsed = max(0, int((time.perf_counter() - started) * 1000))
-                return None, elapsed, result.get("error_code") or "glm_failed", 1
-            parts.append(result["transcribed_text"])
-    text = postprocess(spec, "\n".join(parts))
+                return None, elapsed, result.get("error_code") or "glm_failed"
+            parts.append(text)
+    elapsed = max(0, int((time.perf_counter() - started) * 1000))
+    return parts, elapsed, ""
+
+
+def predict_spec(spec: dict, pages: list[bytes]) -> tuple[str | None, int, str, int]:
+    started = time.perf_counter()
+    system, user_template = prompt_for(spec)
+    frozen = spec["prompt"] == "frozen"
+
+    def collect(retry_labels: bool) -> tuple[list[str] | None, int, str]:
+        return _transcribe_pages(spec, pages, system, user_template, frozen, started, retry_labels)
+
+    parts, elapsed, error = collect(False)
+    if parts is None:
+        return None, elapsed, error, 1
     passes = 1
+    if any(_page_missing(part) for part in parts):
+        if not spec.get("second_pass"):
+            return "", elapsed, "empty_transcription", 1
+        passes = 2
+        retry, elapsed, error = collect(True)
+        if retry is None:
+            return None, elapsed, error, passes
+        if any(_page_missing(part) for part in retry):
+            return "", elapsed, "empty_transcription", passes
+        text = postprocess(spec, "\n".join(retry))
+        elapsed = max(0, int((time.perf_counter() - started) * 1000))
+        return text or "", elapsed, completed_status(text), passes
+    text = postprocess(spec, "\n".join(parts))
     if spec.get("second_pass") and len(text.strip()) < 12:
         passes = 2
-        retry = []
-        for page_number, original in enumerate(pages, start=1):
-            for region_number, transformed in enumerate(render_regions(spec, original), start=1):
-                label = page_number if region_number == 1 else region_number
-                user = user_template.format(page_number=label)
-                result = _call_ocr(transformed, label, spec, system, user, frozen)
-                if result.get("status") != "completed" or not isinstance(result.get("transcribed_text"), str):
-                    elapsed = max(0, int((time.perf_counter() - started) * 1000))
-                    return None, elapsed, result.get("error_code") or "glm_failed", passes
-                retry.append(result["transcribed_text"])
-        retried = postprocess(spec, "\n".join(retry))
-        if len(retried.strip()) > len(text.strip()):
-            text = retried
+        retry, elapsed, error = collect(True)
+        if retry is None:
+            return None, elapsed, error, passes
+        if retry and not any(_page_missing(part) for part in retry):
+            retried = postprocess(spec, "\n".join(retry))
+            if len(retried.strip()) > len(text.strip()):
+                text = retried
     elapsed = max(0, int((time.perf_counter() - started) * 1000))
     return text or "", elapsed, completed_status(text), passes
 

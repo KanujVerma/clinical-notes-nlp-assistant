@@ -63,6 +63,10 @@ def decide_screen(incumbent: dict, candidate: dict) -> dict:
     cand_rx_occ = candidate.get("rx_occurrence_fp")
     if inc_rx_occ is not None and cand_rx_occ is not None and cand_rx_occ > inc_rx_occ:
         reasons.append("Rx occurrence false positives rose")
+    inc_rx_hits = incumbent.get("rx_occurrence_hits")
+    cand_rx_hits = candidate.get("rx_occurrence_hits")
+    if inc_rx_hits is not None and cand_rx_hits is not None and cand_rx_hits < inc_rx_hits:
+        reasons.append("Rx occurrence hits fell")
     if candidate["paired_p95"] > max(incumbent["paired_p95"] * 2, incumbent["paired_p95"] + 15000):
         reasons.append("paired latency more than doubled")
     if reasons:

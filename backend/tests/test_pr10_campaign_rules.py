@@ -180,6 +180,53 @@ def test_empty_transcription_is_not_scored():
     assert completed_status("5 mg") == "scored"
 
 
+def _scripted_ocr(monkeypatch, responses: list[str]):
+    pending = iter(responses)
+
+    def fake(image_bytes, page_number=1, model=None, num_ctx=None, system_prompt=None, user_prompt=None):
+        return {"status": "completed", "transcribed_text": next(pending), "model": model}
+
+    monkeypatch.setattr(pr10_autoresearch, "glm_ocr_infer", fake)
+
+
+def test_blank_page_is_an_inference_miss(monkeypatch):
+    _scripted_ocr(monkeypatch, ["5 mg", ""])
+    text, _latency, status, passes = predict_spec(historical_specs()["jpeg_ctx8192"], [_png(), _png()])
+    assert text == ""
+    assert status == "empty_transcription"
+    assert passes == 1
+
+
+def test_second_pass_recovers_a_blank_page(monkeypatch):
+    _scripted_ocr(monkeypatch, ["5 mg", "   ", "5 mg", "10 mg"])
+    spec = dict(historical_specs()["jpeg_ctx8192"])
+    spec["second_pass"] = True
+    text, _latency, status, passes = predict_spec(spec, [_png(), _png()])
+    assert status == "scored"
+    assert passes == 2
+    assert "5 mg" in text and "10 mg" in text
+
+
+def test_unrecovered_blank_page_stays_a_miss(monkeypatch):
+    _scripted_ocr(monkeypatch, ["5 mg", "", "5 mg", ""])
+    spec = dict(historical_specs()["jpeg_ctx8192"])
+    spec["second_pass"] = True
+    text, _latency, status, passes = predict_spec(spec, [_png(), _png()])
+    assert text == ""
+    assert status == "empty_transcription"
+    assert passes == 2
+
+
+def test_blank_retry_does_not_erase_a_complete_first_pass(monkeypatch):
+    _scripted_ocr(monkeypatch, ["5 mg", ""])
+    spec = dict(historical_specs()["jpeg_ctx8192"])
+    spec["second_pass"] = True
+    text, _latency, status, passes = predict_spec(spec, [_png()])
+    assert status == "scored"
+    assert passes == 2
+    assert text.strip() == "5 mg"
+
+
 def test_occurrence_alignment_keeps_repeated_and_altered_doses_distinct():
     same = align_critical("5 mg", "5 mg")
     assert same["occurrence_hits"] == 1 and same["occurrence_false_positives"] == 0
@@ -727,6 +774,38 @@ def test_dropped_repeated_dose_is_not_an_accuracy_win():
     decision = decide_screen(inc, cand)
     assert decision["status"] == "rejected"
     assert "paired occurrence hits fell" in decision["reason"]
+
+
+def test_dropped_rx_critical_token_is_not_an_accuracy_win():
+    reference = "5mg"
+
+    def rx_case(prediction: str) -> dict:
+        aligned = align_critical(reference, prediction)
+        return {
+            "id": "R1",
+            "status": "scored",
+            "latency_ms": 5,
+            "prediction": prediction,
+            "critical_false_positives": critical_false_positives(reference, prediction),
+            "occurrence_hits": aligned["occurrence_hits"],
+            "occurrence_total": aligned["occurrence_total"],
+            "occurrence_false_positives": aligned["occurrence_false_positives"],
+            "metrics": score(reference, prediction),
+        }
+
+    incumbent = rx_case("5mg xxxxxxxxxxxx")
+    candidate = rx_case("mg")
+    assert incumbent["occurrence_hits"] == 1
+    assert candidate["occurrence_hits"] == 0
+    assert candidate["occurrence_false_positives"] == 0
+    amr = [_population_case("A", 1, 10)]
+    inc = _metrics(amr, [incumbent], {"A"}, {"R1"})
+    cand = _metrics(amr, [candidate], {"A"}, {"R1"})
+    assert cand["rx_cer"] < inc["rx_cer"]
+    assert cand["rx_occurrence_fp"] == inc["rx_occurrence_fp"]
+    decision = decide_screen(inc, cand)
+    assert decision["status"] == "rejected"
+    assert "Rx occurrence hits fell" in decision["reason"]
 
 
 def test_resolve_spec_follows_a_fourth_generation_name():

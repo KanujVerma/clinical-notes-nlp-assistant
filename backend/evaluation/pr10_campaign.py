@@ -233,6 +233,7 @@ def _metrics(
         "rx_cer_all_scored": rx_all["cer_micro"],
         "rx_scored": rx_all["scored"],
         "rx_paired_n": len(paired_rx_ids),
+        "rx_occurrence_hits": rx_paired["occurrence_hits"],
         "rx_occurrence_fp": rx_paired["occurrence_false_positives"],
         "occurrence_fp": paired["occurrence_false_positives"],
     }
