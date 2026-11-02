@@ -358,6 +358,10 @@ def test_bootstrap_is_undefined_when_the_denominator_is_zero():
         [[(40, 20, 100)], [(10, 20, 100)]], replicates=200, seed=20261101,
     )
     assert mixed["low"] <= 0 <= mixed["high"]
+    hidden = bootstrap_relative([[(10, 0, 100)], [(0, 1, 100)]], replicates=40, seed=20261101)
+    assert hidden["point"] == 0.9
+    assert hidden["undefined_draws"] > 0
+    assert hidden["low"] is None and hidden["high"] is None
 
 
 def test_keep_alive_variant_is_labeled_separately():

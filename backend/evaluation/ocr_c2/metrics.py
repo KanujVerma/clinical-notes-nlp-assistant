@@ -114,17 +114,26 @@ def bootstrap_relative(
 
     point = reduction(groups)
     draws = []
+    undefined = 0
     for _ in range(replicates):
         sample = [groups[rng.randrange(len(groups))] for _ in groups]
         value = reduction(sample)
-        if value is not None:
+        if value is None:
+            undefined += 1
+        else:
             draws.append(value)
-    if point is None or not draws:
-        return {"point": point, "low": None, "high": None, "relative": point, "groups": len(groups)}
+    if point is None or undefined or len(draws) != replicates:
+        return {
+            "point": point, "low": None, "high": None, "relative": point,
+            "groups": len(groups), "undefined_draws": undefined,
+        }
     draws.sort()
     low = draws[max(0, math.ceil(0.025 * len(draws)) - 1)]
     high = draws[min(len(draws) - 1, math.ceil(0.975 * len(draws)) - 1)]
-    return {"point": point, "low": low, "high": high, "relative": point, "groups": len(groups)}
+    return {
+        "point": point, "low": low, "high": high, "relative": point,
+        "groups": len(groups), "undefined_draws": 0,
+    }
 
 
 def select_finalist(rows: list[dict]) -> dict:
