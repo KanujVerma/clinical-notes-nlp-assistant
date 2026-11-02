@@ -343,12 +343,21 @@ def test_fingerprints_change_with_the_candidate_not_the_partition_bytes_alone():
 
 
 def test_bootstrap_is_undefined_when_the_denominator_is_zero():
-    empty = bootstrap_relative([[(0, 0)]], replicates=20, seed=20261101)
+    empty = bootstrap_relative([[(0, 0, 0)]], replicates=20, seed=20261101)
     assert empty["point"] is None
-    stable_a = bootstrap_relative([[(1, 10)], [(2, 10)]], replicates=30, seed=20261101)
-    stable_b = bootstrap_relative([[(1, 10)], [(2, 10)]], replicates=30, seed=20261101)
+    assert bootstrap_relative([[(0, 5, 100)]], replicates=10, seed=1)["point"] is None
+    stable_a = bootstrap_relative([[(4, 1, 10)], [(8, 2, 10)]], replicates=30, seed=20261101)
+    stable_b = bootstrap_relative([[(4, 1, 10)], [(8, 2, 10)]], replicates=30, seed=20261101)
     assert stable_a == stable_b
     assert load_protocol()["budgets"]["bootstrap_replicates"] == 10000
+    improved = bootstrap_relative([[(40, 20, 100)], [(40, 20, 100)]], replicates=40, seed=20261101)
+    regressed = bootstrap_relative([[(10, 20, 100)], [(10, 20, 100)]], replicates=40, seed=20261101)
+    assert improved["point"] == 0.5 and improved["low"] > 0
+    assert regressed["point"] == -1.0 and regressed["high"] < 0
+    mixed = bootstrap_relative(
+        [[(40, 20, 100)], [(10, 20, 100)]], replicates=200, seed=20261101,
+    )
+    assert mixed["low"] <= 0 <= mixed["high"]
 
 
 def test_keep_alive_variant_is_labeled_separately():

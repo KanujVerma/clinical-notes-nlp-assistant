@@ -88,35 +88,43 @@ def meets_relative_reduction(candidate_cer: float | None, baseline_cer: float | 
     return candidate_cer <= 0.90 * baseline_cer
 
 
-def bootstrap_relative(groups: list[list[tuple[int, int]]], replicates: int | None = None, seed: int | None = None) -> dict:
-    """Writer-group bootstrap. Each group is (char_distance, ref_chars) pairs."""
+def bootstrap_relative(
+    groups: list[list[tuple[int, int, int]]], replicates: int | None = None, seed: int | None = None,
+) -> dict:
+    """Writer-group bootstrap of the paired relative CER reduction.
+
+    Each observation is (baseline_distance, candidate_distance, ref_chars).
+    A draw resamples whole writer groups, so the baseline and candidate stay paired.
+    The statistic is (baseline CER - candidate CER) / baseline CER.
+    """
     rule = load_protocol()["budgets"]
     replicates = rule["bootstrap_replicates"] if replicates is None else replicates
     seed = rule["bootstrap_seed"] if seed is None else seed
     rng = random.Random(seed)
     if not groups:
-        return {"low": None, "high": None, "relative": None}
+        return {"point": None, "low": None, "high": None, "relative": None}
 
-    def rate(sample: list[list[tuple[int, int]]]) -> float | None:
-        distance = sum(item[0] for group in sample for item in group)
-        total = sum(item[1] for group in sample for item in group)
-        if total == 0:
+    def reduction(sample: list[list[tuple[int, int, int]]]) -> float | None:
+        baseline = sum(item[0] for group in sample for item in group)
+        candidate = sum(item[1] for group in sample for item in group)
+        total = sum(item[2] for group in sample for item in group)
+        if total == 0 or baseline == 0:
             return None
-        return distance / total
+        return (baseline - candidate) / baseline
 
-    point = rate(groups)
+    point = reduction(groups)
     draws = []
     for _ in range(replicates):
         sample = [groups[rng.randrange(len(groups))] for _ in groups]
-        value = rate(sample)
+        value = reduction(sample)
         if value is not None:
             draws.append(value)
     if point is None or not draws:
-        return {"point": point, "low": None, "high": None, "relative": None, "groups": len(groups)}
+        return {"point": point, "low": None, "high": None, "relative": point, "groups": len(groups)}
     draws.sort()
     low = draws[max(0, math.ceil(0.025 * len(draws)) - 1)]
     high = draws[min(len(draws) - 1, math.ceil(0.975 * len(draws)) - 1)]
-    return {"point": point, "low": low, "high": high, "groups": len(groups)}
+    return {"point": point, "low": low, "high": high, "relative": point, "groups": len(groups)}
 
 
 def select_finalist(rows: list[dict]) -> dict:
