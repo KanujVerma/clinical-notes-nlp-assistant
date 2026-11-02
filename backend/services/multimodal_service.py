@@ -37,6 +37,7 @@ def query_ollama_multimodal(
     images_b64: List[str],
     system: Optional[str] = None,
     timeout: float = 90.0,
+    num_ctx: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Queries local Ollama instance with multimodal inputs (base64 images).
@@ -57,6 +58,10 @@ def query_ollama_multimodal(
         "keep_alive": 0,
         "options": {"temperature": 0, "num_predict": 2048},
     }
+    if num_ctx is not None:
+        if num_ctx not in (8192, 16384):
+            raise ValueError("Unsupported local context length")
+        payload["options"]["num_ctx"] = num_ctx
     if system:
         payload["system"] = system
 
@@ -80,6 +85,9 @@ def glm_ocr_infer(
     image_bytes: bytes,
     page_number: int = 1,
     model: Optional[str] = None,
+    num_ctx: Optional[int] = None,
+    system_prompt: Optional[str] = None,
+    user_prompt: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     GLM-OCR multimodal adapter: transcribes document layout and text
@@ -99,15 +107,16 @@ def glm_ocr_infer(
         }
 
     b64_img = base64.b64encode(image_bytes).decode("ascii")
-    system_prompt = (
-        "You are an accurate visual OCR document transcription model (GLM-OCR). "
-        "Transcribe all text from the image accurately into JSON format with keys: "
-        "'text' (full transcribed text string of all lines), "
-        "'boxes' (list of {text, bbox: [x0, y0, x1, y1]}), and "
-        "'confidence' (number between 0 and 1). "
-        "Ensure all document lines are included in the 'text' field."
-    )
-    prompt = f"Transcribe all visible text from page {page_number} into JSON now."
+    if system_prompt is None:
+        system_prompt = (
+            "You are an accurate visual OCR document transcription model (GLM-OCR). "
+            "Transcribe all text from the image accurately into JSON format with keys: "
+            "'text' (full transcribed text string of all lines), "
+            "'boxes' (list of {text, bbox: [x0, y0, x1, y1]}), and "
+            "'confidence' (number between 0 and 1). "
+            "Ensure all document lines are included in the 'text' field."
+        )
+    prompt = user_prompt or f"Transcribe all visible text from page {page_number} into JSON now."
 
     try:
         res = query_ollama_multimodal(
@@ -115,6 +124,7 @@ def glm_ocr_infer(
             prompt=prompt,
             images_b64=[b64_img],
             system=system_prompt,
+            num_ctx=num_ctx,
         )
         raw_output = res.get("response", "{}")
         parsed = _parse_model_json(raw_output)
