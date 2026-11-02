@@ -208,6 +208,11 @@ def test_budget_stops_inside_the_call_loop_and_charges_crashes(tmp_path):
     crashed.begin("c", 12)
     crashed.recover_crashes()
     assert crashed.charged() == 12
+    overrun = Ledger(tmp_path / "overrun.jsonl", cap_seconds=100)
+    assert overrun.begin("over", 90) == 90
+    overrun.finish("over", 95)
+    assert overrun.charged() == 95
+    assert overrun.begin("next", 10) == 5
     image = _page(20, 20, _rows(0, 20, 20))
 
     def transport(prepared, candidate, allowed):
@@ -331,7 +336,7 @@ def test_fingerprints_change_with_the_candidate_not_the_partition_bytes_alone():
     first = request_identity("N1", "amr", ["AMR_001"], "abc")
     second = request_identity("N2", "amr", ["AMR_001"], "abc")
     assert first["experiment_fingerprint"] != second["experiment_fingerprint"]
-    assert first["identity_version"] == "ocr_c2_identity_v4"
+    assert first["identity_version"] == "ocr_c2_identity_v5"
     assert "control_sha256" not in first
     assert first["inference_sha256"] != first["scoring_sha256"]
 

@@ -49,12 +49,11 @@ class Ledger:
         return allowed
 
     def finish(self, request_id: str, elapsed_seconds: float) -> None:
-        open_row = self._open(request_id)
-        charged = min(max(0.0, elapsed_seconds), open_row["deadline_seconds"])
+        self._open(request_id)
         self._append({
             "request_id": request_id,
             "event": "finish",
-            "charged_seconds": charged,
+            "charged_seconds": max(0.0, float(elapsed_seconds)),
         })
 
     def recover_crashes(self) -> None:

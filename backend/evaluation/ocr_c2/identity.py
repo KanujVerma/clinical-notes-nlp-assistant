@@ -11,6 +11,7 @@ INFERENCE_FILES = (
     "backend/evaluation/ocr_c2/native.py",
     "backend/evaluation/ocr_c2/segment.py",
     "backend/evaluation/ocr_c2/runner.py",
+    "backend/evaluation/ocr_c2/budget.py",
 )
 INFERENCE_SYMBOLS = (
     ("backend/evaluation/public_amr_benchmark.py", ("MAX_INPUT_BYTES", "check", "infer_image")),
