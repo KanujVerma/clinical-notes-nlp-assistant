@@ -28,7 +28,9 @@ def _recognition_changed(baseline: dict[str, dict], candidate: dict[str, dict], 
     return False
 
 
-def compare_dataset(baseline_cases: list[dict], candidate_cases: list[dict]) -> dict:
+def compare_dataset(
+    baseline_cases: list[dict], candidate_cases: list[dict], require_relative: bool = True,
+) -> dict:
     baseline = _scored(baseline_cases)
     candidate = _scored(candidate_cases)
     paired = sorted(set(baseline) & set(candidate))
@@ -79,10 +81,17 @@ def compare_dataset(baseline_cases: list[dict], candidate_cases: list[dict]) -> 
         reasons.append("critical_recall_fell")
     if view["occurrence_false_positives"] > view["baseline_occurrence_false_positives"]:
         reasons.append("critical_false_positives_rose")
-    if not meets_relative_reduction(view["normalized_cer"], view["baseline_normalized_cer"]):
-        reasons.append("relative_cer")
-    elif not _recognition_changed(baseline, candidate, paired):
-        reasons.append("whitespace_only")
+    if require_relative:
+        if not meets_relative_reduction(view["normalized_cer"], view["baseline_normalized_cer"]):
+            reasons.append("relative_cer")
+        elif not _recognition_changed(baseline, candidate, paired):
+            reasons.append("whitespace_only")
+    elif (
+        view["normalized_cer"] is not None
+        and view["baseline_normalized_cer"] is not None
+        and view["normalized_cer"] > view["baseline_normalized_cer"] + 1e-12
+    ):
+        reasons.append("normalized_cer_worsened")
     view["reasons"] = reasons
     view["passed"] = not reasons
     return view

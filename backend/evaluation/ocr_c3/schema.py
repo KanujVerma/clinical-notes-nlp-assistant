@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from evaluation.ocr_c3.assemble import assemble, reading_order_uncertain
 from evaluation.ocr_c3.geometry import geometry_status, pixel_rectangle
+from evaluation.ocr_c3.identity import runtime_matches
 from evaluation.ocr_c3.protocol import CAMPAIGN_ID, CANDIDATE, READING_ORDER
 from evaluation.public_amr_benchmark import sha
 
@@ -12,7 +13,7 @@ REQUIRED = (
     "page_index", "source_sha256", "prepared_image_sha256", "prepared_width",
     "prepared_height", "vision_request_revision", "recognition_level",
     "recognition_languages", "uses_language_correction", "status", "observations",
-    "assembled_transcription", "reading_order",
+    "assembled_transcription", "reading_order", "runtime_identity",
 )
 
 
@@ -29,6 +30,8 @@ def validate_result(result: dict, prepared: bytes, revision: int) -> dict:
         raise ValueError("OCR_C3_CONFIG_DRIFT")
     if result["vision_request_revision"] != revision:
         raise ValueError("OCR_C3_REVISION")
+    if not isinstance(result.get("runtime_identity"), dict) or not runtime_matches(result["runtime_identity"]):
+        raise ValueError("OCR_C3_RUNTIME")
     if sha(prepared) != result["prepared_image_sha256"]:
         raise ValueError("OCR_C3_PREPARED_HASH")
     width = int(result["prepared_width"])

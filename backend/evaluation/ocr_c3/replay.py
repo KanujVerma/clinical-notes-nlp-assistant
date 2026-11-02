@@ -30,6 +30,8 @@ def replay_case(case: dict, reference_bytes: bytes, prepared_pages: list[bytes])
         if checked["transcription"] != page.get("assembled_transcription"):
             raise ValueError("OCR_C3_REPLAY")
         transcripts.append(checked["transcription"])
+    if not document_complete(pages):
+        raise ValueError("OCR_C3_REPLAY")
     prediction = "\n".join(transcripts)
     if prediction != case.get("prediction"):
         raise ValueError("OCR_C3_REPLAY")

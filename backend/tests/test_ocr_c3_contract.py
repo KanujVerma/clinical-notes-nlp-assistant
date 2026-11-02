@@ -70,6 +70,12 @@ def _result(observations, prepared, transcript, width=100, height=40):
         "assembled_transcription": transcript,
         "reading_order": "vision_reading_order_v1",
         "reading_order_uncertain": reading_order_uncertain(observations, width, height),
+        "runtime_identity": {
+            "os_build": load_protocol()["runtime"]["os_build"],
+            "arch": load_protocol()["runtime"]["arch"],
+            "vision_revision": load_protocol()["runtime"]["vision_revision"],
+            "model_weight_digest": None,
+        },
     }
 
 
@@ -208,6 +214,11 @@ def test_relative_gate_and_safety_use_paired_cases():
     assert outcome["outcome"] == "screen_negative"
     assert outcome["latency_p95_seconds"] == 70
     assert outcome["small_sample_p95"] is True
+    rx_same = compare_dataset(baseline, better, require_relative=False)
+    assert rx_same["passed"] is True
+    assert "relative_cer" not in rx_same["reasons"]
+    rx_worse = compare_dataset(baseline, worse, require_relative=False)
+    assert "normalized_cer_worsened" in rx_worse["reasons"] or "strict_cer_worsened" in rx_worse["reasons"]
 
 
 def test_confirmation_interval_can_stay_inconclusive():
@@ -246,12 +257,45 @@ def test_replay_rejects_a_changed_transcript():
         raise AssertionError("forged transcript verified")
     except ValueError as error:
         assert str(error) == "OCR_C3_REPLAY"
+    empty = _result([], prepared, "")
+    incomplete = dict(case, pages=[page, empty])
+    incomplete["prediction"] = transcript + "\n"
+    try:
+        replay_case(incomplete, reference, [prepared, prepared])
+        raise AssertionError("empty page verified as scored")
+    except ValueError as error:
+        assert str(error) == "OCR_C3_REPLAY"
+    drifted = dict(page)
+    drifted["runtime_identity"] = dict(page["runtime_identity"], os_build="other")
+    try:
+        validate_result(drifted, prepared, 3)
+        raise AssertionError("other OS build accepted")
+    except ValueError as error:
+        assert str(error) == "OCR_C3_RUNTIME"
 
 
 def test_stale_control_and_unreviewed_screen_are_refused(tmp_path):
+    from evaluation.ocr_c2.identity import request_identity as control_identity
     try:
-        accept_saved_control({"identity": {}, "status": "incomplete"}, b"5 mg\n", "hash", "digest")
+        accept_saved_control(
+            {"identity": {}, "status": "incomplete"}, b"5 mg\n", "hash", "digest", "amr", ["AMR_035"],
+        )
         raise AssertionError("stale control accepted")
+    except ValueError as error:
+        assert str(error) == "OCR_C3_CONTROL_STALE"
+    legacy = control_identity("Blegacy", "amr", ["AMR_035"], "digest")
+    try:
+        accept_saved_control(
+            {
+                "identity": legacy,
+                "status": "incomplete",
+                "prepared_image_sha256": "hash",
+                "model_digest": "digest",
+                "reference_sha256": sha(b"5 mg\n"),
+            },
+            b"5 mg\n", "hash", "digest", "amr", ["AMR_035"],
+        )
+        raise AssertionError("legacy control accepted as B8192")
     except ValueError as error:
         assert str(error) == "OCR_C3_CONTROL_STALE"
     called = {"value": False}
