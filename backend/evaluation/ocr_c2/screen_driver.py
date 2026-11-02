@@ -91,23 +91,63 @@ def native_transport(digest: str, parent: str | None):
     return transport
 
 
+def control_response(result: dict, digest: str) -> dict:
+    """Map a frozen control result without inventing a clean stop."""
+    completed = result.get("status") == "completed"
+    text = result.get("transcribed_text") if completed else ""
+    if not isinstance(text, str):
+        text = ""
+    reason = result.get("done_reason")
+    done = result.get("done") is True and isinstance(reason, str)
+    elapsed = None
+    if isinstance(result.get("total_duration"), (int, float)):
+        elapsed = result["total_duration"] / 1e9
+    return {
+        "model": "glm-ocr:q8_0",
+        "response": text if done else "",
+        "done": done,
+        "done_reason": reason if isinstance(reason, str) else None,
+        "elapsed_seconds": elapsed,
+        "model_digest": digest,
+        "control_status": result.get("status"),
+    }
+
+
 def control_transport(digest: str):
     def transport(prepared: bytes, candidate: str, allowed: float) -> dict:
         del allowed
         result = control_call(candidate, prepared, page_number=1, infer=glm_ocr_infer)
-        text = result.get("transcribed_text") if result.get("status") == "completed" else ""
-        if not isinstance(text, str):
-            text = ""
-        return {
-            "model": "glm-ocr:q8_0",
-            "response": text,
-            "done": True,
-            "done_reason": "stop",
-            "elapsed_seconds": None,
-            "model_digest": digest,
-            "control_status": result.get("status"),
-        }
+        return control_response(result, digest)
     return transport
+
+
+def accept_saved_case(saved: dict, identity: dict, reference_sha: str, reference_bytes: bytes) -> None:
+    stored = saved.get("identity") if isinstance(saved.get("identity"), dict) else {}
+    if saved.get("reference_sha256") != reference_sha:
+        raise ValueError("OCR_C2_STALE_EVIDENCE")
+    for key in ("experiment_fingerprint", "inference_sha256", "scoring_sha256"):
+        if stored.get(key) != identity.get(key):
+            raise ValueError("OCR_C2_STALE_EVIDENCE")
+    if identity.get("control_sha256") is not None and stored.get("control_sha256") != identity.get("control_sha256"):
+        raise ValueError("OCR_C2_STALE_EVIDENCE")
+    if saved.get("status") == "scored":
+        replay_case(saved, reference_bytes)
+    elif saved.get("status") != "incomplete":
+        raise ValueError("OCR_C2_STALE_EVIDENCE")
+
+
+def accept_saved_page(saved: dict, identity: dict, source_sha: str, reference_sha: str) -> None:
+    regions = saved.get("regions")
+    if saved.get("status") not in {"scored", "incomplete"}:
+        raise ValueError("OCR_C2_STALE_EVIDENCE")
+    if saved.get("source_sha256") != source_sha or saved.get("reference_sha256") != reference_sha:
+        raise ValueError("OCR_C2_STALE_EVIDENCE")
+    if saved.get("experiment_fingerprint") != identity.get("experiment_fingerprint"):
+        raise ValueError("OCR_C2_STALE_EVIDENCE")
+    if saved.get("scoring_sha256") != identity.get("scoring_sha256"):
+        raise ValueError("OCR_C2_STALE_EVIDENCE")
+    if not isinstance(regions, list) or any(not isinstance(region, dict) or "crop_sha256" not in region for region in regions):
+        raise ValueError("OCR_C2_STALE_EVIDENCE")
 
 
 def write_json(path: Path, payload: dict) -> None:
@@ -182,24 +222,26 @@ def run_candidate(root: Path, candidate: str, digest: str, ledger: Ledger, recor
         identity = request_identity(candidate, dataset, ids, digest, parent=parent)
         for ident in ids:
             case_path = root / "screen" / candidate / dataset / f"{ident}.json"
-            if case_path.exists():
-                record(f"skip {candidate} {dataset} {ident}")
-                continue
-            if ledger.exploration_blocked():
+            if ledger.exploration_blocked() and not case_path.exists():
                 return "budget_blocked"
             pages, reference_sha = load_case(dataset, ident)
             reference_bytes = document_reference(dataset, ident)
             if sha(reference_bytes) != reference_sha:
                 raise ValueError("OCR_C2_REFERENCE_HASH")
+            if case_path.exists():
+                accept_saved_case(json.loads(case_path.read_text()), identity, reference_sha, reference_bytes)
+                record(f"skip {candidate} {dataset} {ident}")
+                continue
             transport = control_transport(digest) if role == "control" else native_transport(digest, parent)
             page_results = []
             for index, raw in enumerate(pages):
                 stored = root / "screen" / candidate / dataset / f"{ident}-p{index}.json"
+                source_sha = sha(raw)
                 if stored.exists():
                     saved = json.loads(stored.read_text())
-                    if saved.get("status") in {"scored", "incomplete"}:
-                        page_results.append(saved)
-                        continue
+                    accept_saved_page(saved, identity, source_sha, reference_sha)
+                    page_results.append(saved)
+                    continue
                 prefix = next_request_prefix(
                     f"{candidate}-{dataset}-{ident}-p{index}",
                     {row["request_id"] for row in ledger.rows()},
@@ -215,10 +257,18 @@ def run_candidate(root: Path, candidate: str, digest: str, ledger: Ledger, recor
                     "completed": result["completed"],
                     "prediction": result["prediction"],
                     "regions": [
-                        {"order": region["order"], "status": region["status"]}
+                        {
+                            "order": region["order"],
+                            "status": region["status"],
+                            "crop_sha256": region.get("crop_sha256"),
+                        }
                         for region in result["regions"]
                     ],
                     "page_seconds": result["page_seconds"],
+                    "source_sha256": source_sha,
+                    "reference_sha256": reference_sha,
+                    "experiment_fingerprint": identity["experiment_fingerprint"],
+                    "scoring_sha256": identity["scoring_sha256"],
                 })
                 page_results.append(json.loads(stored.read_text()))
                 if result["status"] == "budget_blocked":

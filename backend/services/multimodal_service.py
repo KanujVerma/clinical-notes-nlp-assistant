@@ -172,6 +172,9 @@ def glm_ocr_infer(
             "boxes": valid_boxes,
             "confidence": None,  # Never treat model self-report as calibrated accuracy
             "source_verification": "model_proposed_unverified",
+            "done": res.get("done"),
+            "done_reason": res.get("done_reason"),
+            "total_duration": res.get("total_duration"),
         }
     except Exception as e:
         return {

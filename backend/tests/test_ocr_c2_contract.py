@@ -30,7 +30,9 @@ from evaluation.ocr_c2.native import (
 from evaluation.ocr_c2.protocol import CAMPAIGN_ID, load_protocol
 from evaluation.ocr_c2.replay import replay_case
 from evaluation.ocr_c2.runner import run_page
-from evaluation.ocr_c2.screen_driver import next_request_prefix
+from evaluation.ocr_c2.screen_driver import (
+    accept_saved_case, accept_saved_page, control_response, next_request_prefix, score_document,
+)
 from evaluation.ocr_c2.segment import orient_page, segment_page
 from evaluation.public_amr_benchmark import score, sha
 
@@ -337,6 +339,58 @@ def test_optional_phase_stays_closed_when_a_prerequisite_fails():
     assert assess_optional(dict(blocked, budget_exhausted=True)) == "budget_blocked"
     assert step("optional_model", "download_blocked") == "stopped"
     assert step("optional_model", "review_blocked") == "stopped"
+
+
+def test_control_termination_is_not_rewritten_as_a_stop(tmp_path):
+    limited = control_response({
+        "status": "completed",
+        "transcribed_text": "5 mg",
+        "done": True,
+        "done_reason": "length",
+    }, "aa")
+    assert limited["done_reason"] == "length"
+    assert limited["response"] == "5 mg"
+    missing = control_response({"status": "completed", "transcribed_text": "5 mg"}, "aa")
+    assert missing["done"] is False
+    assert missing["done_reason"] is None
+    image = _page(20, 20, _rows(0, 10, 20))
+    ledger = Ledger(tmp_path / "ledger.jsonl", cap_seconds=100)
+    result = run_page(image, "B8192", lambda *_args: limited, ledger, "control", "aa")
+    assert result["completed"] is False
+    assert result["regions"][0]["status"] == "generation_limit"
+
+
+def test_saved_screen_evidence_must_match_before_reuse():
+    identity = request_identity("N1", "amr", ["A"], "abc")
+    reference = b"a"
+    case = score_document(
+        [{"completed": True, "prediction": "a", "regions": [], "page_seconds": 1}],
+        sha(reference),
+        reference,
+        identity,
+    )
+    accept_saved_case(case, identity, sha(reference), reference)
+    other = request_identity("N1", "amr", ["B"], "abc")
+    try:
+        accept_saved_case(case, other, sha(reference), reference)
+        raise AssertionError("stale case was reused")
+    except ValueError as error:
+        assert str(error) == "OCR_C2_STALE_EVIDENCE"
+    page = {
+        "status": "scored",
+        "source_sha256": "source",
+        "reference_sha256": "reference",
+        "experiment_fingerprint": identity["experiment_fingerprint"],
+        "scoring_sha256": identity["scoring_sha256"],
+        "regions": [{"order": 0, "status": "scored"}],
+    }
+    try:
+        accept_saved_page(page, identity, "source", "reference")
+        raise AssertionError("page without a crop hash was reused")
+    except ValueError as error:
+        assert str(error) == "OCR_C2_STALE_EVIDENCE"
+    page["regions"][0]["crop_sha256"] = "crop"
+    accept_saved_page(page, identity, "source", "reference")
 
 
 def test_sanitized_driver_keeps_private_paths_out():
