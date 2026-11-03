@@ -59,6 +59,11 @@ export function formatRunWhen(iso?: string | null): string {
   });
 }
 
+/** Below Tailwind's `xl` width (1280px), Source and Fields are separate panes. */
+export function fieldsPaneVisible(wideLayout: boolean, pane: "source" | "fields"): boolean {
+  return wideLayout || pane === "fields";
+}
+
 export type FieldFilter = "all" | "remaining" | "flagged";
 
 export function fieldMatchesFilter(status: string, filter: FieldFilter): boolean {

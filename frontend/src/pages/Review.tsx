@@ -4,7 +4,7 @@ import { useLocation, useParams, useNavigate, useBlocker } from "react-router-do
 import { api } from "../api/client";
 import { ExtractionResult, NoteDetail } from "../types";
 import DocumentSourceViewer, { PageMetadata } from "../components/DocumentSourceViewer";
-import { displayFieldName, medicationIsMentionOnly, visibleFieldKeys } from "../lib/reviewCopy";
+import { displayFieldName, fieldsPaneVisible, medicationIsMentionOnly, visibleFieldKeys } from "../lib/reviewCopy";
 import FieldEditor, { FieldStatus, FieldCategory } from "../components/FieldEditor";
 import TranscriptionEditModal from "../components/TranscriptionEditModal";
 import OperationalIssuesDrawer from "../components/OperationalIssuesDrawer";
@@ -200,6 +200,24 @@ function flattenExtracted(
   return m;
 }
 
+function useWideReviewLayout(): boolean {
+  const query = "(min-width: 1280px)";
+  const [wide, setWide] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia(query).matches
+      : true,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(query);
+    const apply = () => setWide(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+  return wide;
+}
+
 export default function Review() {
   const location = useLocation();
   const { noteId } = useParams();
@@ -237,6 +255,8 @@ export default function Review() {
   const [noteIdState, setNoteIdState] = useState<number | null>(null);
   const [source, setSource] = useState("");
   const [mobilePane, setMobilePane] = useState<"source" | "fields">("source");
+  const wideLayout = useWideReviewLayout();
+  const fieldsShown = fieldsPaneVisible(wideLayout, mobilePane);
   const [fieldFilter, setFieldFilter] = useState<"all" | "remaining" | "flagged">("all");
   const [fields, setFields] = useState<FieldMap>({});
   const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -790,18 +810,18 @@ export default function Review() {
       if (tag === "input" || tag === "textarea" || tag === "select") return;
 
       const visibleKeys = visibleFieldKeys(fields, fieldFilter);
-      const activeIsVisible = !!activeKey && visibleKeys.includes(activeKey);
-      if (e.key === "a" || e.key === "A") {
+      const activeIsVisible = fieldsShown && !!activeKey && visibleKeys.includes(activeKey);
+      if (fieldsShown && (e.key === "a" || e.key === "A")) {
         if (activeIsVisible && fields[activeKey!]?.status === "pending") {
           handleFieldChange(activeKey!, fields[activeKey!].value, "accepted");
         }
       }
-      if (e.key === "e" || e.key === "E") {
+      if (fieldsShown && (e.key === "e" || e.key === "E")) {
         if (activeIsVisible && !isHosted) {
           setEditingKey(activeKey);
         }
       }
-      if (e.key === "r" || e.key === "R") {
+      if (fieldsShown && (e.key === "r" || e.key === "R")) {
         if (activeIsVisible && fields[activeKey!]) {
           handleFieldChange(activeKey!, fields[activeKey!].value, "removed");
         }
@@ -816,7 +836,7 @@ export default function Review() {
           return { metadata: nextVal, vitals: nextVal, medications: nextVal, instructions: nextVal };
         });
       }
-      if (e.key === "Tab") {
+      if (fieldsShown && e.key === "Tab") {
         const keys = visibleFieldKeys(fields, fieldFilter);
         if (keys.length > 0) {
           if (!activeKey) {
@@ -851,7 +871,7 @@ export default function Review() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [activeKey, fields, fieldFilter, isHosted, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
+  }, [activeKey, fields, fieldFilter, fieldsShown, isHosted, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
 
   useEffect(() => {
     if (!activeKey) return;
@@ -988,7 +1008,7 @@ export default function Review() {
       </header>
 
       {/* E: Keyboard shortcut hint strip */}
-      <div className="hidden md:flex bg-white text-slate-500 text-xs px-6 py-1.5 gap-4 border-b border-slate-200 flex-shrink-0 select-none">
+      <div className={`${fieldsShown ? "hidden md:flex" : "hidden"} bg-white text-slate-500 text-xs px-6 py-1.5 gap-4 border-b border-slate-200 flex-shrink-0 select-none`}>
         <span><kbd className="font-mono text-slate-700">A</kbd> Accept</span>
         <span className="text-slate-300">·</span>
         <span><kbd className="font-mono text-slate-700">E</kbd> Edit</span>

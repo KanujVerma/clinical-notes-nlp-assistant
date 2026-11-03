@@ -1,5 +1,5 @@
 // frontend/src/components/DocumentSourceViewer.tsx
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ExtractionResult } from "../types";
 import { api } from "../api/client";
 import { transformBbox, validateBboxGeometry, checkSourceImageAgreement } from "../utils/coordinates";
@@ -34,6 +34,56 @@ interface EvidenceItem {
   span?: [number, number];
   pageNumber: number;
   bbox?: number[];
+}
+
+const TEXT_MARK: Record<EvidenceItem["category"], string> = {
+  vitals: "bg-blue-100 text-blue-950",
+  medications: "bg-green-100 text-green-950",
+  instructions: "bg-amber-100 text-amber-950",
+  metadata: "bg-violet-100 text-violet-950",
+};
+
+function renderTranscriptSpans(
+  rawText: string,
+  items: EvidenceItem[],
+  activeKey: string | null,
+  onSpanClick: (fieldKey: string) => void,
+): ReactNode[] {
+  const spans = items
+    .filter((item): item is EvidenceItem & { span: [number, number] } => {
+      if (!item.span) return false;
+      const [start, end] = item.span;
+      return start >= 0 && end > start && end <= rawText.length;
+    })
+    .sort((a, b) => a.span[0] - b.span[0] || a.span[1] - b.span[1]);
+
+  const parts: ReactNode[] = [];
+  let pos = 0;
+  for (const item of spans) {
+    const [start, end] = item.span;
+    if (start < pos) continue;
+    if (start > pos) {
+      parts.push(<span key={`text-${pos}`}>{rawText.slice(pos, start)}</span>);
+    }
+    const isActive = activeKey === item.fieldKey;
+    parts.push(
+      <button
+        key={`span-${item.fieldKey}-${start}`}
+        type="button"
+        data-testid={`source-span-${item.fieldKey}`}
+        title={`${item.category}: ${item.label}`}
+        onClick={() => onSpanClick(item.fieldKey)}
+        className={`inline cursor-pointer rounded border-0 p-0 font-inherit ${TEXT_MARK[item.category]} ${isActive ? "font-semibold ring-2 ring-slate-700" : ""}`}
+      >
+        {rawText.slice(start, end)}
+      </button>,
+    );
+    pos = end;
+  }
+  if (pos < rawText.length) {
+    parts.push(<span key={`text-${pos}`}>{rawText.slice(pos)}</span>);
+  }
+  return parts;
 }
 
 const CAT_COLORS: Record<string, { bg: string; border: string; ring: string }> = {
@@ -378,14 +428,8 @@ export default function DocumentSourceViewer({
       {/* Main Content Area */}
       <div className={`relative flex-1 overflow-auto flex ${viewMode === "document" && originalImage ? "items-center justify-center bg-slate-950 p-4" : "bg-white"}`}>
         {viewMode === "transcript" || !originalImage ? (
-          <div className="w-full h-full overflow-y-auto bg-white px-6 py-5 text-[15px] leading-relaxed text-slate-900 whitespace-pre-wrap">
-            {activeItem?.span ? (
-              <>
-                {rawText.slice(0, activeItem.span[0])}
-                <mark className="bg-amber-200 text-slate-900">{rawText.slice(activeItem.span[0], activeItem.span[1])}</mark>
-                {rawText.slice(activeItem.span[1])}
-              </>
-            ) : rawText}
+          <div className="w-full h-full overflow-y-auto bg-white px-6 py-5 text-[15px] leading-relaxed text-slate-900 whitespace-pre-wrap" data-testid="source-transcript">
+            {renderTranscriptSpans(rawText, evidenceItems, activeKey, onSpanClick)}
           </div>
         ) : (
           <div className="relative max-w-full max-h-full inline-block shadow-2xl rounded border border-slate-800">

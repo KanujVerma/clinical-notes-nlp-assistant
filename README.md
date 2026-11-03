@@ -121,6 +121,8 @@ Open <http://localhost:5173>. Vite proxies `/api` to the local Flask backend. Wi
 | `Esc` | Deactivate |
 | `⌘S` / `Ctrl+S` | Save |
 
+On a narrow screen, Accept, Edit, Remove, and Tab apply while **Fields** is the visible pane. In pasted text, click a highlighted phrase to select its field.
+
 The review screen shows medications, vitals, instructions, and metadata by those names. A medication mention without a dose or directions is labeled Mention only. **Edit source** changes the note text and starts a new version. That does not make the previous review current.
 
 ## Validation Workbench & Verification Architecture

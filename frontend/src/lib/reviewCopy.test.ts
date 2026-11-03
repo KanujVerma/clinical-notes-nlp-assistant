@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { medicationIsMentionOnly, visibleFieldKeys } from "./reviewCopy";
+import { fieldsPaneVisible, medicationIsMentionOnly, visibleFieldKeys } from "./reviewCopy";
 
 describe("visibleFieldKeys", () => {
   const fields = {
@@ -21,5 +21,13 @@ describe("visibleFieldKeys", () => {
   it("does not call a medication mention-only when a filtered detail still exists", () => {
     expect(medicationIsMentionOnly(fields, "1")).toBe(false);
     expect(medicationIsMentionOnly({ "med.3.name": { status: "pending" } }, "3")).toBe(true);
+  });
+});
+
+describe("fieldsPaneVisible", () => {
+  it("hides field shortcuts on a narrow Source pane and shows them once Fields is selected", () => {
+    expect(fieldsPaneVisible(false, "source")).toBe(false);
+    expect(fieldsPaneVisible(false, "fields")).toBe(true);
+    expect(fieldsPaneVisible(true, "source")).toBe(true);
   });
 });

@@ -100,6 +100,27 @@ test("Review page — progress bar updates on accept", async ({ page }) => {
   expect(before).not.toEqual(after);
 });
 
+test("Review page — field shortcuts stay off while Source hides the fields", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE);
+  await page.getByRole("button", { name: /Load sample note/i }).click();
+  await page.getByRole("button", { name: /Extract & Review/i }).click();
+  await waitForReviewPage(page);
+
+  const sourceTab = page.getByRole("tab", { name: "Source" });
+  await expect(sourceTab).toHaveAttribute("aria-selected", "true");
+  const checked = page.getByText(/\d+ of \d+ checked/);
+  const before = await checked.textContent();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("a");
+  await expect(checked).toHaveText(before ?? "");
+
+  await page.getByRole("tab", { name: "Fields" }).click();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("a");
+  await expect(checked).not.toHaveText(before ?? "");
+});
+
 test("Review page — keyboard shortcut Tab activates field, A accepts it", async ({ page }) => {
   await page.goto(BASE);
   await page.getByRole("button", { name: /Load sample note/i }).click();
