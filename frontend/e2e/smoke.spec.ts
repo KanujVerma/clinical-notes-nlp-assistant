@@ -13,7 +13,7 @@ const BASE = "http://localhost:5173";
 async function waitForReviewPage(page: Page) {
   await expect(page).toHaveURL(/\/review\/\d+/, { timeout: 15_000 });
   // Wait for the Reviewer header — present regardless of field statuses
-  await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Review note", { exact: true })).toBeVisible({ timeout: 10_000 });
 }
 
 // ── tests ──────────────────────────────────────────────────────────────────
@@ -76,8 +76,7 @@ Return to ER if chest pain.`;
 
   await waitForReviewPage(page);
 
-  // Source badge should be visible (CSS uppercases the value so match case-insensitively)
-  await expect(page.locator("header span").filter({ hasText: /text|paste/i })).toBeVisible();
+  await expect(page.getByTestId("document-source-viewer").getByText("Pasted text")).toBeVisible();
 });
 
 test("Review page — progress bar updates on accept", async ({ page }) => {
@@ -87,7 +86,7 @@ test("Review page — progress bar updates on accept", async ({ page }) => {
   await waitForReviewPage(page);
 
   // Read initial reviewed count
-  const barText = page.locator("text=/\\d+ of \\d+ fields reviewed/");
+  const barText = page.locator("text=/\\d+ of \\d+ checked/");
   await expect(barText).toBeVisible();
   const before = await barText.textContent();
 
@@ -99,6 +98,27 @@ test("Review page — progress bar updates on accept", async ({ page }) => {
   // Count should have increased
   const after = await barText.textContent();
   expect(before).not.toEqual(after);
+});
+
+test("Review page — field shortcuts stay off while Source hides the fields", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE);
+  await page.getByRole("button", { name: /Load sample note/i }).click();
+  await page.getByRole("button", { name: /Extract & Review/i }).click();
+  await waitForReviewPage(page);
+
+  const sourceTab = page.getByRole("tab", { name: "Source" });
+  await expect(sourceTab).toHaveAttribute("aria-selected", "true");
+  const checked = page.getByText(/\d+ of \d+ checked/);
+  const before = await checked.textContent();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("a");
+  await expect(checked).toHaveText(before ?? "");
+
+  await page.getByRole("tab", { name: "Fields" }).click();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("a");
+  await expect(checked).not.toHaveText(before ?? "");
 });
 
 test("Review page — keyboard shortcut Tab activates field, A accepts it", async ({ page }) => {
@@ -134,16 +154,16 @@ test("Review page — edit a field value and save corrections", async ({ page })
   // Click Edit on first field
   const firstValue = page.locator('[data-testid="field-value"]').first();
   await firstValue.hover();
-  await page.getByRole("button", { name: "Edit" }).first().click();
+  await page.getByRole("button", { name: "Edit", exact: true }).first().click();
 
   // Type a new value
-  const input = page.locator("input").first();
+  const input = page.locator("input:not([type='checkbox'])").first();
   await input.click({ clickCount: 3 });
   await input.fill("edited value");
   await page.getByRole("button", { name: "save" }).first().click();
 
   // Accept all remaining pending fields (which preserves the corrected field and saves)
-  await page.getByRole("button", { name: /Accept all/i }).click();
+  await page.getByRole("button", { name: /Accept remaining/i }).click();
 
   // Flash message or auto-advance
   await expect(
@@ -200,7 +220,7 @@ test("Re-review — previously reviewed note shows banner", async ({ page }) => 
   await page.locator('[data-testid="ack-instructions"]').check();
 
   // Accept all
-  await page.getByRole("button", { name: /Accept all/i }).click();
+  await page.getByRole("button", { name: /Accept remaining/i }).click();
   await page.waitForTimeout(2_000);
 
   // Go to History and re-open the note

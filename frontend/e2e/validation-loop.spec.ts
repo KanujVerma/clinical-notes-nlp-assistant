@@ -18,7 +18,7 @@ async function openReview(page: Page) {
   await page.getByPlaceholder("Paste clinical note text here...").fill(NOTE);
   await page.getByRole("button", { name: /Extract & Review/i }).click();
   await expect(page).toHaveURL(/\/review\/\d+/, { timeout: 15_000 });
-  await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Review note", { exact: true })).toBeVisible({ timeout: 10_000 });
 }
 
 test("validation loop keeps correction, drilldown, and stale replay distinct", async ({ page }) => {
@@ -52,14 +52,14 @@ test("validation loop keeps correction, drilldown, and stale replay distinct", a
   const reviewPost = page.waitForResponse((response) =>
     response.url().includes("/reviews") && response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: /Accept all/i }).click();
+  await page.getByRole("button", { name: /Accept remaining/i }).click();
   const saved = await reviewPost;
   expect(saved.status()).toBe(201);
   const savedBody = saved.request().postDataJSON() as Record<string, unknown>;
   const reviewUrl = saved.url();
 
   await page.reload();
-  await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Review note", { exact: true })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("2.0 mg").first()).toBeVisible();
 
   await page.goto(`${BASE}/metrics/drilldown?kind=issues&severity=warning&state=open`);
@@ -71,7 +71,7 @@ test("validation loop keeps correction, drilldown, and stale replay distinct", a
   await expect(page).toHaveURL(new RegExp(`/review/${noteId}\\?`));
   await expect(page.getByRole("region", { name: "Operational issues for current note" })).toBeVisible();
 
-  await page.getByRole("button", { name: /Update Transcription/ }).click();
+  await page.getByRole("button", { name: "Edit source" }).click();
   const editor = page.getByRole("heading", { name: "Edit Document Transcription" });
   await expect(editor).toBeVisible();
   const sourceBox = page.locator("textarea").last();

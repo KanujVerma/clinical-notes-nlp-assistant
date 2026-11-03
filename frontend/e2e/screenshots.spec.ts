@@ -38,7 +38,7 @@ Go to the ER for fainting, chest pain, worsening weakness, inability to keep flu
 
 async function waitForReview(page: Page) {
   await page.waitForURL(/\/review\/\d+/, { timeout: 15_000 });
-  await page.getByText("Reviewer", { exact: true }).waitFor({ timeout: 10_000 });
+  await page.getByText("Review note", { exact: true }).waitFor({ timeout: 10_000 });
   // Let field cards render
   await page.waitForTimeout(800);
 }
@@ -116,7 +116,7 @@ Follow up with clinic in 1 week.
     await page.screenshot({ path: `${OUT}/validation-lab.png`, fullPage: false });
 
     await page.goto(`${BASE}/showcase`);
-    await page.getByRole("heading", { name: "Frozen 24-image printed-synthetic benchmark" }).waitFor();
+    await page.getByRole("heading", { name: "24-image comparison" }).waitFor();
     await page.screenshot({ path: `${OUT}/showcase.png`, fullPage: true });
   });
 });

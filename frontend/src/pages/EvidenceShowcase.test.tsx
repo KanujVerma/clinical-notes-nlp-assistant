@@ -107,14 +107,14 @@ describe("EvidenceShowcase", () => {
   it("labels the real OCR baseline and never invents local model results", async () => {
     vi.mocked(api.getPublicShowcaseEvidence).mockResolvedValue(example as never);
     renderPage();
-    expect(await screen.findByText("Recorded Tesseract OCR baseline")).toBeInTheDocument();
+    expect(await screen.findByText("Three OCR examples")).toBeInTheDocument();
     expect(screen.getByText("3.83%")).toBeInTheDocument();
     expect(screen.getByText("27.14%")).toBeInTheDocument();
     expect(screen.getByText("11/11")).toBeInTheDocument();
     expect(screen.getByText(/No reviewed local-model recordings are published/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Frozen 24-image printed-synthetic benchmark" })).toBeInTheDocument();
-    expect(screen.getByText("11/3/12")).toBeInTheDocument();
-    expect(screen.getByText("N/A")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "24-image comparison" })).toBeInTheDocument();
+    expect(screen.getByText("11")).toBeInTheDocument();
+    expect(screen.getByText("Not applicable")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open review queue" })).toHaveAttribute("href", "/queue");
   });
 

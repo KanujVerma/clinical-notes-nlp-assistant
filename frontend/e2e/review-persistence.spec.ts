@@ -4,7 +4,7 @@ const BASE = "http://localhost:5173";
 
 async function waitForReviewPage(page: Page) {
   await expect(page).toHaveURL(/\/review\/\d+/, { timeout: 15_000 });
-  await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Review note", { exact: true })).toBeVisible({ timeout: 10_000 });
 }
 
 test.describe("P0 Review Persistence & Category Acknowledgments", () => {
@@ -45,7 +45,7 @@ Follow up in 2 weeks.`;
     await expect(ackInst).not.toBeChecked();
 
     // Clicking Accept all without acknowledging completeness should fail and show error
-    await page.getByRole("button", { name: /Accept all/i }).click();
+    await page.getByRole("button", { name: /Accept remaining/i }).click();
     await expect(page.getByText(/Completeness must be acknowledged for all categories/i)).toBeVisible({ timeout: 5_000 });
   });
 
@@ -75,7 +75,7 @@ Diet and exercise.`;
     await page.locator('[data-testid="ack-instructions"]').check();
 
     // Find the frequency field editor for the first medication and remove it
-    const freqCard = page.locator(".group").filter({ has: page.getByText("frequency", { exact: true }) }).first();
+    const freqCard = page.locator(".group").filter({ has: page.getByText("Frequency", { exact: true }) }).first();
     await freqCard.hover();
     const removeBtn = freqCard.locator("button:has-text('✕')");
     await removeBtn.click();
@@ -88,7 +88,7 @@ Diet and exercise.`;
     expect(await metforminCards.count()).toBeGreaterThanOrEqual(2);
 
     // Accept remaining fields and save
-    await page.getByRole("button", { name: /Accept all/i }).click();
+    await page.getByRole("button", { name: /Accept remaining/i }).click();
 
     // Wait for saved toast or redirect
     await expect(

@@ -98,7 +98,8 @@ describe("DocumentSourceViewer", () => {
 
     // Click transcript toggle
     fireEvent.click(screen.getByTestId("toggle-view-transcript"));
-    expect(screen.getByText("Raw clinical text sample")).toBeInTheDocument();
+    expect(screen.getByTestId("source-transcript")).toHaveTextContent("Raw clinical text sample");
+    expect(screen.getByTestId("source-span-vitals.bp")).toBeInTheDocument();
     expect(screen.queryByTestId("document-page-image")).not.toBeInTheDocument();
 
     // Click back to document view
@@ -169,6 +170,33 @@ describe("DocumentSourceViewer", () => {
     expect(onSpanClick).toHaveBeenCalledWith("med.med_1.name");
   });
 
+  it("selects a field when its phrase is clicked in pasted text", () => {
+    const onSpanClick = vi.fn();
+    const rawText = "Blood pressure 120/80. Heart rate 72.";
+    render(
+      <DocumentSourceViewer
+        noteId={202}
+        rawText={rawText}
+        extracted={{
+          vitals: {
+            blood_pressure: { value: "120/80", span: [15, 21] } as any,
+            heart_rate: { value: "72", span: [34, 36] } as any,
+          },
+          medications: [],
+          instructions: {},
+          metadata: {},
+        }}
+        pages={[]}
+        activeKey={null}
+        onSpanClick={onSpanClick}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("source-span-vitals.blood_pressure"));
+    expect(onSpanClick).toHaveBeenCalledWith("vitals.blood_pressure");
+    expect(screen.getByTestId("source-transcript")).toHaveTextContent(rawText);
+  });
+
   it("displays missing geometry alert when active item lacks bounding box", async () => {
     render(
       <DocumentSourceViewer
@@ -184,6 +212,6 @@ describe("DocumentSourceViewer", () => {
     // Automatically navigated to Page 2 because med_2 is on page 2
     expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
     expect(screen.getByTestId("missing-geometry-alert")).toBeInTheDocument();
-    expect(screen.getByText(/Geometry unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText(/No image highlight is available/i)).toBeInTheDocument();
   });
 });

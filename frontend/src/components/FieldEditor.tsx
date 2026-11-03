@@ -20,31 +20,8 @@ interface Props {
   explainerKind?: 'medication' | 'abbreviation';
 }
 
-// Left border color per category, inactive vs active
-// Uses inline style because Tailwind v3 has no directional border-color utilities
-const CAT_BORDER: Record<FieldCategory, { inactive: string; active: string }> = {
-  vitals: { inactive: "#93c5fd", active: "#3b82f6" },
-  med:    { inactive: "#86efac", active: "#22c55e" },
-  instr:  { inactive: "#fcd34d", active: "#f59e0b" },
-  meta:   { inactive: "#c4b5fd", active: "#8b5cf6" },
-};
-
-const CAT_ACTIVE_BG: Record<FieldCategory, string> = {
-  vitals: "bg-blue-50",
-  med:    "bg-green-50",
-  instr:  "bg-amber-50",
-  meta:   "bg-violet-50",
-};
-
-const CAT_LABEL_ACTIVE: Record<FieldCategory, string> = {
-  vitals: "text-blue-600",
-  med:    "text-green-600",
-  instr:  "text-amber-600",
-  meta:   "text-violet-600",
-};
-
 export default function FieldEditor({
-  label, value, originalValue, status, category, isActive, onActivate, onChange,
+  label, value, originalValue, status, isActive, onActivate, onChange,
   allowEdit = true, triggerEdit, onEditTriggered, explainerKind,
 }: Props) {
   const [editing, setEditing] = useState(false);
@@ -66,7 +43,7 @@ export default function FieldEditor({
         style={{ borderLeft: "3px solid #cbd5e1" }}
       >
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</span>
+          <span className="text-[13px] font-medium text-slate-800">{label}</span>
           <button onClick={() => onChange(value, "accepted")} className="text-[10px] text-blue-500 hover:underline">
             restore
           </button>
@@ -84,13 +61,13 @@ export default function FieldEditor({
         style={{ borderLeft: "3px solid #22c55e" }}
       >
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-green-300">{label}</span>
+          <span className="text-[13px] font-medium text-slate-800">{label}</span>
           <span className="flex items-center gap-2 text-[10px] text-green-600">
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
               <circle cx="6" cy="6" r="5.5" stroke="#16a34a" strokeWidth="1" />
               <path d="M3.5 6l1.8 1.8 3-3.6" stroke="#16a34a" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            accepted
+            Accepted
             {/* Undo button */}
             <button
               onClick={() => onChange(value, "pending")}
@@ -118,8 +95,8 @@ export default function FieldEditor({
         style={{ borderLeft: "3px solid #f59e0b" }}
       >
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">{label}</span>
-          <span className="text-[10px] text-amber-600">corrected</span>
+          <span className="text-[13px] font-medium text-slate-800">{label}</span>
+          <span className="text-[10px] text-amber-600">Edited</span>
         </div>
         {/* Diff view: original → corrected */}
         {showDiff && !editing && (
@@ -172,17 +149,16 @@ export default function FieldEditor({
   return (
     <div
       className={`group rounded-lg border border-slate-200 px-3 py-2.5 transition-all duration-150 cursor-pointer
-        ${isActive ? CAT_ACTIVE_BG[category] : "bg-white"}`}
-      style={{ borderLeft: `3px solid ${CAT_BORDER[category][isActive ? "active" : "inactive"]}` }}
+        ${isActive ? "bg-slate-50" : "bg-white"}`}
+      style={{ borderLeft: `3px solid ${isActive ? "#0E7490" : "#E2E8F0"}` }}
       onMouseEnter={onActivate}
     >
       <div className="flex items-center justify-between min-h-[20px]">
-        <span className={`text-[10px] font-semibold uppercase tracking-widest
-          ${isActive ? CAT_LABEL_ACTIVE[category] : "text-slate-400"}`}>
+        <span className="text-[13px] font-medium text-slate-800">
           {label}
         </span>
         {/* Action buttons: always shown when active; revealed on group-hover when inactive */}
-        <div className={`flex gap-1 ${isActive ? "flex" : "hidden group-hover:flex"}`}>
+        <div className="flex gap-1">
           <button onClick={(e) => { e.stopPropagation(); onChange(value, "accepted"); }}
             className="text-[10px] px-2 py-0.5 bg-white text-green-600 border border-green-200 rounded hover:bg-green-50">
             ✓ Accept
@@ -199,8 +175,8 @@ export default function FieldEditor({
           </button>
         </div>
         {/* "click to review" hint — hidden when active or on hover */}
-        {!isActive && (
-          <span className="text-[10px] text-slate-300 group-hover:hidden">click to review</span>
+        {!isActive && status === "pending" && (
+          <span className="text-xs text-slate-500">Not checked</span>
         )}
       </div>
       {editing ? (

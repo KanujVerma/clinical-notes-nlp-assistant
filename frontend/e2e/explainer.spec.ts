@@ -13,7 +13,7 @@ const BASE = "http://localhost:5173";
 async function waitForReviewPage(page: Page) {
   await expect(page).toHaveURL(/\/review\/\d+/, { timeout: 15_000 });
   // Wait for the Reviewer header — present regardless of field statuses
-  await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Review note", { exact: true })).toBeVisible({ timeout: 10_000 });
 }
 
 // ── tests ──────────────────────────────────────────────────────────────────

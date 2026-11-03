@@ -19,11 +19,11 @@ test("hold and stop medication actions are reviewed, saved and restored", async 
   await page.getByPlaceholder("Paste clinical note text here...").fill(synthetic);
   await page.getByRole("button", { name: /Extract & Review/i }).click();
   await expect(page).toHaveURL(/\/review\/\d+/, { timeout: 15_000 });
-  await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Review note", { exact: true })).toBeVisible({ timeout: 10_000 });
 
   // The action itself must be inspectable, never an invisible required
   // backend decision manufactured by a generic parent accept.
-  await expect(page.getByText("action", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("Action", { exact: true })).toHaveCount(2);
   await expect(page.getByText("hold", { exact: true })).toBeVisible();
   await expect(page.getByText("stop", { exact: true })).toBeVisible();
 
@@ -32,7 +32,7 @@ test("hold and stop medication actions are reviewed, saved and restored", async 
   }
 
   const originalReviewUrl = page.url();
-  await page.getByRole("button", { name: /Accept all/i }).click();
+  await page.getByRole("button", { name: /Accept remaining/i }).click();
 
   await expect(
     page.getByText(/Saved|Review saved|Review completed/i).or(
@@ -42,8 +42,8 @@ test("hold and stop medication actions are reviewed, saved and restored", async 
   await expect(page.getByText(/Missing explicit decision for medication/i)).toHaveCount(0);
 
   await page.goto(originalReviewUrl);
-  await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText("action", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("Review note", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Action", { exact: true })).toHaveCount(2);
   await expect(page.getByText("hold", { exact: true })).toBeVisible();
   await expect(page.getByText("stop", { exact: true })).toBeVisible();
 });
