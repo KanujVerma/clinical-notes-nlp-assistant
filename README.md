@@ -14,17 +14,24 @@ The canonical demonstration is a local build plus the recorded synthetic walkthr
 
 ## Product walkthrough
 
-1. Paste a synthetic note, load the built-in sample, seed demo notes, or upload TXT, PDF, or a typed image. OCR uses Tesseract for scanned/printed inputs.
-2. The deterministic extractor identifies metadata, vitals, medication mentions and instructions, retaining source-linked field information where available.
-3. Review each extracted field, accept/edit/remove it, and save. The keyboard-oriented interface supports repeated inspection and correction.
-4. Browse the review queue and history. Review activity summarizes corrections in the current browser workspace. Validation Lab and Test evidence stay separate from that review history.
-5. Optionally inspect a local-dictionary explanation of a medication or abbreviation. An external AI terminology explanation is a separate, on-demand feature when configured; it is **not** the extraction engine.
+The sidebar uses these names. The routes are unchanged.
+
+1. **Add note.** Paste a synthetic note, load the built-in sample, seed demo notes, or add a TXT, PDF, or typed image. OCR uses Tesseract for scanned or printed inputs.
+2. The deterministic extractor identifies metadata, vitals, medication mentions, and instructions, and keeps a link back to the source where it has one.
+3. **Review note.** Compare each extracted field with the source note, then accept, edit, or remove it. **Accept remaining** checks only fields that are still unchecked. **Save review** still requires the four acknowledgments under Before finishing. Pasted text stays text. A page image appears only when the note has one.
+4. **Review queue** and **History** list notes in this browser workspace. **Review activity** summarizes corrections. Those counts are reviewer activity, not extraction accuracy.
+5. **Validation Lab** is the 20 fictional notes. **Test evidence** is the separate 24-image comparison and the three recorded Tesseract examples. F1 on the lab page combines missed and extra results. It is not a clinical accuracy score, and the two tests are not combined.
+6. Optionally inspect a local-dictionary explanation of a medication or abbreviation. An external AI terminology explanation is a separate, on-demand feature when configured; it is **not** the extraction engine.
 
 | Add note | Review note | Review activity |
 |:---:|:---:|:---:|
-| ![Upload page](docs/screenshots/upload.png) | ![Review page](docs/screenshots/review.png) | ![Metrics page](docs/screenshots/metrics.png) |
+| ![Add note](docs/screenshots/upload.png) | ![Review note](docs/screenshots/review.png) | ![Review activity](docs/screenshots/metrics.png) |
 
-Other interface views: [Queue](docs/screenshots/queue.png), [History](docs/screenshots/history.png), and [Terminology explainer](docs/screenshots/explainer.png). Screenshots may describe the recorded UI state rather than the currently deployed build.
+| Validation Lab | Test evidence |
+|:---:|:---:|
+| ![Validation Lab](docs/screenshots/validation-lab.png) | ![Test evidence](docs/screenshots/showcase.png) |
+
+Other views: [Review queue](docs/screenshots/queue.png), [History](docs/screenshots/history.png), and [Terminology explainer](docs/screenshots/explainer.png). These pictures are the current local interface.
 
 ## How it works
 
@@ -42,8 +49,9 @@ Flask upload/paste API
 SQLAlchemy persistence (SQLite local; configurable PostgreSQL)
          |
          v
-React + TypeScript reviewer UI
-Upload --> Queue --> Review --> History --> Metrics
+React + TypeScript review interface
+Add note --> Review queue --> Review note --> History --> Review activity
+Validation Lab and Test evidence stay on their own pages
 
 Optional, separate path:
 dictionary explanation --> configured field-level AI explanation
@@ -113,7 +121,7 @@ Open <http://localhost:5173>. Vite proxies `/api` to the local Flask backend. Wi
 | `Esc` | Deactivate |
 | `⌘S` / `Ctrl+S` | Save |
 
-The reviewer can inspect medications, vitals, instructions, and metadata. Medication mentions without sufficient structured directions require human interpretation rather than assuming they are active treatment instructions.
+The review screen shows medications, vitals, instructions, and metadata by those names. A medication mention without a dose or directions is labeled Mention only. **Edit source** changes the note text and starts a new version. That does not make the previous review current.
 
 ## Validation Workbench & Verification Architecture
 
@@ -122,7 +130,8 @@ In addition to the baseline pipeline, this repository includes the **Clinical NL
 - **Immutable Lineage & Append-Only Event Store**: Ingestion hashes source assets into content-addressed storage (SHA-256). Transcription edits create an incremented `NoteRevision` chain. Review events cite parent pointers, lock versions (optimistic concurrency), and idempotency keys.
 - **Independent Quality Canaries**: Pure validation rules independently check extracted entities for half-open interval coordinate bounds, exact quote integrity (`A08`), decimal dose formatting risks (`A09`), duplicate medication conflicts (`A02`), missing vital units (`A03`), and contradictory instructions (`A04`).
 - **Operational Issues Drawer**: Live slide-out drawer surfacing canaries and critical blockers with explicit reviewer disposition lifecycles.
-- **Synthetic Evaluation Lab (`/validation-lab`)**: Deterministic source-occurrence-first medication pairing with a bounded assignment fallback (not the Hungarian algorithm), evaluating annotated medication attributes (`name`, `dose`, `route`, `frequency`, `duration`, `qualifier`) and case-by-case error attribution (TP/FP/FN).
+- **Validation Lab (`/validation-lab`)**: The 20-note text evaluation. The page says matched, extra, and missed. The scorer is still source-occurrence-first, then a bounded assignment, not the Hungarian algorithm. It compares annotated medication attributes (`name`, `dose`, `route`, `frequency`, `duration`, `qualifier`). F1 on this page is not clinical accuracy and is not the 24-image test.
+- **Test evidence (`/showcase`)**: The frozen 24-image comparison first, then documented failures and the separate three-case Tesseract recording. Qwen text error is not applicable. Raw model transcripts for the 24-image run are not published on the page.
 - **Checksummed Export**: Downloadable review ZIPs with structured decisions, source lineage, and a SHA-256 file manifest. Checksums are not clinician signatures or independent proof of correctness.
 
 Comprehensive documentation is available in [`docs/validation/`](docs/validation/):
