@@ -4,7 +4,7 @@ import { useLocation, useParams, useNavigate, useBlocker } from "react-router-do
 import { api } from "../api/client";
 import { ExtractionResult, NoteDetail } from "../types";
 import DocumentSourceViewer, { PageMetadata } from "../components/DocumentSourceViewer";
-import { displayFieldName } from "../lib/reviewCopy";
+import { displayFieldName, medicationIsMentionOnly, visibleFieldKeys } from "../lib/reviewCopy";
 import FieldEditor, { FieldStatus, FieldCategory } from "../components/FieldEditor";
 import TranscriptionEditModal from "../components/TranscriptionEditModal";
 import OperationalIssuesDrawer from "../components/OperationalIssuesDrawer";
@@ -789,19 +789,21 @@ export default function Review() {
       const tag = (document.activeElement as HTMLElement)?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
 
+      const visibleKeys = visibleFieldKeys(fields, fieldFilter);
+      const activeIsVisible = !!activeKey && visibleKeys.includes(activeKey);
       if (e.key === "a" || e.key === "A") {
-        if (activeKey && fields[activeKey]?.status === "pending") {
-          handleFieldChange(activeKey, fields[activeKey].value, "accepted");
+        if (activeIsVisible && fields[activeKey!]?.status === "pending") {
+          handleFieldChange(activeKey!, fields[activeKey!].value, "accepted");
         }
       }
       if (e.key === "e" || e.key === "E") {
-        if (activeKey && !isHosted) {
+        if (activeIsVisible && !isHosted) {
           setEditingKey(activeKey);
         }
       }
       if (e.key === "r" || e.key === "R") {
-        if (activeKey && fields[activeKey]) {
-          handleFieldChange(activeKey, fields[activeKey].value, "removed");
+        if (activeIsVisible && fields[activeKey!]) {
+          handleFieldChange(activeKey!, fields[activeKey!].value, "removed");
         }
       }
       if (e.key === "Escape") {
@@ -815,7 +817,7 @@ export default function Review() {
         });
       }
       if (e.key === "Tab") {
-        const keys = Object.keys(fields);
+        const keys = visibleFieldKeys(fields, fieldFilter);
         if (keys.length > 0) {
           if (!activeKey) {
             e.preventDefault();
@@ -849,7 +851,13 @@ export default function Review() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [activeKey, fields, isHosted, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
+  }, [activeKey, fields, fieldFilter, isHosted, handleFieldChange, handleActivate, handleSave]); // hasCorrected is derived below
+
+  useEffect(() => {
+    if (!activeKey) return;
+    const visible = visibleFieldKeys(fields, fieldFilter);
+    if (!visible.includes(activeKey)) setActiveKey(visible[0] ?? null);
+  }, [activeKey, fields, fieldFilter]);
 
   // H: Unsaved changes warning — blocks both in-app nav and browser-level unload
   const isDirty = Object.values(fields).some((f) => f.status !== "pending") && !saved;
@@ -1063,12 +1071,8 @@ export default function Review() {
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
             {CATEGORIES.map((cat) => {
               const prefix = CATEGORY_PREFIX[cat];
-              const catFields = Object.entries(fields).filter(([k, f]) => {
-                if (!k.startsWith(prefix)) return false;
-                if (fieldFilter === "remaining") return f.status === "pending";
-                if (fieldFilter === "flagged") return f.status === "corrected" || f.status === "removed";
-                return true;
-              });
+              const visible = new Set(visibleFieldKeys(fields, fieldFilter));
+              const catFields = Object.entries(fields).filter(([k]) => k.startsWith(prefix) && visible.has(k));
 
               // Medications: group fields by drug ID into visual containers
               if (cat === "med") {
@@ -1083,10 +1087,9 @@ export default function Review() {
                     </h3>
                     <div className="space-y-2">
                       {drugIds.map((medId) => {
-                        const drugFields = catFields.filter(([k]) => k.split(".")[1] === medId);
-                        const nameEntry = drugFields.find(([k]) => k.endsWith(".name"));
-                        const otherFields = drugFields.filter(([k]) => !k.endsWith(".name"));
-                        const isMentionOnly = otherFields.length === 0;
+                        const nameEntry = Object.entries(fields).find(([k]) => k === `med.${medId}.name`);
+                        const otherFields = catFields.filter(([k]) => k.split(".")[1] === medId && !k.endsWith(".name"));
+                        const isMentionOnly = medicationIsMentionOnly(fields, medId);
                         return (
                           <div key={medId} className="rounded-lg border border-slate-200 overflow-hidden bg-white">
                             {/* Name row */}

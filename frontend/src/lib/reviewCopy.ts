@@ -59,6 +59,38 @@ export function formatRunWhen(iso?: string | null): string {
   });
 }
 
+export type FieldFilter = "all" | "remaining" | "flagged";
+
+export function fieldMatchesFilter(status: string, filter: FieldFilter): boolean {
+  if (filter === "remaining") return status === "pending";
+  if (filter === "flagged") return status === "corrected" || status === "removed";
+  return true;
+}
+
+/** Fields on screen for the current filter. A medication name stays visible when one of its details matches, so Dose is not separated from the drug. */
+export function visibleFieldKeys(
+  fields: Record<string, { status: string }>,
+  filter: FieldFilter,
+): string[] {
+  const keys = Object.keys(fields);
+  if (filter === "all") return keys;
+  const matching = new Set(keys.filter((key) => fieldMatchesFilter(fields[key].status, filter)));
+  for (const key of keys) {
+    const parts = key.split(".");
+    if (parts[0] !== "med" || parts[2] !== "name") continue;
+    const prefix = `med.${parts[1]}.`;
+    if (keys.some((other) => other !== key && other.startsWith(prefix) && matching.has(other))) {
+      matching.add(key);
+    }
+  }
+  return keys.filter((key) => matching.has(key));
+}
+
+export function medicationIsMentionOnly(fields: Record<string, unknown>, medId: string): boolean {
+  const prefix = `med.${medId}.`;
+  return !Object.keys(fields).some((key) => key.startsWith(prefix) && !key.endsWith(".name"));
+}
+
 export function formatF1(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "N/A";
   return value.toFixed(3);
