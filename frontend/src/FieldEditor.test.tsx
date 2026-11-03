@@ -69,7 +69,7 @@ it("shows accepted state with no action buttons", () => {
     />
   );
   expect(screen.queryByRole("button", { name: /accept/i })).not.toBeInTheDocument();
-  expect(screen.getByText(/accepted/)).toBeInTheDocument();
+  expect(screen.getByText("Accepted")).toBeInTheDocument();
 });
 
 describe("ExplainerTrigger integration", () => {

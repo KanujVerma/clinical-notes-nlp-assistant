@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { ExtractionResult } from "../types";
 import { api } from "../api/client";
 import { transformBbox, validateBboxGeometry, checkSourceImageAgreement } from "../utils/coordinates";
+import { acquisitionLabel, hasOriginalPageImage } from "../lib/reviewCopy";
 
 export interface PageMetadata {
   page_number: number;
@@ -51,7 +52,8 @@ export default function DocumentSourceViewer({
   activeKey,
   onSpanClick,
 }: Props) {
-  const [viewMode, setViewMode] = useState<"document" | "transcript">("document");
+  const originalImage = hasOriginalPageImage(pages);
+  const [viewMode, setViewMode] = useState<"document" | "transcript">(originalImage ? "document" : "transcript");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
   const [imageLoading, setImageLoading] = useState<boolean>(true);
@@ -61,12 +63,13 @@ export default function DocumentSourceViewer({
 
   // Reset viewer state when changing notes or revisions
   useEffect(() => {
+    setViewMode(hasOriginalPageImage(pages) ? "document" : "transcript");
     setCurrentPage(1);
     setRotation(0);
     setImageLoading(true);
     setImageError(null);
     prevActiveKey.current = null;
-  }, [noteId, revisionId]);
+  }, [noteId, revisionId, pages]);
 
   // Source binaries require authenticated API requests. Fetch a temporary
   // image blob, never encode the capability token in a URL or query string.
@@ -278,43 +281,41 @@ export default function DocumentSourceViewer({
   return (
     <div className="flex flex-col h-full bg-slate-900 border border-slate-700/60 rounded-xl overflow-hidden shadow-sm" data-testid="document-source-viewer">
       {/* Top Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/90 border-b border-slate-700 text-xs text-slate-200">
+      <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-slate-200 text-sm text-slate-800">
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg p-0.5 bg-slate-900/80 border border-slate-700">
-            <button
-              type="button"
-              onClick={() => setViewMode("document")}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                viewMode === "document"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-              data-testid="toggle-view-document"
-            >
-              Document Image
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("transcript")}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                viewMode === "transcript"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-              data-testid="toggle-view-transcript"
-            >
-              Text Transcript
-            </button>
-          </div>
-
-          {viewMode === "document" && (
-            <span className="text-[11px] text-slate-400 px-2 py-0.5 rounded bg-slate-900 border border-slate-700">
-              {currentPageMeta.acquisition_method || "original_asset"}
-            </span>
+          <span className="font-medium">Source note</span>
+          {originalImage && (
+            <div className="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200" role="tablist" aria-label="Source view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={viewMode === "transcript"}
+                onClick={() => setViewMode("transcript")}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  viewMode === "transcript" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                }`}
+                data-testid="toggle-view-transcript"
+              >
+                Text
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={viewMode === "document"}
+                onClick={() => setViewMode("document")}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  viewMode === "document" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                }`}
+                data-testid="toggle-view-document"
+              >
+                Page image
+              </button>
+            </div>
           )}
+          <span className="text-xs text-slate-500">{acquisitionLabel(currentPageMeta?.acquisition_method)}</span>
         </div>
 
-        {viewMode === "document" && (
+        {viewMode === "document" && originalImage && (
           <div className="flex items-center gap-2">
             {/* Page Navigation */}
             <div className="flex items-center gap-1 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-700">
@@ -328,9 +329,11 @@ export default function DocumentSourceViewer({
               >
                 ◀
               </button>
-              <span className="text-[11px] font-mono px-1">
+              {totalPages > 1 && (
+              <span className="text-xs px-1">
                 Page {currentPage} of {totalPages}
               </span>
+              )}
               <button
                 type="button"
                 disabled={currentPage >= totalPages}
@@ -358,38 +361,31 @@ export default function DocumentSourceViewer({
       </div>
 
       {/* Warning/Alert banners for Geometry or Disagreement */}
-      {viewMode === "document" && activeItem && activeGeometryStatus && (
-        <div className="px-3 py-1.5 bg-slate-950 border-b border-slate-800 text-[11px]">
+      {viewMode === "document" && originalImage && activeItem && activeGeometryStatus && (!activeGeometryStatus.hasGeometry || (activeGeometryStatus.agreement && !activeGeometryStatus.agreement.agreement)) && (
+        <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 text-sm">
           {!activeGeometryStatus.hasGeometry ? (
-            <div className="flex items-center gap-1.5 text-amber-400" data-testid="missing-geometry-alert">
-              <span>⚠️</span>
-              <span className="font-medium">Geometry unavailable:</span>
-              <span className="text-slate-300">
-                "{activeItem.label}" has text-only evidence; no bounding box geometry on page {currentPage}.
-              </span>
+            <div className="text-amber-950" data-testid="missing-geometry-alert" role="status">
+              No image highlight is available for this field. Check the source text.
             </div>
           ) : activeGeometryStatus.agreement && !activeGeometryStatus.agreement.agreement ? (
-            <div className="flex items-center gap-1.5 text-amber-300" data-testid="source-disagreement-alert">
-              <span>⚠️</span>
-              <span className="font-semibold text-rose-400">Source/Image Disagreement:</span>
-              <span className="text-slate-200">
-                Transcript claims "{activeItem.quote}", but page OCR contains "{activeGeometryStatus.agreement.ocrText}".
-              </span>
+            <div className="text-amber-950" data-testid="source-disagreement-alert" role="status">
+              The source text and the page image do not say the same thing here. Source text: "{activeItem.quote}". Image text: "{activeGeometryStatus.agreement.ocrText}".
             </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-amber-300" data-testid="ocr-consistent-unverified">
-              <span>◯</span>
-              <span>OCR text is consistent at this region. Original image reading is not independently verified; inspect the pixels before accepting "{activeItem.label}".</span>
-            </div>
-          )}
+          ) : null}
         </div>
       )}
 
       {/* Main Content Area */}
-      <div className="relative flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-950">
-        {viewMode === "transcript" ? (
-          <div className="w-full h-full p-4 font-mono text-xs leading-relaxed text-slate-200 whitespace-pre-wrap overflow-y-auto">
-            {rawText}
+      <div className={`relative flex-1 overflow-auto flex ${viewMode === "document" && originalImage ? "items-center justify-center bg-slate-950 p-4" : "bg-white"}`}>
+        {viewMode === "transcript" || !originalImage ? (
+          <div className="w-full h-full overflow-y-auto bg-white px-6 py-5 text-[15px] leading-relaxed text-slate-900 whitespace-pre-wrap">
+            {activeItem?.span ? (
+              <>
+                {rawText.slice(0, activeItem.span[0])}
+                <mark className="bg-amber-200 text-slate-900">{rawText.slice(activeItem.span[0], activeItem.span[1])}</mark>
+                {rawText.slice(activeItem.span[1])}
+              </>
+            ) : rawText}
           </div>
         ) : (
           <div className="relative max-w-full max-h-full inline-block shadow-2xl rounded border border-slate-800">

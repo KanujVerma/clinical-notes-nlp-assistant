@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { formatF1, formatRunWhen } from "../lib/reviewCopy";
 
 export default function ValidationLab() {
   const [runs, setRuns] = useState<any[]>([]);
@@ -9,6 +10,9 @@ export default function ValidationLab() {
   const [loading, setLoading] = useState(false);
   const [runningEval, setRunningEval] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [caseFilter, setCaseFilter] = useState<"all" | "differences" | "exact">("all");
+  const [detailAttempt, setDetailAttempt] = useState(0);
 
   useEffect(() => {
     loadRuns();
@@ -34,10 +38,14 @@ export default function ValidationLab() {
       setSelectedRunDetail(null);
       return;
     }
+    setDetailError(null);
     api.getEvalRunDetail(selectedRunId)
       .then((detail) => setSelectedRunDetail(detail))
-      .catch(() => setSelectedRunDetail(null));
-  }, [selectedRunId]);
+      .catch(() => {
+        setSelectedRunDetail(null);
+        setDetailError("Couldn't load case details.");
+      });
+  }, [selectedRunId, detailAttempt]);
 
   async function handleTriggerRun() {
     try {
@@ -56,46 +64,30 @@ export default function ValidationLab() {
   const activeRun = runs.find((r) => r.run_id === selectedRunId);
 
   return (
-    <div className="flex h-full flex-col bg-slate-900 text-slate-100 overflow-y-auto">
-      {/* Header */}
-      <div className="border-b border-slate-800 bg-slate-900/80 px-6 py-4 backdrop-blur">
-        <div className="flex items-center justify-between">
+    <div className="flex h-full flex-col bg-slate-50 text-slate-900 overflow-y-auto">
+      <div className="border-b border-slate-200 bg-white px-6 py-4">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="flex items-center space-x-3">
-              <h1 className="text-xl font-bold tracking-tight text-white">Validation Lab</h1>
-              {loading && <span className="text-xs text-slate-400 animate-pulse">Loading…</span>}
-              <span className="rounded-full bg-cyan-950 px-2.5 py-0.5 text-xs font-semibold text-cyan-400 border border-cyan-800">
-                Synthetic Benchmark
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-slate-400">
-              Offline evaluation of the 20-note synthetic development corpus. Pairing is source-occurrence-first
-              with a bounded assignment fallback. This page is not the frozen 24-image printed benchmark.{" "}
-              <Link to="/showcase" className="text-cyan-300 underline">Open that separate evidence</Link>.
+            <h1 className="text-2xl font-semibold text-slate-900">Validation Lab</h1>
+            {loading && <p className="text-sm text-slate-500">Loading…</p>}
+            <p className="mt-1 max-w-2xl text-sm text-slate-600">
+              See what the extractor matched, missed, or added across 20 fictional notes.{" "}
+              <Link to="/showcase" className="font-medium text-cyan-800 underline">See the 24-image OCR test</Link>.
             </p>
+            <p className="mt-1 text-sm text-slate-500">F1 combines missed and extra results. It is not a clinical accuracy score.</p>
           </div>
           <button
             onClick={handleTriggerRun}
             disabled={runningEval}
-            className="flex items-center space-x-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50 transition-colors shadow-lg shadow-cyan-900/30"
+            className="rounded-lg bg-cyan-800 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-900 disabled:opacity-50"
           >
-            {runningEval ? (
-              <>
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-                <span>Evaluating 20 Notes…</span>
-              </>
-            ) : (
-              <span>Run Strict Evaluation</span>
-            )}
+            {runningEval ? "Running evaluation…" : "Run evaluation"}
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="mx-6 mt-4 rounded-lg bg-rose-950/50 border border-rose-800 p-4 text-sm text-rose-300">
+        <div className="mx-6 mt-4 rounded-lg bg-rose-50 border border-rose-200 p-4 text-sm text-rose-800">
           {error}
         </div>
       )}
@@ -103,40 +95,35 @@ export default function ValidationLab() {
       {/* Main Content Split */}
       <div className="grid flex-1 grid-cols-12 gap-6 p-6">
         {/* Left Column: Runs List */}
-        <div className="col-span-4 flex flex-col rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-            Evaluation Runs ({runs.length})
+        <div className="col-span-4 flex flex-col rounded-xl border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-800 mb-3">
+            Past runs ({runs.length})
           </h2>
           <div className="flex-1 space-y-2 overflow-y-auto">
             {runs.map((r) => {
               const isSelected = r.run_id === selectedRunId;
-              const f1 = r.summary?.overall?.f1 ?? 0;
+              const f1 = r.summary?.overall?.f1;
               return (
                 <div
                   key={r.run_id}
                   onClick={() => setSelectedRunId(r.run_id)}
-                  className={`cursor-pointer rounded-lg border p-3.5 transition-all ${
+                  className={`cursor-pointer rounded-lg border p-3.5 ${
                     isSelected
-                      ? "border-cyan-500/80 bg-cyan-950/30 shadow-md shadow-cyan-950/40"
-                      : "border-slate-800/80 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-900/80"
+                      ? "border-cyan-700 bg-cyan-50"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-medium text-slate-200 truncate max-w-[180px]">
-                      {r.run_id}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-slate-800">
+                      {formatRunWhen(r.started_at)}
                     </span>
-                    <span
-                      className={`font-mono text-sm font-bold ${
-                        f1 != null && f1 >= 0.75 ? "text-emerald-400" : f1 != null && f1 >= 0.60 ? "text-amber-400" : "text-rose-400"
-                      }`}
-                    >
-                      F1: {f1 != null ? f1.toFixed(3) : "N/A"}
+                    <span className="font-mono text-sm text-slate-900">
+                      {formatF1(f1)}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{r.evaluator}</span>
-                    <span>{r.started_at ? new Date(r.started_at).toLocaleTimeString() : ""}</span>
-                  </div>
+                  {String(r.evaluator || "").includes("relaxed") && (
+                    <p className="mt-1 text-xs text-slate-500">Earlier scoring method. Not directly comparable with current runs.</p>
+                  )}
                 </div>
               );
             })}
@@ -149,37 +136,37 @@ export default function ValidationLab() {
             <>
               {/* Summary Metrics Cards */}
               <div className="grid grid-cols-4 gap-4">
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
                   <p className="text-xs font-medium text-slate-400">Overall F1</p>
-                  <p className="mt-1 font-mono text-2xl font-bold text-cyan-400">
-                    {activeRun.summary?.overall?.f1 != null ? activeRun.summary.overall.f1.toFixed(3) : "N/A"}
+                  <p className="mt-1 font-mono text-2xl font-semibold text-slate-900">
+                    {formatF1(activeRun.summary?.overall?.f1)}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     Prec: {activeRun.summary?.overall?.precision ?? "-"} | Rec: {activeRun.summary?.overall?.recall ?? "-"}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
                   <p className="text-xs font-medium text-slate-400">Medications F1</p>
-                  <p className="mt-1 font-mono text-2xl font-bold text-emerald-400">
-                    {activeRun.summary?.medications?.f1 != null ? activeRun.summary.medications.f1.toFixed(3) : "N/A"}
+                  <p className="mt-1 font-mono text-2xl font-semibold text-slate-900">
+                    {formatF1(activeRun.summary?.medications?.f1)}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     Support: {activeRun.summary?.medications?.support ?? "-"}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
                   <p className="text-xs font-medium text-slate-400">Vitals F1</p>
-                  <p className="mt-1 font-mono text-2xl font-bold text-amber-400">
-                    {activeRun.summary?.vitals?.f1 != null ? activeRun.summary.vitals.f1.toFixed(3) : "N/A"}
+                  <p className="mt-1 font-mono text-2xl font-semibold text-slate-900">
+                    {formatF1(activeRun.summary?.vitals?.f1)}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     Support: {activeRun.summary?.vitals?.support ?? "-"}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
                   <p className="text-xs font-medium text-slate-400">Instructions F1</p>
-                  <p className="mt-1 font-mono text-2xl font-bold text-violet-400">
-                    {activeRun.summary?.instructions?.f1 != null ? activeRun.summary.instructions.f1.toFixed(3) : "N/A"}
+                  <p className="mt-1 font-mono text-2xl font-semibold text-slate-900">
+                    {formatF1(activeRun.summary?.instructions?.f1)}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     Support: {activeRun.summary?.instructions?.support ?? "-"}
@@ -188,34 +175,49 @@ export default function ValidationLab() {
               </div>
 
               {/* Case-by-Case Breakdown */}
-              <div className="flex-1 rounded-xl border border-slate-800 bg-slate-950/60 p-5 overflow-hidden flex flex-col">
+              <div className="flex-1 rounded-xl border border-slate-200 bg-white p-5 overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-slate-200">
-                    Case Results & Mismatches
+                  <h3 className="text-base font-semibold text-slate-900">
+                    Medication findings by note
                   </h3>
                   <span className="text-xs font-mono text-slate-500">
                     {activeRun.note_count || 20} Test Cases
                   </span>
                 </div>
 
+                <div className="mb-3 flex gap-2 text-sm" role="group" aria-label="Filter notes">
+                  {(["all", "differences", "exact"] as const).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setCaseFilter(key)}
+                      className={`rounded-md border px-3 py-1.5 ${caseFilter === key ? "border-cyan-800 bg-cyan-50 text-cyan-900" : "border-slate-200 text-slate-700"}`}
+                    >
+                      {key === "all" ? "All" : key === "differences" ? "Has differences" : "Exact matches"}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex-1 overflow-y-auto space-y-3">
                   {selectedRunDetail?.cases ? (
-                    selectedRunDetail.cases.map((c: any) => (
+                    selectedRunDetail.cases.filter((c: any) => {
+                      const diffs = (c.medications?.fp || 0) + (c.medications?.fn || 0) + (c.medications?.pairs || []).filter((p: any) => Object.keys(p.attribute_mismatches || {}).length > 0).length;
+                      if (caseFilter === "differences") return diffs > 0;
+                      if (caseFilter === "exact") return diffs === 0;
+                      return true;
+                    }).map((c: any) => (
                       <div key={c.note_id} className="rounded-lg border border-slate-800/80 bg-slate-900/30 p-3.5">
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-xs font-bold text-slate-300">
                             {c.note_id}
                           </span>
                           <div className="flex space-x-2 text-xs font-mono">
-                            <span className="text-emerald-400">TP: {c.medications?.tp || 0}</span>
-                            <span className="text-rose-400">FP: {c.medications?.fp || 0}</span>
-                            <span className="text-amber-400">FN: {c.medications?.fn || 0}</span>
+                            <span className="text-slate-700">{c.medications?.tp || 0} matched · {c.medications?.fp || 0} extra · {c.medications?.fn || 0} missed</span>
                           </div>
                         </div>
 
                         {c.medications?.false_negatives?.length > 0 && (
                           <div className="mt-2 text-xs text-rose-300">
-                            <span className="font-semibold text-rose-400">Missed: </span>
+                            <span className="font-semibold text-rose-800">Missed: </span>
                             {c.medications.false_negatives.map((m: any, idx: number) => (
                               <span key={idx} className="mr-2">
                                 {m.name} {m.dose}
@@ -225,7 +227,7 @@ export default function ValidationLab() {
                         )}
                         {c.medications?.false_positives?.length > 0 && (
                           <div className="mt-1 text-xs text-amber-300">
-                            <span className="font-semibold text-amber-400">Extra (FP): </span>
+                            <span className="font-semibold text-amber-900">Extra extracted medication: </span>
                             {c.medications.false_positives.map((m: any, idx: number) => (
                               <span key={idx} className="mr-2">
                                 {m.name} {m.dose}
@@ -235,7 +237,7 @@ export default function ValidationLab() {
                         )}
                         {c.medications?.pairs?.filter((p: any) => Object.keys(p.attribute_mismatches || {}).length > 0).length > 0 && (
                           <div className="mt-1.5 text-xs text-rose-300">
-                            <span className="font-semibold text-rose-400">Attribute Mismatches: </span>
+                            <span className="font-semibold text-slate-800">Different details: </span>
                             {c.medications.pairs
                               .filter((p: any) => Object.keys(p.attribute_mismatches || {}).length > 0)
                               .map((p: any, idx: number) => {
@@ -254,16 +256,18 @@ export default function ValidationLab() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-slate-500">
-                      Legacy baseline summary view. Run strict evaluation above to inspect per-case TP/FP/FN error attribution.
+                    <p className="text-sm text-slate-600">
+                      {detailError ? (
+                        <>Couldn't load case details. <button type="button" className="underline" onClick={() => setDetailAttempt((n) => n + 1)}>Try again</button></>
+                      ) : "This older run has summary results only."}
                     </p>
                   )}
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
-              No evaluation run selected.
+            <div className="flex flex-1 items-center justify-center text-sm text-slate-600">
+              {runs.length === 0 ? "No evaluation runs yet." : "No evaluation run selected."}
             </div>
           )}
         </div>

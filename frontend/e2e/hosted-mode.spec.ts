@@ -168,8 +168,8 @@ test.describe("Hosted Demo Mode - Public Synthetic Sandbox Restrictions", () => 
     await page.goto(`${BASE}/review/999`);
 
     // Verify left pane mode controls
-    const docBtn = page.getByTestId("leftpane-mode-document");
-    const transcriptBtn = page.getByTestId("leftpane-mode-transcript");
+    const docBtn = page.getByTestId("toggle-view-document");
+    const transcriptBtn = page.getByTestId("toggle-view-transcript");
     await expect(docBtn).toBeVisible();
     await expect(transcriptBtn).toBeVisible();
 

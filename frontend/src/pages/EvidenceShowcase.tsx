@@ -27,12 +27,9 @@ export default function EvidenceShowcase() {
     <div className="h-full overflow-y-auto bg-slate-50 p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700">Validation workbench · recorded evidence</p>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">Synthetic evidence showcase</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
-            Review a measured OCR development baseline and see which AI experiments have
-            actually been recorded. All examples are synthetic. Matching model predictions
-            do not establish clinical correctness or independently verify original pixels.
+          <h1 className="text-2xl font-semibold text-slate-900">Test evidence</h1>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-600">
+            Results from recorded tests on fictional printed documents, not clinical validation.
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
             <Link to="/queue" className="rounded-md bg-cyan-700 px-3 py-2 font-medium text-white hover:bg-cyan-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600">
@@ -49,10 +46,83 @@ export default function EvidenceShowcase() {
 
         {evidence && (
           <>
+            <section aria-labelledby="frozen-benchmark-heading" className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 id="frozen-benchmark-heading" className="text-lg font-semibold text-slate-900">
+                    24-image comparison
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Generated printed images · three recorded methods. Separate from the 20-note Validation Lab and from the {evidence.baseline.case_count}-case Tesseract examples below.
+                  </p>
+                </div>
+                <span className="rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700">
+                  Aggregate only
+                </span>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  ["Attempted", String(evidence.frozen_benchmark.attempted_cases)],
+                  ["Valid predictions", String(evidence.frozen_benchmark.valid_predictions)],
+                  ["Exclusions", String(evidence.frozen_benchmark.exclusions)],
+                  ["Medication support", String(evidence.frozen_benchmark.medication_support)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-slate-200 p-3">
+                    <dt className="text-xs text-slate-600">{label}</dt>
+                    <dd className="mt-1 text-xl font-semibold tabular-nums text-slate-900">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <caption className="sr-only">Frozen benchmark medication and vital counts by model arm</caption>
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs text-slate-600">
+                      <th className="py-2 pr-3 font-medium">Method</th>
+                      <th className="py-2 pr-3 font-medium">Medications matched</th>
+                      <th className="py-2 pr-3 font-medium">Extra</th>
+                      <th className="py-2 pr-3 font-medium">Missed</th>
+                      <th className="py-2 font-medium">Text error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {evidence.frozen_benchmark.arms.map((arm) => (
+                      <tr key={arm.id} className="border-b border-slate-100">
+                        <th className="py-2 pr-3 font-medium text-slate-800">{arm.label}</th>
+                        <td className="py-2 pr-3 tabular-nums">{arm.medication_tp}</td>
+                        <td className="py-2 pr-3 tabular-nums">{arm.medication_fp}</td>
+                        <td className="py-2 pr-3 tabular-nums">{arm.medication_fn}</td>
+                        <td className="py-2 tabular-nums">{arm.ocr_available ? rate(arm.ocr_cer) : "Not applicable"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-3 text-sm text-slate-600">Raw model examples are not published here.</p>
+              <h3 className="mt-4 text-sm font-semibold text-slate-800">Documented failure examples</h3>
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                {evidence.frozen_benchmark.documented_failure_examples.map((example) => (
+                  <li key={example.case_id + example.summary}>
+                    {example.summary.includes("90 mg") && example.summary.includes("90 mcg")
+                      ? "Unit differs. Expected 90 mcg. Recorded 90 mg."
+                      : example.summary}{" "}
+                    <span className="text-xs text-slate-500">({example.case_id}, {example.arm})</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                {evidence.frozen_benchmark.limitations} Source document: {evidence.frozen_benchmark.source_document}.
+                Manifest {evidence.frozen_benchmark.manifest_sha256.slice(0, 12)}…, archive {evidence.frozen_benchmark.evidence_zip_sha256.slice(0, 12)}….
+              </p>
+              <Link to="/validation-lab" className="mt-3 inline-block text-sm font-medium text-cyan-800 underline">
+                Open the 20-note Validation Lab
+              </Link>
+            </section>
+
             <section aria-labelledby="tesseract-heading" className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 id="tesseract-heading" className="text-lg font-semibold text-slate-900">Recorded Tesseract OCR baseline</h2>
+                  <h2 id="tesseract-heading" className="text-lg font-semibold text-slate-900">Three OCR examples</h2>
                   <p className="mt-1 text-xs text-slate-600">
                     Actually executed on generator-produced printed images. Engine version {evidence.baseline.engine_version}.
                   </p>
@@ -109,76 +179,6 @@ export default function EvidenceShowcase() {
                   </details>
                 ))}
               </div>
-            </section>
-
-            <section aria-labelledby="frozen-benchmark-heading" className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 id="frozen-benchmark-heading" className="text-lg font-semibold text-slate-900">
-                    Frozen 24-image printed-synthetic benchmark
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-600">
-                    Separate from the {evidence.baseline.case_count}-case Tesseract recording above and from the 20-note text corpus.
-                    Matcher: source-occurrence-first, bounded assignment.
-                  </p>
-                </div>
-                <span className="rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700">
-                  Aggregate only · raw transcripts unpublished
-                </span>
-              </div>
-              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[
-                  ["Attempted", String(evidence.frozen_benchmark.attempted_cases)],
-                  ["Valid predictions", String(evidence.frozen_benchmark.valid_predictions)],
-                  ["Exclusions", String(evidence.frozen_benchmark.exclusions)],
-                  ["Medication support", String(evidence.frozen_benchmark.medication_support)],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-lg border border-slate-200 p-3">
-                    <dt className="text-xs text-slate-600">{label}</dt>
-                    <dd className="mt-1 text-xl font-semibold tabular-nums text-slate-900">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <caption className="sr-only">Frozen benchmark medication and vital counts by model arm</caption>
-                  <thead>
-                    <tr className="border-b border-slate-200 text-xs text-slate-600">
-                      <th className="py-2 pr-3 font-medium">Arm</th>
-                      <th className="py-2 pr-3 font-medium">Med TP/FP/FN</th>
-                      <th className="py-2 pr-3 font-medium">Med F1</th>
-                      <th className="py-2 pr-3 font-medium">Vital F1</th>
-                      <th className="py-2 font-medium">OCR CER</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {evidence.frozen_benchmark.arms.map((arm) => (
-                      <tr key={arm.id} className="border-b border-slate-100">
-                        <th className="py-2 pr-3 font-medium text-slate-800">{arm.label}</th>
-                        <td className="py-2 pr-3 tabular-nums">{arm.medication_tp}/{arm.medication_fp}/{arm.medication_fn}</td>
-                        <td className="py-2 pr-3 tabular-nums">{rate(arm.medication_f1)}</td>
-                        <td className="py-2 pr-3 tabular-nums">{rate(arm.vital_f1)}</td>
-                        <td className="py-2 tabular-nums">{arm.ocr_available ? rate(arm.ocr_cer) : "N/A"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <h3 className="mt-4 text-sm font-semibold text-slate-800">Documented failure examples</h3>
-              <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                {evidence.frozen_benchmark.documented_failure_examples.map((example) => (
-                  <li key={example.case_id + example.summary}>
-                    <span className="font-mono text-xs">{example.case_id}</span> ({example.arm}): {example.summary}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-xs leading-relaxed text-slate-600">
-                {evidence.frozen_benchmark.limitations} Source document: {evidence.frozen_benchmark.source_document}.
-                Manifest {evidence.frozen_benchmark.manifest_sha256.slice(0, 12)}…, archive {evidence.frozen_benchmark.evidence_zip_sha256.slice(0, 12)}….
-              </p>
-              <Link to="/validation-lab" className="mt-3 inline-block text-sm font-medium text-cyan-800 underline">
-                Open the 20-note Validation Lab
-              </Link>
             </section>
 
             <section aria-labelledby="recorded-ai-heading" className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -62,7 +62,7 @@ async function setupBaseMocks(page: Page) {
 async function navigateToReviewPage(page: Page) {
   // Navigate directly to the review URL — avoids needing a queue API call.
   await page.goto(`${BASE}/review/${NOTE_ID}`);
-  await expect(page.getByText("Reviewer", { exact: true })).toBeVisible({
+  await expect(page.getByText("Review note", { exact: true })).toBeVisible({
     timeout: 10_000,
   });
 }

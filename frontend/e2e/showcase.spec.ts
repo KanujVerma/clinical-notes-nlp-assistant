@@ -5,16 +5,16 @@ const BASE = "http://localhost:5173";
 /** Real local Flask + browser, no mock network route or fabricated model result. */
 test("showcase presents only the committed measured Tesseract result", async ({ page }) => {
   await page.goto(BASE + "/showcase");
-  await expect(page.getByRole("heading", { name: "Synthetic evidence showcase" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Recorded Tesseract OCR baseline" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Test evidence" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Three OCR examples" })).toBeVisible();
   await expect(page.getByText("3.83%")).toBeVisible();
   await expect(page.getByText("27.14%")).toBeVisible();
   await expect(page.getByText("11/11")).toBeVisible();
   await expect(page.getByText(/No reviewed local-model recordings are published/i)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Frozen 24-image printed-synthetic benchmark" })).toBeVisible();
-  await expect(page.getByText("11/3/12")).toBeVisible();
-  await expect(page.getByText("23/0/0")).toBeVisible();
-  await expect(page.getByText(/Raw model transcripts are not published here/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "24-image comparison" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "11", exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "23", exact: true })).toBeVisible();
+  await expect(page.getByText("Raw model examples are not published here.")).toBeVisible();
   await page.getByText(/synthetic print decimal/i).click();
   await expect(page.getByLabel(/Recorded OCR transcript for synthetic_print_decimal/i)).toContainText("2.5 mg");
 });
@@ -59,5 +59,5 @@ test("stale metric evidence link refuses to display a different note source", as
   await expect(page.getByRole("heading", { name: "Evidence link needs refreshing" }))
     .toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Return to metrics" })).toBeVisible();
-  await expect(page.getByText("Reviewer", { exact: true })).not.toBeVisible();
+  await expect(page.getByText("Review note", { exact: true })).not.toBeVisible();
 });

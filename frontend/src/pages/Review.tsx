@@ -3,8 +3,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useParams, useNavigate, useBlocker } from "react-router-dom";
 import { api } from "../api/client";
 import { ExtractionResult, NoteDetail } from "../types";
-import NoteViewer from "../components/NoteViewer";
 import DocumentSourceViewer, { PageMetadata } from "../components/DocumentSourceViewer";
+import { displayFieldName } from "../lib/reviewCopy";
 import FieldEditor, { FieldStatus, FieldCategory } from "../components/FieldEditor";
 import TranscriptionEditModal from "../components/TranscriptionEditModal";
 import OperationalIssuesDrawer from "../components/OperationalIssuesDrawer";
@@ -96,21 +96,21 @@ function AddFieldRow({
     setOpen(false);
   }
 
-  const addLabel = category === "med" ? "Add Medication" : `Add ${CATEGORY_DISPLAY[category].replace(/s$/, "")}`;
+  const addLabel = category === "med" ? "Add medication" : `Add ${CATEGORY_DISPLAY[category].replace(/s$/, "").toLowerCase()}`;
 
   return (
     <div className={`rounded-lg border-2 border-dashed ${CAT_DASHED_BORDER[category]} px-3 py-2.5`}>
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className={`text-[10px] font-semibold uppercase tracking-widest ${CAT_LABEL_COLOR[category]} hover:opacity-70 transition-opacity`}
+          className={`text-sm font-medium ${CAT_LABEL_COLOR[category]} hover:opacity-70 transition-opacity`}
         >
           + {addLabel}
         </button>
       ) : category === "med" ? (
         <div>
-          <p className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${CAT_LABEL_COLOR[category]}`}>
-            + Add Medication
+          <p className={`text-sm font-medium mb-2 ${CAT_LABEL_COLOR[category]}`}>
+            Add medication
           </p>
           <div className="grid grid-cols-4 gap-1.5 mb-2">
             {[
@@ -130,7 +130,7 @@ function AddFieldRow({
         </div>
       ) : (
         <div>
-          <p className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${CAT_LABEL_COLOR[category]}`}>
+          <p className={`text-sm font-medium mb-2 ${CAT_LABEL_COLOR[category]}`}>
             + {addLabel}
           </p>
           <div className="flex gap-2 items-center">
@@ -236,6 +236,8 @@ export default function Review() {
   const [extracted, setExtracted] = useState<ExtractionResult | null>(null);
   const [noteIdState, setNoteIdState] = useState<number | null>(null);
   const [source, setSource] = useState("");
+  const [mobilePane, setMobilePane] = useState<"source" | "fields">("source");
+  const [fieldFilter, setFieldFilter] = useState<"all" | "remaining" | "flagged">("all");
   const [fields, setFields] = useState<FieldMap>({});
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -261,7 +263,6 @@ export default function Review() {
     instructions: false,
   });
   const [pages, setPages] = useState<PageMetadata[]>([]);
-  const [leftPaneMode, setLeftPaneMode] = useState<"document" | "transcript">("document");
 
   const deactivateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -924,22 +925,22 @@ export default function Review() {
   return (
     <div className="h-full bg-slate-50 flex flex-col overflow-hidden">
       {/* Review top bar */}
-      <header className="bg-slate-800 text-slate-100 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
+        <div className="min-w-0">
           {fromHistory && (
             <button
               onClick={() => navigate("/history")}
-              className="text-slate-400 hover:text-slate-200 text-xs flex items-center gap-1"
+              className="text-slate-500 hover:text-slate-800 text-sm flex items-center gap-1"
             >
               ← History
             </button>
           )}
-          <span className="font-semibold text-sm tracking-wide">Reviewer</span>
+          <h1 className="text-2xl font-semibold text-slate-900">Review note</h1>
+          <p className="text-sm text-slate-600">Compare each extracted field with the source note, then accept or correct it.</p>
         </div>
-        {/* D: Progress indicator */}
         <div className="flex items-center gap-3 flex-1 mx-6">
-          <span className="text-slate-400 text-[11px] whitespace-nowrap">
-            {reviewedCount} of {totalFields} fields reviewed
+          <span className="text-slate-600 text-sm whitespace-nowrap">
+            {reviewedCount} of {totalFields} checked
           </span>
           <div className="flex-1 h-1 bg-slate-700 rounded-full overflow-hidden">
             <div
@@ -975,32 +976,20 @@ export default function Review() {
               <span>Export ZIP</span>
             </button>
           )}
-          <span className="text-slate-500">&#x23F1; {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}</span>
-          {source && (
-            <span className={`px-2 py-0.5 rounded border text-[10px] uppercase tracking-wider font-medium
-              ${source === "ocr"
-                ? "bg-slate-900 text-sky-400 border-cyan-800"
-                : source === "pdf"
-                  ? "bg-blue-950 text-blue-400 border-blue-800"
-                  : "bg-slate-700 text-slate-400 border-slate-600"}`}>
-              {source}
-            </span>
-          )}
-          <span className="text-slate-600 text-[10px]">v{extracted.pipeline_version}</span>
         </div>
       </header>
 
       {/* E: Keyboard shortcut hint strip */}
-      <div className="hidden md:flex bg-slate-900 text-slate-500 text-[10px] px-6 py-1 gap-4 flex-shrink-0 select-none">
-        <span><kbd className="font-mono text-slate-400">A</kbd> Accept</span>
-        <span className="text-slate-700">·</span>
-        <span><kbd className="font-mono text-slate-400">E</kbd> Edit</span>
-        <span className="text-slate-700">·</span>
-        <span><kbd className="font-mono text-slate-400">R</kbd> Remove</span>
-        <span className="text-slate-700">·</span>
-        <span><kbd className="font-mono text-slate-400">Tab</kbd> Next</span>
-        <span className="text-slate-700">·</span>
-        <span><kbd className="font-mono text-slate-400">⌘S</kbd> Save</span>
+      <div className="hidden md:flex bg-white text-slate-500 text-xs px-6 py-1.5 gap-4 border-b border-slate-200 flex-shrink-0 select-none">
+        <span><kbd className="font-mono text-slate-700">A</kbd> Accept</span>
+        <span className="text-slate-300">·</span>
+        <span><kbd className="font-mono text-slate-700">E</kbd> Edit</span>
+        <span className="text-slate-300">·</span>
+        <span><kbd className="font-mono text-slate-700">R</kbd> Remove</span>
+        <span className="text-slate-300">·</span>
+        <span><kbd className="font-mono text-slate-700">Tab</kbd> Next</span>
+        <span className="text-slate-300">·</span>
+        <span><kbd className="font-mono text-slate-700">⌘S</kbd> Save</span>
       </div>
 
       {/* G: Re-review banner */}
@@ -1014,47 +1003,33 @@ export default function Review() {
         </div>
       )}
 
+      <div className="xl:hidden flex border-b border-slate-200 bg-white flex-shrink-0" role="tablist" aria-label="Review panes">
+        <button type="button" role="tab" aria-selected={mobilePane === "source"} onClick={() => setMobilePane("source")} className={`flex-1 py-3 text-sm font-medium ${mobilePane === "source" ? "text-cyan-900 border-b-2 border-cyan-800" : "text-slate-600"}`}>Source</button>
+        <button type="button" role="tab" aria-selected={mobilePane === "fields"} onClick={() => setMobilePane("fields")} className={`flex-1 py-3 text-sm font-medium ${mobilePane === "fields" ? "text-cyan-900 border-b-2 border-cyan-800" : "text-slate-600"}`}>Fields</button>
+      </div>
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Document Source & Evidence Viewer */}
-        <div className="w-1/2 border-r border-slate-200 flex flex-col overflow-hidden bg-slate-900">
-          {/* Header controls for Document vs Transcript view */}
-          <div className="px-3 py-1.5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between gap-2 flex-shrink-0">
-            <div className="inline-flex rounded-lg p-0.5 bg-slate-950 border border-slate-700">
+        <div className={`${mobilePane === "source" ? "flex" : "hidden"} xl:flex w-full xl:w-[56%] border-r border-slate-200 flex-col overflow-hidden bg-white`}>
+          <div className="px-3 py-2 border-b border-slate-200 bg-white flex items-center justify-between flex-shrink-0">
+            <details className="text-sm text-slate-600">
+              <summary className="cursor-pointer">Details</summary>
+              <div className="mt-1 space-y-1">
+                <p>Version {currentRevisionNumber}</p>
+                <p>{source === "pdf" ? "PDF" : source === "ocr" ? "Text from image" : "Pasted text"}</p>
+                <p>Pipeline {extracted.pipeline_version}</p>
+                <p>Time {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}</p>
+              </div>
+            </details>
+            {!isHosted && (
               <button
                 type="button"
-                onClick={() => setLeftPaneMode("document")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
-                  leftPaneMode === "document"
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-                data-testid="leftpane-mode-document"
+                onClick={() => setIsTranscriptionModalOpen(true)}
+                className="text-sm font-medium text-cyan-800 hover:underline"
               >
-                Document Viewer (PDF/Image)
+                Edit source
               </button>
-              <button
-                type="button"
-                onClick={() => setLeftPaneMode("transcript")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
-                  leftPaneMode === "transcript"
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-                data-testid="leftpane-mode-transcript"
-              >
-                Transcript Spans
-              </button>
-            </div>
-
-            <button
-              onClick={() => setIsTranscriptionModalOpen(true)}
-              className="text-[11px] font-medium text-cyan-400 hover:text-cyan-300 underline"
-            >
-              Update Transcription (Rev {currentRevisionNumber})
-            </button>
+            )}
           </div>
-
-          {leftPaneMode === "document" && noteIdState && extracted ? (
+          {noteIdState && (
             <DocumentSourceViewer
               key={currentRevisionId || noteIdState}
               noteId={noteIdState}
@@ -1065,40 +1040,35 @@ export default function Review() {
               activeKey={activeKey}
               onSpanClick={handleActivate}
             />
-          ) : (
-            <div className="flex-1 flex flex-col overflow-hidden bg-white">
-              {/* Legend */}
-              <div className="px-4 py-1.5 border-b border-slate-100 bg-slate-50 flex items-center gap-4 flex-shrink-0">
-                {[
-                  { label: "vitals", color: "bg-blue-400" },
-                  { label: "meds", color: "bg-green-400" },
-                  { label: "instructions", color: "bg-amber-400" },
-                  { label: "metadata", color: "bg-violet-400" },
-                ].map(({ label, color }) => (
-                  <span key={label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                    <span className={`w-2 h-2 rounded-sm ${color} opacity-70`} />
-                    {label}
-                  </span>
-                ))}
-              </div>
-              {extracted && (
-                <NoteViewer
-                  rawText={rawText}
-                  extracted={extracted}
-                  activeKey={activeKey}
-                  onSpanClick={handleActivate}
-                />
-              )}
-            </div>
           )}
         </div>
 
         {/* Right: Field cards */}
-        <div className="w-1/2 flex flex-col overflow-hidden bg-slate-50">
+        <div className={`${mobilePane === "fields" ? "flex" : "hidden"} xl:flex w-full xl:flex-1 min-w-0 flex-col overflow-hidden bg-slate-50`}>
+          <div className="px-3 pt-3 flex items-center justify-between gap-2 flex-shrink-0">
+            <h2 className="text-base font-semibold text-slate-900">Fields to review</h2>
+            <div className="flex gap-1" role="group" aria-label="Filter fields">
+              {(["all", "remaining", "flagged"] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setFieldFilter(key)}
+                  className={`rounded-md px-2 py-1 text-xs ${fieldFilter === key ? "bg-slate-900 text-white" : "text-slate-600"}`}
+                >
+                  {key === "all" ? "All" : key === "remaining" ? "Remaining" : "Flagged"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
             {CATEGORIES.map((cat) => {
               const prefix = CATEGORY_PREFIX[cat];
-              const catFields = Object.entries(fields).filter(([k]) => k.startsWith(prefix));
+              const catFields = Object.entries(fields).filter(([k, f]) => {
+                if (!k.startsWith(prefix)) return false;
+                if (fieldFilter === "remaining") return f.status === "pending";
+                if (fieldFilter === "flagged") return f.status === "corrected" || f.status === "removed";
+                return true;
+              });
 
               // Medications: group fields by drug ID into visual containers
               if (cat === "med") {
@@ -1108,7 +1078,7 @@ export default function Review() {
 
                 return (
                   <section key={cat}>
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 mb-2 px-1">
+                    <h3 className="text-base font-semibold text-slate-800 mb-2 px-1">
                       {CATEGORY_DISPLAY[cat]}
                     </h3>
                     <div className="space-y-2">
@@ -1118,19 +1088,19 @@ export default function Review() {
                         const otherFields = drugFields.filter(([k]) => !k.endsWith(".name"));
                         const isMentionOnly = otherFields.length === 0;
                         return (
-                          <div key={medId} className={`rounded-lg border overflow-hidden bg-white ${isMentionOnly ? "border-slate-200" : "border-green-100"}`}>
+                          <div key={medId} className="rounded-lg border border-slate-200 overflow-hidden bg-white">
                             {/* Name row */}
                             {nameEntry && (
                               <div
                                 ref={(el) => { cardRefs.current[nameEntry[0]] = el; }}
                                 onMouseEnter={() => handleActivate(nameEntry[0])}
                                 onMouseLeave={handleDeactivate}
-                                className={otherFields.length > 0 ? "border-b border-green-100" : ""}
+                                className={otherFields.length > 0 ? "border-b border-slate-200" : ""}
                               >
                                 <FieldEditor
                                   allowEdit={!isHosted}
                                   key={`${currentRevisionId ?? "rev"}-${nameEntry[0]}`}
-                                  label="name"
+                                  label={displayFieldName("name")}
                                   value={nameEntry[1].value}
                                   originalValue={nameEntry[1].originalValue}
                                   status={nameEntry[1].status}
@@ -1146,7 +1116,7 @@ export default function Review() {
                             )}
                             {/* Dose / route / frequency — indented */}
                             {otherFields.length > 0 && (
-                              <div className="pl-3 border-l-2 border-green-200 ml-2 divide-y divide-green-50">
+                              <div className="pl-3 border-l-2 border-slate-200 ml-2 divide-y divide-slate-100">
                                 {otherFields.map(([k, f]) => (
                                   <div
                                     key={k}
@@ -1157,7 +1127,7 @@ export default function Review() {
                                     <FieldEditor
                                   allowEdit={!isHosted}
                                       key={`${currentRevisionId ?? "rev"}-${k}`}
-                                      label={k.split(".")[2]}
+                                      label={displayFieldName(k.split(".")[2] || k)}
                                       value={f.value}
                                       originalValue={f.originalValue}
                                       status={f.status}
@@ -1179,8 +1149,8 @@ export default function Review() {
                             {/* Mention-only strip */}
                             {isMentionOnly && (
                               <div className="px-3 py-1 flex items-center gap-1.5 bg-slate-50 border-t border-slate-100">
-                                <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">mention only</span>
-                                <span className="text-[9px] text-slate-300">— no dose or sig captured</span>
+                                <span className="text-xs font-medium text-slate-600">Mention only</span>
+                                <span className="text-xs text-slate-500">No dose or directions were extracted.</span>
                               </div>
                             )}
                           </div>
@@ -1200,7 +1170,7 @@ export default function Review() {
 
               return (
                 <section key={cat}>
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 mb-2 px-1">
+                  <h3 className="text-base font-semibold text-slate-800 mb-2 px-1">
                     {CATEGORY_DISPLAY[cat]}
                   </h3>
                   <div className="space-y-1.5">
@@ -1214,7 +1184,7 @@ export default function Review() {
                         <FieldEditor
                                   allowEdit={!isHosted}
                           key={`${currentRevisionId ?? "rev"}-${k}`}
-                          label={k.replace(prefix, "").replace(/^\d+\./, "")}
+                          label={displayFieldName(k.replace(prefix, "").replace(/^\d+\./, ""))}
                           value={f.value}
                           originalValue={f.originalValue}
                           status={f.status}
@@ -1242,7 +1212,7 @@ export default function Review() {
 
           {/* Category Completeness Acknowledgments Bar */}
           <div className="border-t border-slate-200 px-4 py-2 bg-slate-100 flex items-center justify-between flex-shrink-0 text-xs">
-            <span className="font-semibold text-slate-700">Category Completeness:</span>
+            <span className="font-semibold text-slate-700">Before finishing</span>
             <div className="flex items-center gap-4">
               {(["metadata", "vitals", "medications", "instructions"] as const).map((cat) => (
                 <label key={cat} className="flex items-center gap-1.5 cursor-pointer text-slate-700 select-none">
@@ -1263,11 +1233,11 @@ export default function Review() {
           {/* Footer */}
           <div className="border-t border-slate-200 px-4 py-2.5 bg-white flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-1.5 text-[11px] bg-slate-50 border border-slate-100 rounded-md px-3 py-1">
-              <span className="text-amber-600 font-medium">{correctedCount} corrected</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-green-600 font-medium">{acceptedCount} accepted</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-slate-400">{pendingCount} pending</span>
+              <span className="text-slate-700">{correctedCount} edited</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-slate-700">{acceptedCount} accepted</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-slate-700">{pendingCount} not checked</span>
             </div>
             <div className="flex items-center gap-2">
               {error && <p className="text-red-500 text-xs mr-2">{error}</p>}
@@ -1323,14 +1293,14 @@ export default function Review() {
                     disabled={saving || saved}
                     className="px-4 py-1.5 border border-green-200 text-green-700 bg-green-50 rounded-md text-sm font-medium hover:bg-green-100 disabled:opacity-50"
                   >
-                    Accept all
+                    Accept remaining
                   </button>
                   <button
                     onClick={() => handleSave("corrected")}
                     disabled={saving || !hasCorrected || saved}
-                    className="px-4 py-1.5 bg-blue-600 text-white rounded-md text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-1.5 bg-cyan-800 text-white rounded-md text-sm font-semibold hover:bg-cyan-900 disabled:opacity-50"
                   >
-                    {saving ? "Saving..." : "Save corrections"}
+                    {saving ? "Saving..." : "Save review"}
                   </button>
                 </>
               )}

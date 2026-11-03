@@ -184,6 +184,6 @@ describe("DocumentSourceViewer", () => {
     // Automatically navigated to Page 2 because med_2 is on page 2
     expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
     expect(screen.getByTestId("missing-geometry-alert")).toBeInTheDocument();
-    expect(screen.getByText(/Geometry unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText(/No image highlight is available/i)).toBeInTheDocument();
   });
 });

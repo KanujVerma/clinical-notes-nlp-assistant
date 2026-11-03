@@ -17,10 +17,10 @@ The canonical demonstration is a local build plus the recorded synthetic walkthr
 1. Paste a synthetic note, load the built-in sample, seed demo notes, or upload TXT, PDF, or a typed image. OCR uses Tesseract for scanned/printed inputs.
 2. The deterministic extractor identifies metadata, vitals, medication mentions and instructions, retaining source-linked field information where available.
 3. Review each extracted field, accept/edit/remove it, and save. The keyboard-oriented interface supports repeated inspection and correction.
-4. Browse the queue and review history. The Metrics view summarizes reviewer corrections and activity within the current browser workspace.
+4. Browse the review queue and history. Review activity summarizes corrections in the current browser workspace. Validation Lab and Test evidence stay separate from that review history.
 5. Optionally inspect a local-dictionary explanation of a medication or abbreviation. An external AI terminology explanation is a separate, on-demand feature when configured; it is **not** the extraction engine.
 
-| Upload | Review | Metrics |
+| Add note | Review note | Review activity |
 |:---:|:---:|:---:|
 | ![Upload page](docs/screenshots/upload.png) | ![Review page](docs/screenshots/review.png) | ![Metrics page](docs/screenshots/metrics.png) |
 
